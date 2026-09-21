@@ -13,13 +13,12 @@ import { useLogoutMutation } from '../../../features/auth/model/authSlice'
 import { routes } from '../../../shared/lib/routes'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { selectIsPlatformAdmin, selectUser } from '../../../entities/user/model/selectors'
+import { selectUser } from '../../../entities/user/model/selectors'
 import { Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui/avatar'
 
 export function UserMenu() {
   const { t } = useTranslation()
   const user = useSelector(selectUser)
-  const isPlatformAdmin = useSelector(selectIsPlatformAdmin)
   const [logout] = useLogoutMutation()
 
   const handleLogout = async () => {
@@ -68,14 +67,12 @@ export function UserMenu() {
             {t('header.settings')}
           </Link>
         </DropdownMenuItem>
-        {isPlatformAdmin && (
-          <DropdownMenuItem asChild>
-            <Link to={routes.admin.list()} className="flex items-center gap-2">
-              <ShieldPlus className="h-4 w-4" />
-              {t('header.admin-panel')}
-            </Link>
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem asChild>
+          <Link to={routes.admin.list()} className="flex items-center gap-2">
+            <ShieldPlus className="h-4 w-4" />
+            {t('header.admin-panel')}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleLogout}
