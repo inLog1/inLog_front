@@ -1,5 +1,14 @@
 import type { AdminPanelNode, AdminPanelNodeTab } from "../../../entities/admin/model/types"
 
+export const getTopmostNodeId = (nodes: AdminPanelNode[]): number | null => {
+    if (!nodes.length) return null
+
+    const ids = new Set(nodes.map((node) => node.id))
+    const roots = nodes.filter((node) => node.parent === null || !ids.has(node.parent))
+
+    return roots[0]?.id ?? nodes[0].id
+}
+
 export const getSelectedEntities = (
     prevSelected: AdminPanelNode[],
     entity: AdminPanelNode

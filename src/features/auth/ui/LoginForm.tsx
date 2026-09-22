@@ -159,7 +159,7 @@ export function LoginForm({ onSuccess }: LoginFormProps = {}) {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {t('loading')}
+                {t('buttons.loading')}
               </>
             ) : (
               t('auth.sign-in')

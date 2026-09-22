@@ -28,6 +28,7 @@ import { AdminOrganizationsPage } from '../../pages/admin/admin-organizations'
 import { AdminProjectsPage } from '../../pages/admin/admin-projects'
 import { AdminTasksPage } from '../../pages/admin/admin-tasks'
 import NotificationsPage from '../../pages/dashboard/notifications'
+import { AdminRoute } from './AdminRoute'
 
 export function AppRouter() {
   return (
@@ -52,15 +53,17 @@ export function AppRouter() {
               <Route path={routes.scheduler.statuses()} element={<div>Statuses</div>} />
               <Route path={routes.scheduler.roadmap()} element={<div>Roadmap</div>} />
             </Route>
-            <Route path={routes.admin.list()} element={<AdminPage />}>
-              <Route index element={<Navigate to={routes.admin.users()} replace />} />
-              <Route path={routes.admin.users()} element={<AdminUsersPage />} />
-              <Route path={routes.admin.members()} element={<AdminMembersPage />} />
-              <Route path={routes.admin.organizations()} element={<AdminOrganizationsPage />} />
-              <Route path={routes.admin.projects()} element={<AdminProjectsPage />} />
-              <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
-              <Route path={routes.admin.constructor()} element={<AdminConstructorPage />} />
-              <Route path={routes.admin.reports()} element={<AdminReportsPage />} />
+            <Route path={routes.admin.list()} element={<AdminRoute />}>
+              <Route element={<AdminPage />}>
+                <Route index element={<Navigate to={routes.admin.users()} replace />} />
+                <Route path={routes.admin.users()} element={<AdminUsersPage />} />
+                <Route path={routes.admin.members()} element={<AdminMembersPage />} />
+                <Route path={routes.admin.organizations()} element={<AdminOrganizationsPage />} />
+                <Route path={routes.admin.projects()} element={<AdminProjectsPage />} />
+                <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
+                <Route path={routes.admin.constructor()} element={<AdminConstructorPage />} />
+                <Route path={routes.admin.reports()} element={<AdminReportsPage />} />
+              </Route>
             </Route>
             <Route path={routes.settings.list()} element={<SettingsPage />}  >
               <Route index element={<Navigate to={routes.settings.profile()} replace />} />

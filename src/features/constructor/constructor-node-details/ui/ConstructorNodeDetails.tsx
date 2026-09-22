@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../../shared/ui/accordion"
 
-import { AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
+import { AlertCircle, RefreshCcw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { makeSelectAdminPanelNodes } from '../../../../entities/admin'
@@ -10,6 +11,7 @@ import type { AdminPanelGroup, AdminPanelNode } from '../../../../entities/admin
 import { Button } from '../../../../shared/ui/button'
 import ConstructorNodeProvider from '../model/ConstructorNodeContext'
 import ConstructorNodeConnections from './ConstructorNodeConnections'
+import ConstructorNodeDetailsSkeleton from './ConstructorNodeDetailsSkeleton'
 import ConstructorTableWrapper from './ConstructorTableWrapper'
 import ConstructorTabs from './ConstructorTabs'
 
@@ -59,9 +61,9 @@ const ConstructorNodeDetails = (props: Props) => {
 
     const nodes = useSelector(makeSelectAdminPanelNodes(organizationId!))
 
-    const { data: currentNode, isLoading, isError } = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
+    const { data: currentNode, isLoading, isFetching, isError } = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
 
-    const { data: groups } = useGetAdminPanelGroupsQuery({
+    const { data: groups, isLoading: isGroupsLoading, isFetching: isGroupsFetching } = useGetAdminPanelGroupsQuery({
         group: nodeId,
         organizationId: organizationId,
     }, {
@@ -72,13 +74,23 @@ const ConstructorNodeDetails = (props: Props) => {
         updateNode(node)
     }
 
-    if (isLoading) {
-        return (
-            <div className="h-full flex flex-col gap-4 items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t('common.loading')}
-            </div>
-        )
+    const [readyNodeId, setReadyNodeId] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (currentNode?.id === nodeId && !isFetching && !isGroupsFetching) {
+            setReadyNodeId(nodeId)
+        }
+    }, [currentNode?.id, nodeId, isFetching, isGroupsFetching])
+
+    const showSkeleton =
+        readyNodeId !== nodeId ||
+        isLoading ||
+        isGroupsLoading ||
+        !currentNode ||
+        currentNode.id !== nodeId
+
+    if (showSkeleton) {
+        return <ConstructorNodeDetailsSkeleton />
     }
     if (isError) {
         return (

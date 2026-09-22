@@ -38,7 +38,7 @@ interface Props {
 const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) => {
     const { t } = useTranslation()
 
-    const tableCoumns = (groups || []).map((group: AdminPanelGroup) => ({
+    const tableCoumns = useMemo(() => (groups || []).map((group: AdminPanelGroup) => ({
         key: group.id.toString(),
         title: {
             en: group.name_en,
@@ -47,7 +47,7 @@ const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) =>
         inputType: group.type,
         dropdownOptions: group.dropdown_choices,
         width: 100,
-    }))
+    })), [groups])
 
     const [addAdminPanelGroupMutation] = useAddAdminPanelGroupMutation()
     const [updateAdminPanelRow] = useUpdateAdminPanelRowMutation()
@@ -186,29 +186,26 @@ const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) =>
     const tableRows = useMemo(() => {
         if (!tableRowsData) return []
 
-        if (tableRowsData) {
-            const keys = Object.keys(tableRowsData)
-            const rowsItems: DataItem[] = []
-            keys.forEach((key) => {
-                const targetColumn = tableCoumns?.find(column => column.title?.en === key || column?.title?.ru === key)
-                const responseKeyValues = tableRowsData[key]
-                if (targetColumn && targetColumn?.key) {
-                    if (Array.isArray(responseKeyValues) && responseKeyValues.length > 0) {
-                        responseKeyValues.forEach((item, keyIndex) => {
-                            if (!rowsItems[keyIndex]) {
-                                rowsItems[keyIndex] = {
-                                    key:''
-                                }
-                            }
-                            rowsItems[keyIndex][targetColumn.key] = item.value
-                            rowsItems[keyIndex].key = item?.id?.toString() || ''
-                        })
-                    }
-                }
+        const rowsById = new Map<string, DataItem>()
+
+        Object.entries(tableRowsData).forEach(([fieldName, responseKeyValues]) => {
+            const targetColumn = tableCoumns.find(
+                (column) => column.title?.en === fieldName || column.title?.ru === fieldName
+            )
+            if (!targetColumn?.key || !Array.isArray(responseKeyValues)) return
+
+            responseKeyValues.forEach((item) => {
+                const rowKey = item?.id != null ? String(item.id) : ''
+                if (!rowKey) return
+
+                const existing = rowsById.get(rowKey) ?? { key: rowKey }
+                existing[targetColumn.key] = item.value
+                rowsById.set(rowKey, existing)
             })
-           return rowsItems
-        }
-    }, [tableRowsData])
+        })
+
+        return Array.from(rowsById.values())
+    }, [tableRowsData, tableCoumns])
 
     return (
         <div >

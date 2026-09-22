@@ -115,6 +115,7 @@ const ConstructorTabs = ({ node, addTab, updateTab, deleteTab }: Props) => {
             id: selectedTab.id!,
             name_en: formData.en,
             name_ru: formData.ru,
+            // related_structure_elements: selectedTab.related_structure_elements || [],
         })
         handleCloseModals()
     }

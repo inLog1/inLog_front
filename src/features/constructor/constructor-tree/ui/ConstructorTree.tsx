@@ -39,7 +39,7 @@ interface Props {
 const ConstructorTree = ({
     nodes = [],
     mode = 'single',
-    // selectedIds = [],
+    selectedIds = [],
     onSelect,
     onEdit,
     onDelete,
@@ -279,6 +279,11 @@ const ConstructorTree = ({
             }, 0)
         }
     }, [forceUpdateKey, tree, allExpanded, expandAllNodes])
+
+    useEffect(() => {
+        if (!selectedIds.length) return
+        tree.setSelectedItems(selectedIds.map(String))
+    }, [selectedIds, forceUpdateKey, tree])
 
     const hasFolders = useMemo(() => {
         return currentNodes.some(node =>

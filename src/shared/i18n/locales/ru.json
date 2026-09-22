@@ -263,7 +263,8 @@
         "previous": "Предыдущая",
         "next": "Следующая",
         "close": "Закрыть",
-        "reset": "Сбросить"
+        "reset": "Сбросить",
+        "loading": "Загрузка..."
     },
     "errors": {
         "email-not-found": "Email не найден",
@@ -358,7 +359,9 @@
         "create-project": "Создать проект",
         "organizations": "Организации",
         "no-projects-in-organization": "Нет проектов в организации",
-        "select-project-first": "Выберите проект"
+        "select-project-first": "Выберите проект",
+        "need-organization-and-project": "Чтобы работать с задачами, сначала создайте организацию и проект",
+        "need-project": "В выбранной организации пока нет проектов"
     },
 
     "settings-page": {

@@ -1,79 +1,46 @@
-import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
-import { useGetOrganizationsQuery } from '../../../entities/organization/model/organizationSlice'
-import { useGetProjectsQuery } from '../../../entities/project/model/projectSlice'
+import { routes } from '../../../shared/lib/routes'
+import { Button } from '../../../shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
+import { type OrgProjectSelectorType, useEnsureOrgProjectParams } from '../model/useEnsureOrgProjectParams'
 
 interface Props {
-    type?: 'all' | 'organization' | 'project'
+    type?: OrgProjectSelectorType
 }
 
 const OrgProjectSelector = ({
     type = 'all',
 }: Props) => {
     const { t } = useTranslation()
-    // const [_orgOpen, setOrgOpen] = useState(false)
-    // const [_projOpen, setProjOpen] = useState(false)
+    const {
+        organizations,
+        projects,
+        orgsLoading,
+        projectsLoading,
+        currentOrgId,
+        currentProjectId,
+        searchParams,
+        setSearchParams,
+    } = useEnsureOrgProjectParams(type)
 
-    const [searchParams, setSearchParams] = useSearchParams()
-    const [currentOrgId, setCurrentOrgId] = useState<number | null>(Number(searchParams.get('org')) || null)
-    const [currentProjectId, setCurrentProjectId] = useState<number | null>(Number(searchParams.get('project')) || null)
-
-    const { data: organizations = [], isLoading: orgsLoading } = useGetOrganizationsQuery()
-
-    const { data: projects = [], isLoading: projectsLoading } = useGetProjectsQuery(
-        { organization: currentOrgId! },
-        { skip: !currentOrgId }
-    )
-
-    const [_addOrgLoading, _setAddOrgLoading] = useState(false)
-    const [_addProjLoading, _setAddProjLoading] = useState(false)
-
-    // const orgSchema = z.object({
-    //     fullName: z.string().min(1, t('fields.enter-full-name')),
-    //     shortName: z.string().min(1, t('fields.enter-short-name')),
-    //     address: z.string().min(1, t('fields.enter-address')),
-    // })
-
-    // const projectSchema = z.object({
-    //     name: z.string().min(1, t('fields.enter-project-name')),
-    // })
-
-    useEffect(() => {
-        const orgParam = searchParams.get('org')
-        const projectParam = searchParams.get('project')
-
-        if (orgParam && Number(orgParam)) {
-            setCurrentOrgId(Number(orgParam))
-        }
-
-        if (projectParam && Number(projectParam)) {
-            setCurrentProjectId(Number(projectParam))
-        }
-    }, [searchParams])
-
-    useEffect(() => {
+    const handleOrgChange = (value: string) => {
         const params = new URLSearchParams(searchParams)
-
-        if (currentOrgId) {
-            params.set('org', currentOrgId.toString())
-        } else {
-            params.delete('org')
-        }
-
-        if (currentProjectId) {
-            params.set('project', currentProjectId.toString())
-        } else {
-            params.delete('project')
-        }
-
+        params.set('org', value)
+        params.delete('project')
+        params.delete('task')
         setSearchParams(params, { replace: true })
-    }, [currentOrgId, currentProjectId, searchParams, setSearchParams])
+    }
 
-    // Форма организации
+    const handleProjectChange = (value: string) => {
+        const params = new URLSearchParams(searchParams)
+        params.set('project', value)
+        params.delete('task')
+        setSearchParams(params, { replace: true })
+    }
+
     if (orgsLoading || projectsLoading) {
         return (
             <div className="flex items-center justify-center py-4">
@@ -84,7 +51,6 @@ const OrgProjectSelector = ({
 
     return (
         <div className="space-y-6 px-4 py-4 bg-card rounded-lg border border-border">
-            {/* Организация */}
             {(type === 'all' || type === 'organization') && (
                 <div>
                     <div className="flex items-center justify-between mb-2">
@@ -94,17 +60,21 @@ const OrgProjectSelector = ({
                     </div>
 
                     {organizations.length === 0 ? (
-                        <div className="text-sm text-muted-foreground py-2">
-                            {t('scheduler-page.no-organizations-yet')}
+                        <div className="space-y-3 py-2">
+                            <p className="text-sm text-muted-foreground">
+                                {t('scheduler-page.no-organizations-yet')}
+                            </p>
+                            <Button asChild variant="outline" size="sm" className="w-full">
+                                <Link to={routes.settings.organizationsAndProjects()}>
+                                    <Plus className="h-4 w-4" />
+                                    {t('scheduler-page.create-first-organization')}
+                                </Link>
+                            </Button>
                         </div>
                     ) : (
                         <Select
                             value={currentOrgId?.toString() || ''}
-                            onValueChange={(value) => {
-                                const id = Number(value)
-                                setCurrentOrgId(id)
-                                setCurrentProjectId(null) // сбрасываем проект
-                            }}
+                            onValueChange={handleOrgChange}
                         >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder={t('scheduler-page.select-organization-first')} />
@@ -121,7 +91,6 @@ const OrgProjectSelector = ({
                 </div>
             )}
 
-            {/* Проект */}
             {(type === 'all' || type === 'project') && (
                 <div>
                     <div className="flex items-center justify-between mb-2">
@@ -131,13 +100,25 @@ const OrgProjectSelector = ({
                     </div>
 
                     {projects.length === 0 ? (
-                        <div className="text-sm text-muted-foreground py-2">
-                            {t('scheduler-page.no-projects-in-organization')}
+                        <div className="space-y-3 py-2">
+                            <p className="text-sm text-muted-foreground">
+                                {currentOrgId
+                                    ? t('scheduler-page.no-projects-in-organization')
+                                    : t('scheduler-page.select-organization-first')}
+                            </p>
+                            {currentOrgId && (
+                                <Button asChild variant="outline" size="sm" className="w-full">
+                                    <Link to={routes.settings.organizationsAndProjects()}>
+                                        <Plus className="h-4 w-4" />
+                                        {t('settings-page.create-first-project')}
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <Select
                             value={currentProjectId?.toString() || ''}
-                            onValueChange={(value) => setCurrentProjectId(Number(value))}
+                            onValueChange={handleProjectChange}
                         >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder={t('scheduler-page.select-project-first')} />

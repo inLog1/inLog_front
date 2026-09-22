@@ -50,9 +50,10 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../shared/ui/table'
+import { createUniqueRowKey, uniqueRowsByKey } from '../model/unique-rows'
+import type { ColumnConfig } from '../model/types'
 import ConstructorTableEditingRow from './ConstructorTableEditingRow'
 import ConstructorTableFormDialog from './ConstructorTableFormDialog'
-import type { ColumnConfig } from '../model/types'
 
 export interface ColumnFormData {
   titleEn: string
@@ -163,15 +164,23 @@ const ConstructorTable = (props: Props) => {
 
         return newRow
       })
-      setRows(updatedData)
+      setRows(uniqueRowsByKey(updatedData))
     }
   }, [initialColumns, columns, rows, getDefaultValueForColumn])
 
   useEffect(() => {
-    if (initialRows) {
-      setRows(initialRows)
-    }
-  }, [initialRows])
+    if (!initialRows) return
+
+    setRows((prev) => {
+      const incoming = uniqueRowsByKey(initialRows)
+      const incomingKeys = new Set(incoming.map((row) => row.key))
+      const localDrafts = prev.filter(
+        (row) => Boolean(editingKey) && row.key === editingKey && !incomingKeys.has(row.key)
+      )
+
+      return uniqueRowsByKey([...incoming, ...localDrafts])
+    })
+  }, [initialRows, editingKey])
 
   useEffect(() => {
     if (onDataChange) {
@@ -221,7 +230,7 @@ const ConstructorTable = (props: Props) => {
       delete newRow[columnKey]
       return newRow
     })
-    setRows(updatedData)
+    setRows(uniqueRowsByKey(updatedData))
     onDelete?.(columnKey)
   }
 
@@ -322,7 +331,7 @@ const ConstructorTable = (props: Props) => {
           ...row,
           [newColumn.key]: getDefaultValueForColumn(newColumn.inputType)
         }))
-        setRows(updatedData)
+        setRows(uniqueRowsByKey(updatedData))
       }
 
       try {
@@ -429,14 +438,21 @@ const ConstructorTable = (props: Props) => {
   }
 
   const addRow = () => {
-    const newKey = Date.now().toString()
+    if (editingKey) return
+
+    const newKey = createUniqueRowKey(rows)
     const newRow: DataItem = { key: newKey }
 
     columns.forEach((col) => {
       newRow[col.key] = getDefaultValueForColumn(col.inputType)
     })
 
-    setRows([...rows, newRow])
+    setRows((prev) => {
+      if (prev.some((row) => row.key === newKey)) {
+        return prev
+      }
+      return uniqueRowsByKey([...prev, newRow])
+    })
     startEdit(newRow)
   }
 
@@ -700,7 +716,7 @@ const ConstructorTable = (props: Props) => {
                   <div className="flex flex-col items-center gap-2">
                     <FileSpreadsheet className="h-8 w-8 opacity-50" />
                     <span>{t('errors.no-data')}</span>
-                    <Button variant="outline" size="sm" onClick={addRow} disabled={columns.length === 0}>
+                    <Button variant="outline" size="sm" onClick={addRow} disabled={columns.length === 0 || !!editingKey}>
                       <Plus className="h-3 w-3 mr-1" />
                       {t('buttons.add-row')}
                     </Button>

@@ -1,12 +1,15 @@
 import { Tasks } from "../../../../../features/tasks"
 import { useState } from "react"
-import { Calendar, Kanban, LayoutList } from "lucide-react"
+import { Building2, Calendar, FolderOpen, Kanban, LayoutList, Plus } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "../../../../../shared/ui/tabs"
 import TasksKanban from "../../../../../features/tasks/tasks-kanban"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { cn } from "../../../../../shared/lib/utils"
 import { TasksRoadmap } from "../../../../../features/tasks/tasks-roadmap"
+import { useEnsureOrgProjectParams } from "../../../../../features/org-project-selector"
+import { Button } from "../../../../../shared/ui/button"
+import { routes } from "../../../../../shared/lib/routes"
 
 type ViewMode = "list" | "kanban" | "roadmap"
 
@@ -15,6 +18,34 @@ const TasksPage = () => {
     const [viewMode, setViewMode] = useState<ViewMode>("list")
     const [searchParams] = useSearchParams()
     const projectId = searchParams.get('project')
+    const { hasNoOrganizations, hasNoProjects } = useEnsureOrgProjectParams()
+
+    if (hasNoOrganizations || hasNoProjects) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="text-center max-w-md text-muted-foreground border border-border/50 rounded-lg p-10">
+                    {hasNoOrganizations ? (
+                        <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    ) : (
+                        <FolderOpen className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    )}
+                    <p className="mb-4">
+                        {hasNoOrganizations
+                            ? t('scheduler-page.need-organization-and-project')
+                            : t('scheduler-page.need-project')}
+                    </p>
+                    <Button asChild variant="outline">
+                        <Link to={routes.settings.organizationsAndProjects()}>
+                            <Plus className="h-4 w-4" />
+                            {hasNoOrganizations
+                                ? t('scheduler-page.create-first-organization')
+                                : t('settings-page.create-first-project')}
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-4 min-w-0">

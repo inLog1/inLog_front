@@ -267,7 +267,8 @@
         "previous": "Previous",
         "next": "Next",
         "close": "Close",
-        "reset": "Reset"
+        "reset": "Reset",
+        "loading": "Loading..."
     },
 
 
@@ -367,7 +368,9 @@
         "create-project": "Create project",
         "organizations": "Organizations",
         "no-projects-in-organization": "No projects in organization",
-        "select-project-first": "Select project first"
+        "select-project-first": "Select project first",
+        "need-organization-and-project": "To work with tasks, create an organization and a project first",
+        "need-project": "This organization has no projects yet"
     },
 
     "settings-page": {

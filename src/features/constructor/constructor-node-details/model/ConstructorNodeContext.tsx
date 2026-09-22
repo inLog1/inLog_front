@@ -68,6 +68,10 @@ export function ConstructorNodeProvider({
   }
 
   useEffect(() => {
+    setTableRowsData({})
+  }, [nodeId])
+
+  useEffect(() => {
     if (groups && groups.length > 0) {
         fetchTableRows()
     }
