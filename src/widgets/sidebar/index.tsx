@@ -21,7 +21,7 @@ import { useTheme } from 'next-themes'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { selectIsPlatformAdmin, selectUser, selectUserFullName } from '../../entities/user/model/selectors'
+import { selectIsPlatformAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../../shared/ui/button'
@@ -46,6 +46,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const isPlatformAdmin = useSelector(selectIsPlatformAdmin)
   const user = useSelector(selectUser)
   const userName = useSelector(selectUserFullName) || user?.email
+  const userRole = useSelector(selectUserRole)
+  const roleLabel = userRole
+    ? t(`admin-page.platform-roles.${userRole}`, { defaultValue: userRole })
+    : null
 
   const isPlatform = isPlatformConsolePath(location.pathname)
 
@@ -150,7 +154,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
       <div className="border-t border-shell-line p-3">
         <div className="flex items-center gap-2">
           <UserMenu />
-          <span className="min-w-0 flex-1 truncate text-sm text-shell-foreground">{userName}</span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm leading-tight text-shell-foreground">{userName}</div>
+            {roleLabel && (
+              <div className="mt-0.5 truncate text-xs leading-tight text-shell-muted">{roleLabel}</div>
+            )}
+          </div>
           <ThemeMenu />
         </div>
       </div>
