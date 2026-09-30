@@ -1,37 +1,10 @@
 import { Outlet } from "react-router-dom"
-import RootPageLayout from "../../../widgets/root-page-layout"
-import { useTranslation } from "react-i18next"
-
-interface NavItem {
-    label: string
-    href?: string
-    onClick?: () => void
-}
 
 const SettingsPage = () => {
-    const { t } = useTranslation()
-
-    const navItems: NavItem[] = [
-        {
-            label: t('settings-page.profile'),
-            href: '/settings/profile',
-        },
-        {
-            label: t('settings-page.organizations-and-projects'),
-            href: '/settings/organizations-and-projects',
-        },
-        {
-            label: t('settings-page.notifications'),
-            href: '/settings/notifications',
-        },
-    ]
-
     return (
-        <RootPageLayout navItems={navItems}>
-            <div className="h-full">
-                <Outlet />
-            </div>
-        </RootPageLayout>
+        <div className="h-[calc(100vh-64px-8px)] w-full min-w-0 overflow-auto p-4">
+            <Outlet />
+        </div>
     )
 }
 

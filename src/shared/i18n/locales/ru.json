@@ -309,7 +309,12 @@
         "light-mode": "Светлый режим",
         "dark-mode": "Темный режим",
         "system-mode": "Системный режим",
-        "log-out": "Выйти"
+        "log-out": "Выйти",
+        "organizations-and-projects": "Организации и проекты",
+        "platform-console": "Админка платформы",
+        "user-area": "Пользовательская часть",
+        "collapse": "Скрыть сайдбар",
+        "expand": "Показать сайдбар"
     },
 
 
@@ -374,6 +379,8 @@
         "new-project": "Новый проект",
         "new-organization": "Новая организация",
         "select-organization-first": "Выберите организацию",
+        "empty-organizations-hint": "Сначала создайте организацию. Проекты появятся внутри неё.",
+        "empty-projects-hint": "В этой организации пока нет проектов.",
         "create-first-project": "Создать первый проект",
         "create-organization": "Создать организацию",
         "create-project": "Создать проект",
@@ -576,6 +583,7 @@
             "joined": "Добавлен"
         },
         "organizations": "Организации",
+        "owner": "Владелец",
         "organizations-description": "Все организации в системе независимо от участников.",
         "search-organizations": "Поиск по названию организации",
         "projects": "Проекты",

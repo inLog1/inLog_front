@@ -80,6 +80,24 @@
   --gantt-bar-progress: #2563eb;
   --gantt-bar-label: #ffffff;
   --gantt-link-stroke: #9ca3af;
+
+  /* Пользовательская часть: синие оттенки */
+  --shell-bg: #364f6b;
+  --shell-fg: #ffffff;
+  --shell-muted: rgb(255 255 255 / 0.72);
+  --shell-line: rgb(255 255 255 / 0.1);
+  --shell-subtle: rgb(255 255 255 / 0.1);
+  --shell-subtle-hover: rgb(255 255 255 / 0.18);
+  --shell-accent: #0e86d4;
+  --shell-accent-fg: #ffffff;
+  --shell-header: color-mix(in srgb, #0e86d4 16%, white);
+  --shell-header-fg: #1e3a5f;
+  --shell-header-border: color-mix(in srgb, #1e3a5f 12%, transparent);
+  --shell-chip: color-mix(in srgb, #0e86d4 14%, white);
+  --shell-chip-hover: color-mix(in srgb, #0e86d4 22%, white);
+  --shell-chip-fg: #1e3a5f;
+  --shell-chip-icon: #0b7ec4;
+  --shell-divider: rgb(30 58 95 / 0.15);
 }
 
 /* Тёмная тема (если планируешь добавить dark mode позже — подстрой) */
@@ -150,6 +168,47 @@
   --calendar-selected-text: var(--primary-foreground);
   --calendar-today: var(--accent);
   --calendar-range-bg: oklch(0.72 0.14 190 / 0.15);
+
+  --shell-header: color-mix(in srgb, #364f6b 48%, var(--card));
+  --shell-header-fg: oklch(0.92 0.01 220);
+  --shell-header-border: rgb(255 255 255 / 0.1);
+  --shell-chip: color-mix(in srgb, #0e86d4 24%, transparent);
+  --shell-chip-hover: color-mix(in srgb, #0e86d4 34%, transparent);
+  --shell-chip-fg: oklch(0.92 0.01 220);
+  --shell-chip-icon: #7ec8f5;
+  --shell-divider: rgb(255 255 255 / 0.16);
+}
+
+/* Админка платформы: коричневый и оранжевый */
+[data-shell='platform'] {
+  --shell-bg: #6b3a2a;
+  --shell-fg: #ffffff;
+  --shell-muted: #f6e2c4;
+  --shell-line: rgb(255 255 255 / 0.12);
+  --shell-subtle: rgb(255 255 255 / 0.15);
+  --shell-subtle-hover: rgb(255 255 255 / 0.25);
+  --shell-accent: #f59e0b;
+  --shell-accent-fg: #ffffff;
+  --shell-header: color-mix(in srgb, #6b3a2a 18%, #fff6f1);
+  --shell-header-fg: #5c3024;
+  --shell-header-border: color-mix(in srgb, #6b3a2a 22%, transparent);
+  --shell-chip: color-mix(in srgb, #f59e0b 20%, white);
+  --shell-chip-hover: color-mix(in srgb, #f59e0b 32%, white);
+  --shell-chip-fg: #5c3024;
+  --shell-chip-icon: #d97706;
+  --shell-divider: rgb(92 48 36 / 0.16);
+}
+
+.dark[data-shell='platform'],
+.dark [data-shell='platform'] {
+  --shell-header: color-mix(in srgb, #6b3a2a 46%, var(--card));
+  --shell-header-fg: #f6efe8;
+  --shell-header-border: rgb(245 158 11 / 0.28);
+  --shell-chip: color-mix(in srgb, #f59e0b 22%, transparent);
+  --shell-chip-hover: color-mix(in srgb, #f59e0b 32%, transparent);
+  --shell-chip-fg: #f6efe8;
+  --shell-chip-icon: #fbbf24;
+  --shell-divider: rgb(246 239 232 / 0.16);
 }
 
 /* Экспорт в Tailwind как утилиты (через @theme inline) */
@@ -176,6 +235,22 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
 
+  --color-shell: var(--shell-bg);
+  --color-shell-foreground: var(--shell-fg);
+  --color-shell-muted: var(--shell-muted);
+  --color-shell-line: var(--shell-line);
+  --color-shell-subtle: var(--shell-subtle);
+  --color-shell-subtle-hover: var(--shell-subtle-hover);
+  --color-shell-accent: var(--shell-accent);
+  --color-shell-accent-foreground: var(--shell-accent-fg);
+  --color-shell-header: var(--shell-header);
+  --color-shell-header-foreground: var(--shell-header-fg);
+  --color-shell-header-border: var(--shell-header-border);
+  --color-shell-chip: var(--shell-chip);
+  --color-shell-chip-hover: var(--shell-chip-hover);
+  --color-shell-chip-foreground: var(--shell-chip-fg);
+  --color-shell-chip-icon: var(--shell-chip-icon);
+  --color-shell-divider: var(--shell-divider);
 }
 
 @keyframes accordion-down {
@@ -206,6 +281,51 @@
 
 .animate-accordion-up {
   animation: accordion-up 0.2s ease-out;
+}
+
+.app-header {
+  background: var(--shell-header);
+  border-bottom: 1px solid var(--shell-header-border);
+  color: var(--shell-header-fg);
+}
+
+/* Ширина совпадает с w-60. min-width: 0 нужен, чтобы flex не держал панель по контенту. */
+.sidebar-shell {
+  width: 15rem;
+  min-width: 0;
+  transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-shell[data-collapsed='true'] {
+  width: 0;
+}
+
+.sidebar-reveal {
+  width: 2rem;
+  min-width: 0;
+  margin-right: 0.75rem;
+  opacity: 1;
+  transition:
+    width 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    margin-right 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 180ms ease 80ms;
+}
+
+.sidebar-reveal[data-collapsed='false'] {
+  width: 0;
+  margin-right: 0;
+  opacity: 0;
+  transition:
+    width 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    margin-right 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-shell,
+  .sidebar-reveal {
+    transition: none;
+  }
 }
 
 
@@ -270,5 +390,19 @@
 
 .dark .overflow-auto::-webkit-scrollbar-thumb {
   background: #4b5563;
+}
+
+@layer base {
+  a[href],
+  button:not(:disabled),
+  summary,
+  label[for],
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  [role="tab"]:not([data-disabled]) {
+    cursor: pointer;
+  }
 }
 
