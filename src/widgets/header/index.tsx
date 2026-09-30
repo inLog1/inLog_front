@@ -90,10 +90,10 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
         <h1 className="truncate text-xl font-semibold tracking-tight text-shell-header-foreground">{getPageTitle()}</h1>
       </div>
 
-      <div className="flex items-center rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_0_0_1px_rgba(36,62,92,0.08)]">
+      <div className="flex items-center rounded-full border border-shell-toolbar-border bg-shell-toolbar p-1 text-shell-toolbar-foreground shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
         <LanguageSwitcher />
         <div className="mx-0.5 h-5 w-px bg-shell-divider" aria-hidden />
-        <NotificationsMenu triggerClassName="h-8 w-8 rounded-full text-shell-header-foreground hover:bg-shell-chip hover:text-shell-chip-foreground" />
+        <NotificationsMenu triggerClassName="h-8 w-8 rounded-full text-shell-toolbar-foreground hover:bg-shell-chip hover:text-shell-chip-foreground" />
       </div>
     </header>
   )

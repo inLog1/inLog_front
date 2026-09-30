@@ -98,6 +98,9 @@
   --shell-chip-fg: #1e3a5f;
   --shell-chip-icon: #0b7ec4;
   --shell-divider: rgb(30 58 95 / 0.15);
+  --shell-toolbar: #ffffff;
+  --shell-toolbar-fg: #1e3a5f;
+  --shell-toolbar-border: rgb(30 58 95 / 0.12);
 }
 
 /* Тёмная тема (если планируешь добавить dark mode позже — подстрой) */
@@ -172,11 +175,14 @@
   --shell-header: color-mix(in srgb, #364f6b 48%, var(--card));
   --shell-header-fg: oklch(0.92 0.01 220);
   --shell-header-border: rgb(255 255 255 / 0.1);
-  --shell-chip: color-mix(in srgb, #0e86d4 24%, transparent);
-  --shell-chip-hover: color-mix(in srgb, #0e86d4 34%, transparent);
-  --shell-chip-fg: oklch(0.92 0.01 220);
-  --shell-chip-icon: #7ec8f5;
-  --shell-divider: rgb(255 255 255 / 0.16);
+  --shell-chip: color-mix(in srgb, #0e86d4 42%, #152033);
+  --shell-chip-hover: color-mix(in srgb, #0e86d4 55%, #152033);
+  --shell-chip-fg: #f4f8fc;
+  --shell-chip-icon: #9fd4fb;
+  --shell-divider: rgb(255 255 255 / 0.22);
+  --shell-toolbar: color-mix(in srgb, white 18%, var(--card));
+  --shell-toolbar-fg: #f4f8fc;
+  --shell-toolbar-border: rgb(255 255 255 / 0.28);
 }
 
 /* Админка платформы: коричневый и оранжевый */
@@ -197,6 +203,9 @@
   --shell-chip-fg: #5c3024;
   --shell-chip-icon: #d97706;
   --shell-divider: rgb(92 48 36 / 0.16);
+  --shell-toolbar: #ffffff;
+  --shell-toolbar-fg: #5c3024;
+  --shell-toolbar-border: rgb(92 48 36 / 0.14);
 }
 
 .dark[data-shell='platform'],
@@ -204,11 +213,14 @@
   --shell-header: color-mix(in srgb, #6b3a2a 46%, var(--card));
   --shell-header-fg: #f6efe8;
   --shell-header-border: rgb(245 158 11 / 0.28);
-  --shell-chip: color-mix(in srgb, #f59e0b 22%, transparent);
-  --shell-chip-hover: color-mix(in srgb, #f59e0b 32%, transparent);
-  --shell-chip-fg: #f6efe8;
-  --shell-chip-icon: #fbbf24;
-  --shell-divider: rgb(246 239 232 / 0.16);
+  --shell-chip: color-mix(in srgb, #f59e0b 46%, #2a1c16);
+  --shell-chip-hover: color-mix(in srgb, #f59e0b 58%, #2a1c16);
+  --shell-chip-fg: #fff7ed;
+  --shell-chip-icon: #fdba74;
+  --shell-divider: rgb(255 247 237 / 0.28);
+  --shell-toolbar: color-mix(in srgb, #f59e0b 20%, var(--card));
+  --shell-toolbar-fg: #fff7ed;
+  --shell-toolbar-border: rgb(245 158 11 / 0.55);
 }
 
 /* Экспорт в Tailwind как утилиты (через @theme inline) */
@@ -251,6 +263,9 @@
   --color-shell-chip-foreground: var(--shell-chip-fg);
   --color-shell-chip-icon: var(--shell-chip-icon);
   --color-shell-divider: var(--shell-divider);
+  --color-shell-toolbar: var(--shell-toolbar);
+  --color-shell-toolbar-foreground: var(--shell-toolbar-fg);
+  --color-shell-toolbar-border: var(--shell-toolbar-border);
 }
 
 @keyframes accordion-down {
