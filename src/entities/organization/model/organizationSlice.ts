@@ -19,6 +19,7 @@ export const organizationApi = createApi({
                 shortName: el?.short_name,
                 address: el?.address,
                 id: el?.id,
+                role: el?.role ?? null,
               })) as Organization[]
             },
             async onQueryStarted(_, { queryFulfilled }) {

@@ -64,9 +64,9 @@ const OrgProjectSelector = ({
                             <p className="text-sm text-muted-foreground">
                                 {t('scheduler-page.no-organizations-yet')}
                             </p>
-                            <Button asChild variant="outline" size="sm" className="w-full">
+                            <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
                                 <Link to={routes.settings.organizationsAndProjects()}>
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-4 w-4 shrink-0" />
                                     {t('scheduler-page.create-first-organization')}
                                 </Link>
                             </Button>
@@ -107,9 +107,9 @@ const OrgProjectSelector = ({
                                     : t('scheduler-page.select-organization-first')}
                             </p>
                             {currentOrgId && (
-                                <Button asChild variant="outline" size="sm" className="w-full">
+                                <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
                                     <Link to={routes.settings.organizationsAndProjects()}>
-                                        <Plus className="h-4 w-4" />
+                                        <Plus className="h-4 w-4 shrink-0" />
                                         {t('settings-page.create-first-project')}
                                     </Link>
                                 </Button>

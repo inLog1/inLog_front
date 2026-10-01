@@ -45,6 +45,7 @@ export const routes = {
       members: () => '/admin/members',
       organizations: () => '/admin/organizations',
       projects: () => '/admin/projects',
+      organizationsAndProjects: () => '/admin/organizations-and-projects',
       tasks: () => '/admin/tasks',
       constructor: () => '/admin/constructor',
       reports: () => '/admin/reports',
@@ -64,6 +65,22 @@ export const routes = {
     // 404
     notFound: () => '*',
   } as const;
+
+  const platformConsolePaths = [
+    routes.admin.users(),
+    routes.admin.members(),
+    routes.admin.organizations(),
+    routes.admin.projects(),
+    routes.admin.organizationsAndProjects(),
+    routes.admin.tasks(),
+  ]
+
+  export function isPlatformConsolePath(pathname: string) {
+    if (pathname === routes.admin.list()) return true
+    return platformConsolePaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
+  }
   
   // Тип для автодополнения (опционально, но очень полезно)
   export type RouteKeys = typeof routes;

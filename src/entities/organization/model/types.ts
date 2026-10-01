@@ -3,4 +3,5 @@ export interface Organization {
     shortName?:string
     address?:string
     id:number
+    role?: string | null
 }

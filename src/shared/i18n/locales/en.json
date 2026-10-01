@@ -318,7 +318,12 @@
         "light-mode": "Light mode",
         "dark-mode": "Dark mode",
         "system-mode": "System mode",
-        "log-out": "Log out"
+        "log-out": "Log out",
+        "organizations-and-projects": "Organizations and projects",
+        "platform-console": "Platform admin",
+        "user-area": "User area",
+        "collapse": "Hide sidebar",
+        "expand": "Show sidebar"
     },
 
 
@@ -383,6 +388,8 @@
         "new-project": "New project",
         "new-organization": "New organization", 
         "select-organization-first": "Select organization first",
+        "empty-organizations-hint": "Create an organization first. Projects live inside it.",
+        "empty-projects-hint": "This organization has no projects yet.",
         "create-first-project": "Create first project",
         "create-organization": "Create organization",
         "create-project": "Create project",
@@ -584,6 +591,7 @@
             "joined": "Joined"
         },
         "organizations": "Organizations",
+        "owner": "Owner",
         "organizations-description": "All organizations in the system regardless of membership.",
         "search-organizations": "Search by organization name",
         "projects": "Projects",

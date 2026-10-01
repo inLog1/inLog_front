@@ -27,13 +27,26 @@ const RootPageLayout = ({
         return location.pathname.includes(href)
     }
 
+    const showOrgSelector =
+      location.pathname.includes(routes.scheduler.list()) ||
+      location.pathname.includes(routes.admin.constructor()) ||
+      location.pathname.includes(routes.admin.reports())
+
+    if (navItems.length === 0 && !showOrgSelector) {
+      return (
+        <div className="h-[calc(100vh-64px-8px)] w-full min-w-0 p-4">
+          {children}
+        </div>
+      )
+    }
+
   return (
     <div className="h-[calc(100vh-64px-8px)] w-full">
       <ResizablePanelGroup orientation="horizontal" className="h-full">
-        <ResizablePanel 
-          defaultSize={15} 
-          minSize={15}
-
+        <ResizablePanel
+          defaultSize="28%"
+          minSize="300px"
+          maxSize="40%"
         >
           <nav className="h-full p-4 border-r border-border ">
             {
@@ -59,7 +72,7 @@ const RootPageLayout = ({
                   to={item.href ?? ''} 
                   onClick={item.onClick} 
                   className={cn(
-                    "flex items-center gap-2 p-2 rounded-lg w-full transition-all duration-300 hover:bg-accent/50",
+                    "flex cursor-pointer items-center gap-2 p-2 rounded-lg w-full transition-all duration-300 hover:bg-accent/50",
                     isActive(item.href ?? '') && 'bg-accent text-accent-foreground'
                   )}
                 >
@@ -73,7 +86,7 @@ const RootPageLayout = ({
 
         <ResizableHandle withHandle />
 
-        <ResizablePanel defaultSize={85} className="min-w-0">
+        <ResizablePanel defaultSize="72%" minSize="60%" className="min-w-0">
           <div className="h-full p-4 pr-0 pl-1 min-w-0">
             <div className="h-[calc(100vh-64px-16px-8px)] pr-0 mr-4 min-w-0">
               {children}

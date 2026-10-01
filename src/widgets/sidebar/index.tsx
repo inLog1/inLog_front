@@ -1,21 +1,28 @@
 import {
+  ArrowLeft,
+  ArrowRight,
+  CheckSquare,
   FolderKanban,
+  Folders,
   LayoutDashboard,
-  LogOut,
   Monitor,
   Moon,
+  PanelLeftClose,
+  PieChart,
   Settings,
   ShieldPlus,
   Sun,
-  TowerControl
+  TowerControl,
+  UserCheck,
+  Users,
+  Wrench,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useTranslation } from 'react-i18next'
-import { useDispatch, useSelector } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { userApi } from '../../entities/user/model/userSlice'
-import { routes } from '../../shared/lib/routes'
+import { selectIsPlatformAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
+import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../../shared/ui/button'
 import {
@@ -25,172 +32,172 @@ import {
   DropdownMenuTrigger,
 } from '../../shared/ui/dropdown-menu'
 import { LogoIcon } from '../../shared/ui/icons/LogoIcon'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '../../shared/ui/tooltip'
-import { useCallback } from 'react'
-import { selectIsPlatformAdmin } from '../../entities/user/model/selectors'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../shared/ui/tooltip'
+import { UserMenu } from '../header/ui/UserMenu'
 
+interface SidebarProps {
+  onCollapse: () => void
+}
 
-export function Sidebar() {
+export function Sidebar({ onCollapse }: SidebarProps) {
   const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
-  const dispatch = useDispatch()
   const isPlatformAdmin = useSelector(selectIsPlatformAdmin)
+  const user = useSelector(selectUser)
+  const userName = useSelector(selectUserFullName) || user?.email
+  const userRole = useSelector(selectUserRole)
+  const roleLabel = userRole
+    ? t(`admin-page.platform-roles.${userRole}`, { defaultValue: userRole })
+    : null
 
-  const handleLogout = async () => {
-    try {
-      localStorage.clear()
-      dispatch(userApi.util.resetApiState());
-      toast.success(t('notice-list.log-out-success'))
-      navigate(routes.login())
-    } catch {
-      toast.error(t('errors.error-logout'))
-    }
-  }
+  const isPlatform = isPlatformConsolePath(location.pathname)
 
-  const getIsActive = useCallback((path: string) => {
-    if (path.includes(routes.scheduler.list())) {
-      return location.pathname.includes(routes.scheduler.list())
-    }
-    if (path.includes(routes.admin.list())) {
-      return location.pathname.includes(routes.admin.list())
-    }
-    if (path.includes(routes.settings.list())) {
-      return location.pathname.includes(routes.settings.list())
-    }
-    if (path.includes(routes.geoMechanics.list())) {
-      return location.pathname.includes(routes.geoMechanics.list())
-    }
-    return location.pathname === path
-  },[location.pathname])
+  const clientItems = [
+    { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true },
+    { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench, end: false },
+    { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false },
+    { label: t('sidebar.organizations-and-projects'), href: routes.settings.organizationsAndProjects(), icon: Folders, end: false },
+    { label: t('sidebar.scheduler'), href: routes.scheduler.list(), icon: FolderKanban, end: false },
+    { label: t('sidebar.geo-mechanics'), href: routes.geoMechanics.list(), icon: TowerControl, end: false },
+    { label: t('sidebar.settings'), href: routes.settings.notifications(), icon: Settings, end: false },
+  ]
 
-  const getLinkClassName = (path: string) => {
-    return cn(`p-2 h-9 w-9 flex items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ${getIsActive(path) ? 'bg-accent' : ''}`)
-  }
+  const platformItems = [
+    { label: t('admin-page.users'), href: routes.admin.users(), icon: Users },
+    { label: t('admin-page.members'), href: routes.admin.members(), icon: UserCheck },
+    { label: t('sidebar.organizations-and-projects'), href: routes.admin.organizationsAndProjects(), icon: Folders },
+    { label: t('admin-page.tasks'), href: routes.admin.tasks(), icon: CheckSquare },
+  ]
+
+  const itemClass = (active: boolean) =>
+    cn(
+      'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle',
+      active && 'bg-shell-accent text-shell-accent-foreground hover:bg-shell-accent',
+    )
 
   return (
-    <TooltipProvider>
-      <aside className="w-16 bg-[#364f6b] border-r border-border flex flex-col h-screen sticky top-0 overflow-hidden">
-        <div className="p-2 border-b border-border flex justify-center">
-          <h1 className="text-xl font-bold text-primary">
-            <LogoIcon className="text-white" />
-          </h1>
+    <aside className="relative flex h-full w-60 min-w-60 flex-col bg-shell text-shell-foreground">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t('sidebar.collapse')}
+            aria-controls="app-sidebar"
+            aria-expanded
+            className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-shell-subtle text-shell-foreground transition-colors hover:bg-shell-subtle-hover"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">{t('sidebar.collapse')}</TooltipContent>
+      </Tooltip>
+
+      <div className="border-b border-shell-line px-3 py-3">
+        <div className="flex items-center gap-2 px-1">
+          <LogoIcon className="h-8 w-8 shrink-0 text-shell-foreground" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-none">inLog</div>
+            {isPlatformAdmin && (
+              <div className="mt-1 text-xs leading-tight text-shell-muted">
+                {isPlatform ? t('sidebar.platform-console') : t('sidebar.user-area')}
+              </div>
+            )}
+          </div>
         </div>
 
-        <nav className="flex-1 flex flex-col items-center py-6 space-y-6">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <NavLink
-                to={routes.dashboard()}
-                className={getLinkClassName(routes.dashboard())}
-              >
-                <LayoutDashboard className={`h-7 w-7 text-white`} />
-              </NavLink>
-            </TooltipTrigger>
-            <TooltipContent side="right">{t('sidebar.dashboard')}</TooltipContent>
-          </Tooltip>
+        {isPlatformAdmin && (
+          <button
+            type="button"
+            onClick={() => navigate(isPlatform ? routes.dashboard() : routes.admin.list())}
+            className="mt-3 flex w-full cursor-pointer items-center gap-2 rounded-lg bg-shell-subtle px-3 py-2 text-left text-sm hover:bg-shell-subtle-hover"
+          >
+            {isPlatform ? (
+              <ArrowLeft className="h-4 w-4 shrink-0" />
+            ) : (
+              <ShieldPlus className="h-4 w-4 shrink-0" />
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              {isPlatform ? t('sidebar.user-area') : t('sidebar.platform-console')}
+            </span>
+            {!isPlatform && <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />}
+          </button>
+        )}
+      </div>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
+        {isPlatform
+          ? platformItems.map((item) => (
               <NavLink
-                to={routes.scheduler.list()}
-                className={getLinkClassName(routes.scheduler.list())}
+                key={item.href}
+                to={item.href}
+                className={({ isActive }) => itemClass(isActive)}
               >
-                <FolderKanban className="h-7 w-7 text-white" />
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="leading-tight">{item.label}</span>
               </NavLink>
-            </TooltipTrigger>
-            <TooltipContent side="right">{t('sidebar.scheduler')}</TooltipContent>
-          </Tooltip>
+            ))
+          : clientItems.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                end={item.end}
+                className={({ isActive }) => itemClass(isActive)}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="leading-tight">{item.label}</span>
+              </NavLink>
+            ))}
+      </nav>
 
-          {isPlatformAdmin && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <NavLink
-                  to={routes.admin.list()}
-                  className={getLinkClassName(routes.admin.list())}
-                >
-                  <ShieldPlus className="h-7 w-7 text-white" />
-                </NavLink>
-              </TooltipTrigger>
-              <TooltipContent side="right">{t('sidebar.admin-panel')}</TooltipContent>
-            </Tooltip>
+      <div className="border-t border-shell-line p-3">
+        <div className="flex items-center gap-2">
+          <UserMenu />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm leading-tight text-shell-foreground">{userName}</div>
+            {roleLabel && (
+              <div className="mt-0.5 truncate text-xs leading-tight text-shell-muted">{roleLabel}</div>
+            )}
+          </div>
+          <ThemeMenu />
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function ThemeMenu() {
+  const { t } = useTranslation()
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground">
+          {theme === 'dark' ? (
+            <Moon className="h-4 w-4" />
+          ) : theme === 'light' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Monitor className="h-4 w-4" />
           )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <NavLink
-                to={routes.settings.list()}
-                className={getLinkClassName(routes.settings.list())}
-              >
-                <Settings className="h-9 w-9 text-white" />
-              </NavLink>
-            </TooltipTrigger>
-            <TooltipContent side="right">{t('sidebar.settings')}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <NavLink
-                to={routes.geoMechanics.list()}
-                className={getLinkClassName(routes.geoMechanics.list())}
-              >
-                <TowerControl className="h-9 w-9 text-white" />
-              </NavLink>
-            </TooltipTrigger>
-            <TooltipContent side="right">{t('sidebar.geo-mechanics')}</TooltipContent>
-          </Tooltip>
-        </nav>
-
-        <div className="p-4 border-t border-border flex flex-col items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="cursor-pointer p-2 h-9 w-9 flex items-center justify-center rounded-lg">
-                {theme === 'dark' ? (
-                  <Moon className="h-7 w-7 text-white" />
-                ) : theme === 'light' ? (
-                  <Sun className="h-7 w-7 text-white" />
-                ) : (
-                  <Monitor className="h-7 w-7" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme('light')}>
-                <Sun className="h-4 w-4 mr-2 text-white" />
-                {t('sidebar.light-mode')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')}>
-                <Moon className="h-4 w-4 mr-2 text-white" />
-                {t('sidebar.dark-mode')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('system')}>
-                <Monitor className="h-4 w-4 mr-2 text-white" />
-                {t('sidebar.system-mode')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive hover:bg-accent rounded-lg cursor-pointer p-2 h-7 w-7 flex items-center justify-center"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-7 w-7 text-white" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{t('sidebar.log-out')}</TooltipContent>
-          </Tooltip>
-        </div>
-      </aside>
-    </TooltipProvider>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="top">
+        <DropdownMenuItem onClick={() => setTheme('light')}>
+          <Sun className="h-4 w-4" />
+          {t('sidebar.light-mode')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('dark')}>
+          <Moon className="h-4 w-4" />
+          {t('sidebar.dark-mode')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('system')}>
+          <Monitor className="h-4 w-4" />
+          {t('sidebar.system-mode')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

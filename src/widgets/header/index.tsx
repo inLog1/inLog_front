@@ -1,26 +1,57 @@
+import { ChevronDown, Languages, PanelLeftOpen } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../shared/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../shared/ui/dropdown-menu'
-import { NotificationsMenu } from './ui/NotificationsMenu'
-import { UserMenu } from './ui/UserMenu'
+import { useLocation } from 'react-router-dom'
 import { useUpdateUserSettingsMutation } from '../../entities/user/model/userSlice'
 import { errorsHandler } from '../../shared/lib/errors-handler'
+import { cn } from '../../shared/lib/utils'
 import type { LanguageType } from '../../shared/types/enums'
+import { Button } from '../../shared/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../shared/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../shared/ui/tooltip'
+import { NotificationsMenu } from './ui/NotificationsMenu'
 
-export function Header() {
+interface HeaderProps {
+  sidebarCollapsed: boolean
+  onExpandSidebar: () => void
+}
+
+export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
   const { t } = useTranslation()
+  const location = useLocation()
+  const expandRef = useRef<HTMLButtonElement>(null)
+  const wasCollapsed = useRef(sidebarCollapsed)
+
+  useEffect(() => {
+    if (sidebarCollapsed && !wasCollapsed.current) {
+      expandRef.current?.focus({ preventScroll: true })
+    }
+    wasCollapsed.current = sidebarCollapsed
+  }, [sidebarCollapsed])
 
   const getPageTitle = () => {
-    const pathname = window.location.pathname
+    const pathname = location.pathname
 
     if (pathname.includes('scheduler')) {
       return t('scheduler-page.title')
     }
+    if (pathname.includes('organizations-and-projects')) {
+      return t('sidebar.organizations-and-projects')
+    }
+    if (pathname.includes('/settings/profile')) {
+      return t('header.profile')
+    }
     if (pathname.includes('settings')) {
       return t('settings-page.title')
     }
+    if (pathname.includes('constructor')) {
+      return t('admin-page.constructor')
+    }
+    if (pathname.includes('reports')) {
+      return t('admin-page.reports')
+    }
     if (pathname.includes('admin')) {
-      return t('admin-page.admin-panel')
+      return t('sidebar.platform-console')
     }
     if (pathname.includes('geo-mechanics')) {
       return t('geo-mechanics-page.geo-mechanics')
@@ -30,15 +61,39 @@ export function Header() {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
+    <header className="app-header sticky top-0 z-30 flex h-16 items-center justify-between px-6">
+      <div className="flex min-w-0 items-center">
+        <div
+          data-collapsed={sidebarCollapsed ? 'true' : 'false'}
+          inert={!sidebarCollapsed}
+          className="sidebar-reveal overflow-hidden"
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                ref={expandRef}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-shell-header-foreground hover:bg-white/70 hover:text-shell-header-foreground focus-visible:ring-inset"
+                aria-label={t('sidebar.expand')}
+                aria-controls="app-sidebar"
+                aria-expanded={false}
+                onClick={onExpandSidebar}
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t('sidebar.expand')}</TooltipContent>
+          </Tooltip>
+        </div>
+        <h1 className="truncate text-xl font-semibold tracking-tight text-shell-header-foreground">{getPageTitle()}</h1>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center rounded-full border border-shell-toolbar-border bg-shell-toolbar p-1 text-shell-toolbar-foreground shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
         <LanguageSwitcher />
-        <NotificationsMenu />
-        <UserMenu />
+        <div className="mx-0.5 h-5 w-px bg-shell-divider" aria-hidden />
+        <NotificationsMenu triggerClassName="h-8 w-8 rounded-full text-shell-toolbar-foreground hover:bg-shell-chip hover:text-shell-chip-foreground" />
       </div>
     </header>
   )
@@ -61,11 +116,30 @@ function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">{currentLanguage}</Button>
+        <Button
+          variant="ghost"
+          className="h-8 gap-1.5 rounded-full bg-shell-chip px-2.5 text-sm font-semibold text-shell-chip-foreground shadow-none hover:bg-shell-chip-hover hover:text-shell-chip-foreground"
+        >
+          <Languages className="text-shell-chip-icon" />
+          {currentLanguage}
+          <ChevronDown className="opacity-50" />
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem className={currentLanguage === 'RU' ? 'bg-accent' : ''} onClick={() => changeLanguage('ru')}>RU</DropdownMenuItem>
-        <DropdownMenuItem className={currentLanguage === 'EN' ? 'bg-accent' : ''} onClick={() => changeLanguage('en')}>EN</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="min-w-[160px]">
+        <DropdownMenuItem
+          className={cn(currentLanguage === 'RU' && 'bg-shell-chip font-medium text-shell-chip-foreground focus:bg-shell-chip-hover focus:text-shell-chip-foreground')}
+          onClick={() => changeLanguage('ru')}
+        >
+          <span className="w-7 text-xs font-semibold tracking-wide">RU</span>
+          Русский
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={cn(currentLanguage === 'EN' && 'bg-shell-chip font-medium text-shell-chip-foreground focus:bg-shell-chip-hover focus:text-shell-chip-foreground')}
+          onClick={() => changeLanguage('en')}
+        >
+          <span className="w-7 text-xs font-semibold tracking-wide">EN</span>
+          English
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

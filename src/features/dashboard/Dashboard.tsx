@@ -78,12 +78,12 @@ function QuickLinkCard({
     to: string
   }) {
     return (
-      <Button asChild variant="outline" className="h-auto py-6 px-6 flex flex-col items-start gap-2 hover:bg-primary/5">
+      <Button asChild variant="outline" className="h-auto py-6 px-6 flex flex-col items-start gap-2 text-foreground hover:bg-primary/5 hover:text-foreground">
         <Link to={to}>
           <div className="text-primary">{icon}</div>
-          <div className="font-medium">{title}</div>
+          <div className="font-medium text-foreground">{title}</div>
           <p className="text-sm text-muted-foreground">{description}</p>
-          <ChevronRight className="h-4 w-4 mt-2" />
+          <ChevronRight className="h-4 w-4 mt-2 text-muted-foreground" />
         </Link>
       </Button>
     )

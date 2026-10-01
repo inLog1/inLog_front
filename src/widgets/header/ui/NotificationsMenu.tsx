@@ -27,7 +27,11 @@ import type { Notification as NotificationItem } from '../../../entities/notific
 const PREVIEW_SKELETON_COUNT = 3
 const PREVIEW_LIMIT = 8
 
-export function NotificationsMenu() {
+interface NotificationsMenuProps {
+  triggerClassName?: string
+}
+
+export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps = {}) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
@@ -105,7 +109,7 @@ export function NotificationsMenu() {
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
+              className={cn('relative', triggerClassName)}
               aria-label={t('header.notifications')}
             >
               <Bell className="h-5 w-5" />

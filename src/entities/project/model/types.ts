@@ -1,6 +1,8 @@
 export interface Project {
     id: number
     name: string
+    organization?: number
+    role?: string | null
     reservoir: string
     company_customer: string
     contractor: string
