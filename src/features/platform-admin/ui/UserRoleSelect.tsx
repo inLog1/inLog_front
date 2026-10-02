@@ -8,6 +8,7 @@ import {
 } from '../../../shared/ui/select'
 import {
   ASSIGNABLE_PLATFORM_ROLES,
+  isAssignablePlatformRole,
   isSuperAdmin,
   type PlatformRole,
 } from '../../../shared/types/platform-role'
@@ -24,7 +25,7 @@ export function UserRoleSelect({ role, canManage, disabled, onChange }: UserRole
   const { t } = useTranslation()
   const isSuperAdminRole = role === 'super_admin'
 
-  if (!canManage || isSuperAdminRole) {
+  if (!canManage || !isAssignablePlatformRole(role)) {
     return <PlatformRoleBadge role={role} showSuperAdminHint={isSuperAdminRole} />
   }
 

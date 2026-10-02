@@ -286,7 +286,6 @@
         "error-loading-user": "Произошла ошибка при загрузке пользователя",
         "error-loading-organizations": "Произошла ошибка при загрузке организаций",
         "error-loading-projects": "Произошла ошибка при загрузке проектов",
-        "error-loading-token": "Произошла ошибка при загрузке токена",
         "you-dont-have-supervisor": "У вас нет наблюдателя",
         "no-task-selected": "Задача не выбрана",
         "task-not-found": "Задача не найдена",
@@ -653,7 +652,8 @@
         "platform-roles": {
             "member": "Участник",
             "admin": "Админ",
-            "super_admin": "Супер админ"
+            "super_admin": "Супер админ",
+            "security_admin": "Админ безопасности"
         },
         "users-table": {
             "email": "Email",
@@ -666,6 +666,23 @@
             "no": "Нет"
         },
         "constructor": "Конструктор",
+        "catalog": "Каталог таблиц",
+        "catalog-search": "Поиск по названию или модели",
+        "catalog-show-critical": "Служебные таблицы",
+        "catalog-count": "{{count}} таблиц",
+        "catalog-empty": "Ничего не найдено",
+        "catalog-pick": "Выберите таблицу слева",
+        "catalog-rows-hint": "Строки этой таблицы запрашиваются отдельно",
+        "catalog-rows-empty": "В этой таблице нет записей",
+        "catalog-rows-failed": "Не удалось загрузить строки",
+        "catalog-search-rows": "Поиск по записям",
+        "catalog-endpoint": "Запрос строк",
+        "catalog-filters": "Фильтры",
+        "catalog-no-filters": "Без фильтров",
+        "catalog-columns": "{{count}} колонок",
+        "catalog-choices": "{{count}} вариантов",
+        "catalog-read-only-field": "только чтение",
+        "catalog-loading-failed": "Не удалось загрузить каталог",
         "reports": "Отчеты",
         "edit-node": "Редактировать узел",
         "delete-node": "Удалить узел",

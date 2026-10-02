@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 import type { AppDispatch } from '../../../app/store/store'
-import { ACCESS_TOKEN } from '../../../shared/config/constants'
+import { useAccessToken } from '../../../shared/api/auth-session'
 import { notificationApi } from './notificationSlice'
 import type { Notification } from './types'
 import { getNotificationsWsUrl } from '../lib/get-notifications-ws-url'
@@ -10,24 +10,17 @@ const RECONNECT_DELAY_MS = 5000
 
 export function useNotificationsWebSocket(enabled = true) {
   const dispatch = useDispatch<AppDispatch>()
+  const token = useAccessToken()
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !token) return
 
-    const tokenRaw = localStorage.getItem(ACCESS_TOKEN)
-    if (!tokenRaw) return
-
-    let token: string
-    try {
-      token = JSON.parse(tokenRaw) as string
-    } catch {
-      return
-    }
+    let cancelled = false
 
     const connect = () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) return
+      if (cancelled || wsRef.current?.readyState === WebSocket.OPEN) return
 
       const ws = new WebSocket(getNotificationsWsUrl(token))
       wsRef.current = ws
@@ -55,7 +48,9 @@ export function useNotificationsWebSocket(enabled = true) {
 
       ws.onclose = () => {
         wsRef.current = null
-        reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS)
+        if (!cancelled) {
+          reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS)
+        }
       }
 
       ws.onerror = () => {
@@ -66,6 +61,7 @@ export function useNotificationsWebSocket(enabled = true) {
     connect()
 
     return () => {
+      cancelled = true
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
@@ -73,5 +69,5 @@ export function useNotificationsWebSocket(enabled = true) {
       wsRef.current?.close()
       wsRef.current = null
     }
-  }, [dispatch, enabled])
+  }, [dispatch, enabled, token])
 }

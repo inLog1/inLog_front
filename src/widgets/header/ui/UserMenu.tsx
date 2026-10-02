@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../shared/ui/dropdown-menu'
 import { useLogoutMutation } from '../../../features/auth/model/authSlice'
+import { beginLogout, clearAuthSession } from '../../../shared/api/auth-session'
 import { routes } from '../../../shared/lib/routes'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -22,13 +23,16 @@ export function UserMenu() {
   const [logout] = useLogoutMutation()
 
   const handleLogout = async () => {
+    beginLogout()
     try {
       await logout().unwrap()
-      localStorage.clear()
       toast.success(t('notice-list.log-out-success'))
-      window.location.href = routes.login()
     } catch {
       toast.error(t('errors.error-logout'))
+    } finally {
+      clearAuthSession()
+      localStorage.clear()
+      window.location.href = routes.login()
     }
   }
 

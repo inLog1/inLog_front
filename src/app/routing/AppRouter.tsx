@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import AdminPage from '../../pages/admin'
+import { AdminCatalogPage } from '../../pages/admin/admin-catalog'
 import { AdminConstructorPage } from '../../pages/admin/admin-constructor'
 import CheckEmailPage from '../../pages/auth/check-email'
 import EmailConfirmationPage from '../../pages/auth/email-confirmation'
@@ -18,7 +20,7 @@ import TemplatesPage from '../../pages/dashboard/scheduler/templates'
 import SettingsPage from '../../pages/dashboard/settings'
 import OrganizationsAndProjectsPage from '../../pages/dashboard/settings/ogranizations-and-projects'
 import ProfilePage from '../../pages/dashboard/settings/profile'
-import { ACCESS_TOKEN } from '../../shared/config/constants'
+import { bootstrapAuth, isLoggingOut, useAuthStatus } from '../../shared/api/auth-session'
 import { routes } from '../../shared/lib/routes'
 import { RootLayout } from '../../widgets/root-layout'
 import { AdminReportsPage } from '../../pages/admin/admin-reports'
@@ -53,7 +55,6 @@ export function AppRouter() {
               <Route path={routes.scheduler.roadmap()} element={<div>Roadmap</div>} />
             </Route>
             <Route element={<AdminPage />}>
-              <Route path={routes.admin.constructor()} element={<AdminConstructorPage />} />
               <Route path={routes.admin.reports()} element={<AdminReportsPage />} />
             </Route>
             <Route path={routes.admin.list()} element={<AdminRoute />}>
@@ -65,6 +66,8 @@ export function AppRouter() {
                 <Route path={routes.admin.organizations()} element={<Navigate to={routes.admin.organizationsAndProjects()} replace />} />
                 <Route path={routes.admin.projects()} element={<Navigate to={routes.admin.organizationsAndProjects()} replace />} />
                 <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
+                <Route path={routes.admin.constructor()} element={<AdminConstructorPage />} />
+                <Route path={routes.admin.catalog()} element={<AdminCatalogPage />} />
               </Route>
             </Route>
             <Route path={routes.settings.profile()} element={<ProfilePage />} />
@@ -84,17 +87,27 @@ export function AppRouter() {
 }
 
 const ProtectedRoute = () => {
-  const token = localStorage.getItem(ACCESS_TOKEN)
-  const isAuth = !!token
+  const status = useAuthStatus()
   const { t } = useTranslation()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isAuth) {
-      toast.error(t('errors.session-expired'))
-      navigate(routes.login())
-    }
-  }, [isAuth])
+    void bootstrapAuth()
+  }, [])
 
-  return isAuth ? <Outlet /> : null
+  useEffect(() => {
+    if (status !== 'anonymous' || isLoggingOut()) return
+    toast.error(t('errors.session-expired'))
+    navigate(routes.login())
+  }, [navigate, status, t])
+
+  if (status !== 'authenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  return <Outlet />
 }

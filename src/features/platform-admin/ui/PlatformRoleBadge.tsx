@@ -13,6 +13,7 @@ const roleStyles: Record<PlatformRole, string> = {
   member: 'bg-muted text-muted-foreground border-transparent',
   admin: 'bg-primary/15 text-primary border-primary/20',
   super_admin: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  security_admin: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
 }
 
 interface PlatformRoleBadgeProps {

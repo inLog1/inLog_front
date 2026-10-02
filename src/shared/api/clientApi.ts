@@ -1,47 +1,63 @@
-import { fetchBaseQuery } from "@reduxjs/toolkit/query"
-import { ACCESS_TOKEN } from "../config/constants"
-import { routes } from "../lib/routes"
-import { toast } from "sonner"
-import { t } from "i18next"
+import { fetchBaseQuery, type FetchArgs } from '@reduxjs/toolkit/query'
+import { ensureCsrfToken, getAccessToken, redirectToLogin, refreshAccessToken } from './auth-session'
 
-export const baseQueryStart = fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/',
-    credentials: 'include',
-    prepareHeaders: (headers) => {
-      const tokenRaw = localStorage.getItem(ACCESS_TOKEN)
-      const token = tokenRaw ? JSON.parse(tokenRaw) : null
+const baseQueryStart = fetchBaseQuery({
+  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/',
+  credentials: 'include',
+  prepareHeaders: (headers) => {
+    const token = getAccessToken()
 
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`)
-      }
-
-      return headers
-    },
-  })
-
-  let isRedirecting = false
-
-  export const baseQuery: typeof baseQueryStart = async (
-    args,
-    api,
-    extraOptions
-  ) => {
-    const result = await baseQueryStart(args, api, extraOptions)
-  
-    if (result.error && result.error.status === 401) {
-
-      console.log(result.error,'--result.error')
-  
-      if (!isRedirecting) {
-        isRedirecting = true
-  
-        localStorage.removeItem(ACCESS_TOKEN)
-
-        toast.error(t('errors.session-expired'))
-  
-        window.location.replace(routes.login())
-      }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
     }
-  
-    return result
+
+    return headers
+  },
+})
+
+function requestUrl(args: string | FetchArgs) {
+  return typeof args === 'string' ? args : args.url
+}
+
+function withCsrfHeader(args: string | FetchArgs, token: string): FetchArgs {
+  const request = typeof args === 'string' ? { url: args } : args
+  const headers = new Headers(request.headers as HeadersInit | undefined)
+  headers.set('X-CSRFToken', token)
+  return { ...request, headers }
+}
+
+function needsCsrfHeader(url: string) {
+  return url.includes('auth/login/') || url.includes('auth/logout/')
+}
+
+async function attachCsrfHeader(args: string | FetchArgs) {
+  if (!needsCsrfHeader(requestUrl(args))) return args
+  const csrfToken = await ensureCsrfToken()
+  return csrfToken ? withCsrfHeader(args, csrfToken) : args
+}
+
+function shouldRefreshAfterUnauthorized(url: string) {
+  return !['auth/login/', 'auth/token/refresh/', 'auth/registration/'].some((path) =>
+    url.includes(path)
+  )
+}
+
+export const baseQuery: typeof baseQueryStart = async (args, api, extraOptions) => {
+  let result = await baseQueryStart(await attachCsrfHeader(args), api, extraOptions)
+
+  if (result.error?.status !== 401) return result
+
+  const url = requestUrl(args)
+  if (!shouldRefreshAfterUnauthorized(url)) return result
+
+  const outcome = await refreshAccessToken()
+  if (outcome === 'ok') {
+    result = await baseQueryStart(await attachCsrfHeader(args), api, extraOptions)
   }
+
+  if (result.error?.status === 401 && outcome !== 'unavailable') {
+    redirectToLogin()
+  }
+
+  return result
+}

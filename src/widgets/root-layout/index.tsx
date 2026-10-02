@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { useVerifyTokenMutation } from '../../features/auth/model/authSlice'
-import { ACCESS_TOKEN } from '../../shared/config/constants'
+import { useAccessToken } from '../../shared/api/auth-session'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
+import { isPlatformAdmin, isSuperAdmin } from '../../shared/types/platform-role'
 import { Header } from '../header'
 import { Sidebar } from '../sidebar'
 import { useGetMeQuery } from '../../entities/user/model/userSlice'
@@ -31,7 +31,7 @@ export function RootLayout() {
   useLayoutEffect(() => {
     document.documentElement.dataset.shell = shell
   }, [shell])
-  const [verifyToken] = useVerifyTokenMutation()
+  const accessToken = useAccessToken()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed)
 
   useEffect(() => {
@@ -65,20 +65,19 @@ export function RootLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const fetchVerifyToken = async (token: string) => {
-    try {
-       await verifyToken({ token }).unwrap()
-    } catch (error) {
-        toast.error(t('errors.error-loading-token'))
-        localStorage.removeItem(ACCESS_TOKEN)
-        navigate(routes.login())
-    }
-  }
-
   const { data: user, isLoading: isUserLoading, error: userError} = useGetMeQuery(undefined, {
-    skip: !localStorage.getItem(ACCESS_TOKEN),
+    skip: !accessToken,
     refetchOnMountOrArgChange: true,
   })
+
+  const lockedToAdmin =
+    !!user && isPlatformAdmin(user.role) && !isSuperAdmin(user.role) && shell !== 'platform'
+
+  useEffect(() => {
+    if (lockedToAdmin) {
+      navigate(routes.admin.list(), { replace: true })
+    }
+  }, [lockedToAdmin, navigate])
 
   const isAuth = !!user
 
@@ -93,16 +92,8 @@ export function RootLayout() {
     { skip: !isAuth || !firstOrgId }
   )
 
-  useEffect(() => {
-    const token = localStorage.getItem(ACCESS_TOKEN)
-    if(token) {
-      fetchVerifyToken(JSON.parse(token))
-    }
-  }, [])
-
   const verifyAndRedirect = useCallback(() => {
-    const token = localStorage.getItem(ACCESS_TOKEN)
-    if (isUserLoading || isOrgsLoading || isProjectsLoading || !token) return
+    if (isUserLoading || isOrgsLoading || isProjectsLoading || !accessToken) return
 
     if (userError) {
       toast.error(t('errors.error-loading-user'))
@@ -110,13 +101,13 @@ export function RootLayout() {
       return
     }
 
-  }, [isUserLoading, isOrgsLoading, isProjectsLoading, userError, organizations, projects, navigate])
+  }, [accessToken, isUserLoading, isOrgsLoading, isProjectsLoading, userError, organizations, projects, navigate])
 
   useEffect(() => {
     verifyAndRedirect()
   }, [verifyAndRedirect])
 
-  if (isUserLoading || isOrgsLoading || isProjectsLoading) {
+  if (isUserLoading || isOrgsLoading || isProjectsLoading || lockedToAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

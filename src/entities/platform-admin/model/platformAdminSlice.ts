@@ -3,6 +3,7 @@ import { baseQuery } from '../../../shared/api/clientApi'
 import { errorsHandler } from '../../../shared/lib/errors-handler'
 import type {
   AdminAccess,
+  AdminResource,
   AdminMember,
   AdminOrganization,
   AdminProject,
@@ -22,6 +23,7 @@ export const platformAdminApi = createApi({
   tagTypes: [
     'AdminUsers',
     'AdminAccess',
+    'AdminResources',
     'AdminTasks',
     'AdminTaskStatuses',
     'AdminTaskTags',
@@ -40,6 +42,26 @@ export const platformAdminApi = createApi({
           errorsHandler((error as { error?: unknown })?.error)
         }
       },
+    }),
+    getAdminResources: builder.query<AdminResource[], void>({
+      query: () => 'admin/resources/',
+      providesTags: ['AdminResources'],
+      async onQueryStarted(_, { queryFulfilled }) {
+        try {
+          await queryFulfilled
+        } catch (error: unknown) {
+          errorsHandler((error as { error?: unknown })?.error)
+        }
+      },
+    }),
+    getAdminTableRows: builder.query<
+      PaginatedResponse<Record<string, unknown>>,
+      { url: string; limit?: number; offset?: number; search?: string }
+    >({
+      query: ({ url, limit = 25, offset = 0, search }) => ({
+        url: adminTablePath(url),
+        params: { limit, offset, ...(search ? { search } : {}) },
+      }),
     }),
     getAdminUsers: builder.query<
       PaginatedResponse<AdminUser>,
@@ -245,8 +267,14 @@ export const platformAdminApi = createApi({
   }),
 })
 
+function adminTablePath(url: string) {
+  return url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/api\//, '').replace(/^\//, '')
+}
+
 export const {
   useGetAdminAccessQuery,
+  useGetAdminResourcesQuery,
+  useGetAdminTableRowsQuery,
   useGetAdminUsersQuery,
   useDeleteAdminUserMutation,
   useUpdateAdminUserRoleMutation,

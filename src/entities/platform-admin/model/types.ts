@@ -7,6 +7,46 @@ export interface AdminAccess {
   permissions: string[]
 }
 
+export interface AdminResourceFieldChoice {
+  value: string
+  label: string
+}
+
+export interface AdminResourceField {
+  name: string
+  label: string
+  type: string
+  read_only: boolean
+  write_only: boolean
+  required: boolean
+  nullable: boolean
+  multiple: boolean | null
+  related_model?: string
+  lookup_url?: string | null
+  max_length?: number
+  choices?: AdminResourceFieldChoice[]
+  create_only?: boolean
+}
+
+export interface AdminResource {
+  model: string
+  name: string
+  group: string
+  url: string
+  scope: string
+  ownership_paths: string[]
+  methods: string[]
+  fields: AdminResourceField[]
+  filters: string[]
+  search_fields: string[]
+  ordering_fields: string[]
+  export_url: string | null
+  lookup_field: string
+  contract_url?: string
+  actions?: string[]
+  write_fields?: string[]
+}
+
 export interface AdminUser {
   id: number
   email: string

@@ -13,6 +13,7 @@ import {
   ShieldPlus,
   Sun,
   TowerControl,
+  Table2,
   UserCheck,
   Users,
   Wrench,
@@ -21,7 +22,7 @@ import { useTheme } from 'next-themes'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { selectIsPlatformAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
+import { selectIsSuperAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../../shared/ui/button'
@@ -43,7 +44,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const isPlatformAdmin = useSelector(selectIsPlatformAdmin)
+  const isSuperAdmin = useSelector(selectIsSuperAdmin)
   const user = useSelector(selectUser)
   const userName = useSelector(selectUserFullName) || user?.email
   const userRole = useSelector(selectUserRole)
@@ -55,7 +56,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
   const clientItems = [
     { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true },
-    { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench, end: false },
     { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false },
     { label: t('sidebar.organizations-and-projects'), href: routes.settings.organizationsAndProjects(), icon: Folders, end: false },
     { label: t('sidebar.scheduler'), href: routes.scheduler.list(), icon: FolderKanban, end: false },
@@ -68,6 +68,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     { label: t('admin-page.members'), href: routes.admin.members(), icon: UserCheck },
     { label: t('sidebar.organizations-and-projects'), href: routes.admin.organizationsAndProjects(), icon: Folders },
     { label: t('admin-page.tasks'), href: routes.admin.tasks(), icon: CheckSquare },
+    { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench },
+    { label: t('admin-page.catalog'), href: routes.admin.catalog(), icon: Table2 },
   ]
 
   const itemClass = (active: boolean) =>
@@ -99,7 +101,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           <LogoIcon className="h-8 w-8 shrink-0 text-shell-foreground" />
           <div className="min-w-0">
             <div className="text-sm font-semibold leading-none">inLog</div>
-            {isPlatformAdmin && (
+            {isSuperAdmin && (
               <div className="mt-1 text-xs leading-tight text-shell-muted">
                 {isPlatform ? t('sidebar.platform-console') : t('sidebar.user-area')}
               </div>
@@ -107,7 +109,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           </div>
         </div>
 
-        {isPlatformAdmin && (
+        {isSuperAdmin && (
           <button
             type="button"
             onClick={() => navigate(isPlatform ? routes.dashboard() : routes.admin.list())}

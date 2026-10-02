@@ -16,9 +16,10 @@ import {
 import { Input } from '../../../shared/ui/input'
 
 import { useLoginMutation } from '../model/authSlice'
-import { routes } from '../../../shared/lib/routes'
+import { ensureCsrfToken } from '../../../shared/api/auth-session'
+import { defaultAuthenticatedPath, routes } from '../../../shared/lib/routes'
 import { errorsHandler } from '../../../shared/lib/errors-handler'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface LoginFormProps {
   onSuccess?: () => void
@@ -41,6 +42,10 @@ export function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const [login, { isLoading }] = useLoginMutation()
   const [showPassword, setShowPassword] = useState(false)
 
+  useEffect(() => {
+    void ensureCsrfToken()
+  }, [])
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,9 +56,9 @@ export function LoginForm({ onSuccess }: LoginFormProps = {}) {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await login(values).unwrap()
+      const session = await login(values).unwrap()
       onSuccess?.()
-      navigate(routes.dashboard())
+      navigate(defaultAuthenticatedPath(session.user?.role))
     } catch (err: any) {
       errorsHandler(err, t)
     }

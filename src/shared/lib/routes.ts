@@ -1,4 +1,6 @@
 // src/shared/lib/routes.ts
+import { isPlatformAdmin } from '../types/platform-role'
+
 export const routes = {
     // публичные
     login: () => '/login',
@@ -48,6 +50,7 @@ export const routes = {
       organizationsAndProjects: () => '/admin/organizations-and-projects',
       tasks: () => '/admin/tasks',
       constructor: () => '/admin/constructor',
+      catalog: () => '/admin/catalog',
       reports: () => '/admin/reports',
     },
 
@@ -73,6 +76,8 @@ export const routes = {
     routes.admin.projects(),
     routes.admin.organizationsAndProjects(),
     routes.admin.tasks(),
+    routes.admin.constructor(),
+    routes.admin.catalog(),
   ]
 
   export function isPlatformConsolePath(pathname: string) {
@@ -80,6 +85,11 @@ export const routes = {
     return platformConsolePaths.some(
       (path) => pathname === path || pathname.startsWith(`${path}/`),
     )
+  }
+
+  /** Where a signed-in user lands. Only super admin can leave this area later. */
+  export function defaultAuthenticatedPath(role?: string | null) {
+    return isPlatformAdmin(role) ? routes.admin.list() : routes.dashboard()
   }
   
   // Тип для автодополнения (опционально, но очень полезно)

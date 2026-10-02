@@ -292,7 +292,6 @@
         "error-loading-user": "An error occurred while loading the user",
         "error-loading-organizations": "An error occurred while loading the organizations",
         "error-loading-projects": "An error occurred while loading the projects",
-        "error-loading-token": "An error occurred while loading the token",
         "you-dont-have-supervisor": "You don't have a supervisor",
         "no-task-selected": "No task selected",
         "template-not-found": "Template not found",
@@ -661,7 +660,8 @@
         "platform-roles": {
             "member": "Member",
             "admin": "Admin",
-            "super_admin": "Super admin"
+            "super_admin": "Super admin",
+            "security_admin": "Security admin"
         },
         "users-table": {
             "email": "Email",
@@ -673,7 +673,24 @@
             "yes": "Yes",
             "no": "No"
         },
-        "constructor": "Constructor",   
+        "constructor": "Constructor",
+        "catalog": "Table catalog",
+        "catalog-search": "Search by name or model",
+        "catalog-show-critical": "System tables",
+        "catalog-count": "{{count}} tables",
+        "catalog-empty": "Nothing found",
+        "catalog-pick": "Select a table on the left",
+        "catalog-rows-hint": "Rows for this table are loaded by a separate request",
+        "catalog-rows-empty": "This table has no rows",
+        "catalog-rows-failed": "Could not load rows",
+        "catalog-search-rows": "Search rows",
+        "catalog-endpoint": "Row request",
+        "catalog-filters": "Filters",
+        "catalog-no-filters": "No filters",
+        "catalog-columns": "{{count}} columns",
+        "catalog-choices": "{{count}} options",
+        "catalog-read-only-field": "read only",
+        "catalog-loading-failed": "Could not load the catalog",   
         "reports": "Reports",
         "edit-node": "Edit node",
         "delete-node": "Delete node",

@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import {
+  useGetAdminAccessQuery,
+  useGetAdminResourcesQuery,
+} from '../../entities/platform-admin/model/platformAdminSlice'
 import { useGetMeQuery } from '../../entities/user/model/userSlice'
 import { isPlatformAdmin } from '../../shared/types/platform-role'
 import { routes } from '../../shared/lib/routes'
@@ -10,6 +14,10 @@ export function AdminRoute() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { data: user, isLoading, isError } = useGetMeQuery()
+  const canEnterAdmin = !isLoading && !isError && !!user && isPlatformAdmin(user.role)
+
+  useGetAdminAccessQuery(undefined, { skip: !canEnterAdmin })
+  useGetAdminResourcesQuery(undefined, { skip: !canEnterAdmin })
 
   useEffect(() => {
     if (!isLoading && !isError && user && !isPlatformAdmin(user.role)) {
