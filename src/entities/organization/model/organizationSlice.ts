@@ -39,6 +39,17 @@ export const organizationApi = createApi({
             }),
             invalidatesTags: ['Organization'],
           }),
+          updateOrganization: builder.mutation<
+            OrganizationResponse,
+            { id: number; data: Partial<OrganizationRequest> }
+          >({
+            query: ({ id, data }) => ({
+              url: `organizations/organization/${id}/`,
+              method: 'PATCH',
+              body: data,
+            }),
+            invalidatesTags: ['Organization'],
+          }),
           deleteOrganization: builder.mutation<void, number>({
             query: (id) => ({
               url: `organizations/organization/${id}/`,
@@ -49,4 +60,9 @@ export const organizationApi = createApi({
     }),
 })
 
-export const { useGetOrganizationsQuery, useAddOrganizationMutation, useDeleteOrganizationMutation } = organizationApi
+export const {
+  useGetOrganizationsQuery,
+  useAddOrganizationMutation,
+  useUpdateOrganizationMutation,
+  useDeleteOrganizationMutation,
+} = organizationApi

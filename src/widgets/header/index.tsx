@@ -2,6 +2,7 @@ import { ChevronDown, Languages, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
+import { routes } from '../../shared/lib/routes'
 import { useUpdateUserSettingsMutation } from '../../entities/user/model/userSlice'
 import { errorsHandler } from '../../shared/lib/errors-handler'
 import { cn } from '../../shared/lib/utils'
@@ -35,8 +36,12 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
     if (pathname.includes('scheduler')) {
       return t('scheduler-page.title')
     }
-    if (pathname.includes('organizations-and-projects')) {
-      return t('sidebar.organizations-and-projects')
+    const matches = (path: string) => pathname === path || pathname.startsWith(`${path}/`)
+    if (matches(routes.settings.organizations()) || matches(routes.admin.organizations())) {
+      return t('sidebar.organizations')
+    }
+    if (matches(routes.settings.projects()) || matches(routes.admin.projects())) {
+      return t('sidebar.projects')
     }
     if (pathname.includes('/settings/profile')) {
       return t('header.profile')

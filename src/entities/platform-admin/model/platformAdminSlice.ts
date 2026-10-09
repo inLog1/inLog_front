@@ -6,12 +6,22 @@ import type {
   AdminResource,
   AdminMember,
   AdminOrganization,
+  AdminOrganizationMember,
   AdminProject,
   AdminTask,
   AdminTaskStatus,
   AdminTaskTag,
   AdminUser,
   PaginatedResponse,
+  CreateAdminOrganizationBody,
+  CreateAdminOrganizationMemberBody,
+  CreateAdminProjectBody,
+  CreateAdminProjectMemberBody,
+  CreateProjectEmailInvitationBody,
+  CreateProjectUserInvitationBody,
+  CreateOrganizationEmailInvitationBody,
+  CreateOrganizationUserInvitationBody,
+  OrganizationEmailInvitation,
   UpdateAdminOrganizationBody,
   UpdateAdminProjectBody,
 } from './types'
@@ -29,7 +39,10 @@ export const platformAdminApi = createApi({
     'AdminTaskTags',
     'AdminMembers',
     'AdminOrganizations',
+    'AdminOrganizationInvitations',
     'AdminProjects',
+    'AdminProjectMembers',
+    'AdminProjectInvitations',
   ],
   endpoints: (builder) => ({
     getAdminAccess: builder.query<AdminAccess, void>({
@@ -139,12 +152,165 @@ export const platformAdminApi = createApi({
       }),
       invalidatesTags: [{ type: 'AdminOrganizations', id: 'LIST' }],
     }),
+    createAdminOrganization: builder.mutation<AdminOrganization, CreateAdminOrganizationBody>({
+      query: (body) => ({
+        url: 'admin/tables/organizations/organization/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'AdminOrganizations', id: 'LIST' }],
+    }),
     deleteAdminOrganization: builder.mutation<void, number>({
       query: (id) => ({
         url: `admin/organization/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: [{ type: 'AdminOrganizations', id: 'LIST' }],
+    }),
+    createAdminOrganizationMember: builder.mutation<
+      { id: number; user: number; organization: number; role: string },
+      CreateAdminOrganizationMemberBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/organizations/organizationmember/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'AdminOrganizations', id: 'LIST' }, 'AdminMembers'],
+    }),
+    deleteAdminOrganizationMember: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `admin/tables/organizations/organizationmember/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'AdminOrganizations', id: 'LIST' }, 'AdminMembers'],
+    }),
+    getAdminOrganizationEmailInvitations: builder.query<
+      PaginatedResponse<OrganizationEmailInvitation>,
+      { organization: number }
+    >({
+      query: ({ organization }) => ({
+        url: 'admin/tables/organizations/organizationunregisteredemailinvitation/',
+        params: { organization, limit: 100, offset: 0 },
+      }),
+      providesTags: ['AdminOrganizationInvitations'],
+    }),
+    createAdminOrganizationEmailInvitation: builder.mutation<
+      OrganizationEmailInvitation,
+      CreateOrganizationEmailInvitationBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/organizations/organizationunregisteredemailinvitation/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['AdminOrganizationInvitations'],
+    }),
+    deleteAdminOrganizationEmailInvitation: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `admin/tables/organizations/organizationunregisteredemailinvitation/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AdminOrganizationInvitations'],
+    }),
+    createAdminOrganizationUserInvitation: builder.mutation<
+      { id: number },
+      CreateOrganizationUserInvitationBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/organizations/organizationuserinvitation/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['AdminOrganizationInvitations'],
+    }),
+    deleteAdminOrganizationUserInvitation: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `admin/tables/organizations/organizationuserinvitation/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AdminOrganizationInvitations'],
+    }),
+    getAdminProjectMembers: builder.query<AdminOrganizationMember[], number>({
+      query: (project) => ({
+        url: 'admin/tables/projects/projectmember/',
+        params: { project, limit: 200, offset: 0 },
+      }),
+      transformResponse: (response: PaginatedResponse<ProjectMemberResponse> | ProjectMemberResponse[]) => {
+        const rows = Array.isArray(response) ? response : response.results ?? []
+        return rows.map(toProjectMember)
+      },
+      providesTags: (_result, _error, project) => [{ type: 'AdminProjectMembers', id: project }],
+    }),
+    createAdminProjectMember: builder.mutation<
+      { id: number; user: number; project: number; role: string },
+      CreateAdminProjectMemberBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/projects/projectmember/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, body) => [
+        { type: 'AdminProjectMembers', id: body.project },
+        { type: 'AdminProjects', id: 'LIST' },
+      ],
+    }),
+    deleteAdminProjectMember: builder.mutation<void, { id: number; project: number }>({
+      query: ({ id }) => ({
+        url: `admin/tables/projects/projectmember/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { project }) => [
+        { type: 'AdminProjectMembers', id: project },
+        { type: 'AdminProjects', id: 'LIST' },
+      ],
+    }),
+    getAdminProjectEmailInvitations: builder.query<
+      PaginatedResponse<OrganizationEmailInvitation>,
+      { project: number }
+    >({
+      query: ({ project }) => ({
+        url: 'admin/tables/projects/projectunregisteredemailinvitation/',
+        params: { project, limit: 100, offset: 0 },
+      }),
+      providesTags: ['AdminProjectInvitations'],
+    }),
+    createAdminProjectEmailInvitation: builder.mutation<
+      OrganizationEmailInvitation,
+      CreateProjectEmailInvitationBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/projects/projectunregisteredemailinvitation/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['AdminProjectInvitations'],
+    }),
+    deleteAdminProjectEmailInvitation: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `admin/tables/projects/projectunregisteredemailinvitation/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AdminProjectInvitations'],
+    }),
+    createAdminProjectUserInvitation: builder.mutation<
+      { id: number },
+      CreateProjectUserInvitationBody
+    >({
+      query: (body) => ({
+        url: 'admin/tables/projects/projectuserinvitation/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['AdminProjectInvitations'],
+    }),
+    deleteAdminProjectUserInvitation: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `admin/tables/projects/projectuserinvitation/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AdminProjectInvitations'],
     }),
     getAdminProjects: builder.query<
       PaginatedResponse<AdminProject>,
@@ -159,6 +325,10 @@ export const platformAdminApi = createApi({
           ...(organization ? { organization } : {}),
         },
       }),
+      transformResponse: (response: PaginatedResponse<AdminProjectResponse>) => ({
+        ...response,
+        results: (response.results ?? []).map(toAdminProject),
+      }),
       providesTags: (result) =>
         result
           ? [
@@ -166,6 +336,14 @@ export const platformAdminApi = createApi({
               { type: 'AdminProjects', id: 'LIST' },
             ]
           : [{ type: 'AdminProjects', id: 'LIST' }],
+    }),
+    createAdminProject: builder.mutation<AdminProject, CreateAdminProjectBody>({
+      query: (body) => ({
+        url: 'admin/tables/projects/project/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'AdminProjects', id: 'LIST' }],
     }),
     updateAdminProject: builder.mutation<
       AdminProject,
@@ -267,6 +445,65 @@ export const platformAdminApi = createApi({
   }),
 })
 
+type ProjectMemberResponse = {
+  id: number
+  role: string
+  user: number | { id: number; full_name?: string; email?: string }
+}
+
+function toProjectMember(raw: ProjectMemberResponse): AdminOrganizationMember {
+  const user = typeof raw.user === 'number'
+    ? { id: raw.user, full_name: '', email: '' }
+    : {
+        id: raw.user.id,
+        full_name: raw.user.full_name || raw.user.email || '',
+        email: raw.user.email || '',
+      }
+
+  return {
+    id: raw.id,
+    role: raw.role,
+    user,
+  }
+}
+
+type AdminProjectResponse = {
+  id: number
+  name: string
+  organization?: number | { id?: number; name?: string; short_name?: string; full_name?: string } | null
+  organization_id?: number | null
+  organization_name?: string | null
+  reservoir?: string | null
+  company_customer?: string | null
+  contractor?: string | null
+  country?: string | null
+  created_at?: string | null
+  members_count?: number | null
+}
+
+function toAdminProject(raw: AdminProjectResponse): AdminProject {
+  const nested = raw.organization && typeof raw.organization === 'object' ? raw.organization : null
+  const organizationId = nested?.id
+    ?? (typeof raw.organization === 'number' ? raw.organization : raw.organization_id)
+    ?? 0
+  const organizationName = nested
+    ? nested.short_name || nested.full_name || nested.name || raw.organization_name || ''
+    : raw.organization_name || ''
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    organization_id: organizationId,
+    organization_name: organizationName,
+    reservoir: raw.reservoir ?? '',
+    company_customer: raw.company_customer ?? '',
+    contractor: raw.contractor ?? '',
+    country: raw.country ?? '',
+    created_at: raw.created_at ?? '',
+    members_count: raw.members_count ?? 0,
+  }
+}
+
 function adminTablePath(url: string) {
   return url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/api\//, '').replace(/^\//, '')
 }
@@ -276,14 +513,32 @@ export const {
   useGetAdminResourcesQuery,
   useGetAdminTableRowsQuery,
   useGetAdminUsersQuery,
+  useLazyGetAdminUsersQuery,
   useDeleteAdminUserMutation,
   useUpdateAdminUserRoleMutation,
   useGetAdminMembersQuery,
   useGetAdminOrganizationsQuery,
   useUpdateAdminOrganizationMutation,
   useDeleteAdminOrganizationMutation,
+  useCreateAdminOrganizationMutation,
+  useCreateAdminOrganizationMemberMutation,
+  useDeleteAdminOrganizationMemberMutation,
+  useGetAdminOrganizationEmailInvitationsQuery,
+  useCreateAdminOrganizationEmailInvitationMutation,
+  useDeleteAdminOrganizationEmailInvitationMutation,
+  useCreateAdminOrganizationUserInvitationMutation,
+  useDeleteAdminOrganizationUserInvitationMutation,
+  useGetAdminProjectMembersQuery,
+  useCreateAdminProjectMemberMutation,
+  useDeleteAdminProjectMemberMutation,
+  useGetAdminProjectEmailInvitationsQuery,
+  useCreateAdminProjectEmailInvitationMutation,
+  useDeleteAdminProjectEmailInvitationMutation,
+  useCreateAdminProjectUserInvitationMutation,
+  useDeleteAdminProjectUserInvitationMutation,
   useGetAdminProjectsQuery,
   useUpdateAdminProjectMutation,
+  useCreateAdminProjectMutation,
   useDeleteAdminProjectMutation,
   useGetAdminTasksQuery,
   useDeleteAdminTaskMutation,

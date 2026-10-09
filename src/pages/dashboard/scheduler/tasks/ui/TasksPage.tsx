@@ -35,7 +35,7 @@ const TasksPage = () => {
                             : t('scheduler-page.need-project')}
                     </p>
                     <Button asChild variant="outline">
-                        <Link to={routes.settings.organizationsAndProjects()}>
+                        <Link to={hasNoOrganizations ? routes.settings.organizations() : routes.settings.projects()}>
                             <Plus className="h-4 w-4" />
                             {hasNoOrganizations
                                 ? t('scheduler-page.create-first-organization')

@@ -1,42 +1,68 @@
-import { useState } from "react"
+import { Loader2 } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "react-hot-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
-import { Button } from "../../../shared/ui/button"
-import { Input } from "../../../shared/ui/input"
-import { Label } from "../../../shared/ui/label"
-import { Loader2 } from "lucide-react"
 import { useAddProjectMutation } from "../../../entities/project/model/projectSlice"
 import { errorsHandler } from "../../../shared/lib/errors-handler"
+import { Button } from "../../../shared/ui/button"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
+import { Input } from "../../../shared/ui/input"
+import { Label } from "../../../shared/ui/label"
+import { CountrySelect } from "../../../shared/ui/country-select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select"
+
+interface OrganizationOption {
+    id: number
+    fullName?: string
+    shortName?: string
+}
 
 interface CreateProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    organizationId: number | null
+    organizations: OrganizationOption[]
+    defaultOrganizationId?: number | null
 }
 
-export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: CreateProjectDialogProps) => {
+const emptyForm = {
+    name: "",
+    reservoir: "",
+    country: "",
+}
+
+export const CreateProjectDialog = ({
+    open,
+    onOpenChange,
+    organizations,
+    defaultOrganizationId,
+}: CreateProjectDialogProps) => {
     const { t } = useTranslation()
     const [addProject, { isLoading }] = useAddProjectMutation()
-    const [projectName, setProjectName] = useState("")
-    const [reservoir, setReservoir] = useState("")
+    const [organizationId, setOrganizationId] = useState("")
+    const [form, setForm] = useState(emptyForm)
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        
+    useEffect(() => {
+        if (!open) return
+        const fallback = organizations.length === 1 ? String(organizations[0].id) : ""
+        setOrganizationId(defaultOrganizationId ? String(defaultOrganizationId) : fallback)
+        setForm(emptyForm)
+    }, [open, defaultOrganizationId, organizations])
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault()
         if (!organizationId) return
-        
+
         let toastId: string | undefined
         try {
             toastId = toast.loading(t('notice-list.creating-project'))
-            await addProject({ 
-                name: projectName,
-                organization: organizationId ,
-                reservoir: reservoir,
+            await addProject({
+                name: form.name.trim(),
+                organization: Number(organizationId),
+                reservoir: form.reservoir.trim(),
+                country: form.country.trim(),
             }).unwrap()
             toast.success(t('notice-list.project-created'))
             onOpenChange(false)
-            setProjectName("")
         } catch (error) {
             errorsHandler(error, t)
         } finally {
@@ -52,11 +78,26 @@ export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: Crea
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
+                        <Label>{t('settings-page.organization')}</Label>
+                        <Select value={organizationId} onValueChange={setOrganizationId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder={t('settings-page.select-organization-first')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {organizations.map((organization) => (
+                                    <SelectItem key={organization.id} value={String(organization.id)}>
+                                        {organization.shortName || organization.fullName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
                         <Label htmlFor="projectName">{t('fields.project-name')}</Label>
                         <Input
                             id="projectName"
-                            value={projectName}
-                            onChange={(e) => setProjectName(e.target.value)}
+                            value={form.name}
+                            onChange={(event) => setForm({ ...form, name: event.target.value })}
                             required
                         />
                     </div>
@@ -64,20 +105,28 @@ export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: Crea
                         <Label htmlFor="reservoir">{t('fields.reservoir')}</Label>
                         <Input
                             id="reservoir"
-                            value={reservoir}
-                            onChange={(e) => setReservoir(e.target.value)}
+                            value={form.reservoir}
+                            onChange={(event) => setForm({ ...form, reservoir: event.target.value })}
                             required
                         />
                     </div>
-                    <div className="flex justify-end gap-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="project-country">{t('fields.country')}</Label>
+                        <CountrySelect
+                            id="project-country"
+                            value={form.country}
+                            onChange={(code) => setForm({ ...form, country: code })}
+                        />
+                    </div>
+                    <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             {t('buttons.cancel')}
                         </Button>
                         <Button type="submit" disabled={isLoading || !organizationId}>
-                            {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {t('buttons.create')}
                         </Button>
-                    </div>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

@@ -2,11 +2,11 @@ import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card'
-import { ScrollArea } from '../../../shared/ui/scroll-area'
 
 interface AdminSectionShellProps {
   title: string
   description: string
+  actions?: ReactNode
   toolbar?: ReactNode
   footer?: ReactNode
   isLoading?: boolean
@@ -18,6 +18,7 @@ interface AdminSectionShellProps {
 export function AdminSectionShell({
   title,
   description,
+  actions,
   toolbar,
   footer,
   isLoading = false,
@@ -29,18 +30,17 @@ export function AdminSectionShell({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        {actions}
       </div>
 
       {toolbar}
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <CardHeader className="border-b border-border py-4">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {isLoading && (
             <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
@@ -56,9 +56,9 @@ export function AdminSectionShell({
           )}
 
           {!isLoading && !isEmpty && (
-            <ScrollArea className="h-[calc(100vh-280px)]">
-              <div className="min-w-max">{children}</div>
-            </ScrollArea>
+            <div className="h-[calc(100vh-280px)] w-full min-w-0 overflow-auto">
+              {children}
+            </div>
           )}
 
           {footer}

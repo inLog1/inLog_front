@@ -2,6 +2,8 @@ import { Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+import { toSubscriberUser, useSubscribersRevision, visibleMockSubscribers } from '../../organizations-and-projects/model/mock-subscribers'
+import { AdminAvatarStack } from '../../platform-admin/ui/AdminAvatarStack'
 import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
@@ -15,6 +17,7 @@ const OrgProjectSelector = ({
     type = 'all',
 }: Props) => {
     const { t } = useTranslation()
+    useSubscribersRevision()
     const {
         organizations,
         projects,
@@ -65,7 +68,7 @@ const OrgProjectSelector = ({
                                 {t('scheduler-page.no-organizations-yet')}
                             </p>
                             <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                <Link to={routes.settings.organizationsAndProjects()}>
+                                <Link to={routes.settings.organizations()}>
                                     <Plus className="h-4 w-4 shrink-0" />
                                     {t('scheduler-page.create-first-organization')}
                                 </Link>
@@ -108,7 +111,7 @@ const OrgProjectSelector = ({
                             </p>
                             {currentOrgId && (
                                 <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                    <Link to={routes.settings.organizationsAndProjects()}>
+                                    <Link to={currentOrgId ? `${routes.settings.projects()}?org=${currentOrgId}` : routes.settings.projects()}>
                                         <Plus className="h-4 w-4 shrink-0" />
                                         {t('settings-page.create-first-project')}
                                     </Link>
@@ -131,6 +134,19 @@ const OrgProjectSelector = ({
                                 ))}
                             </SelectContent>
                         </Select>
+                    )}
+                    {currentOrgId && currentProjectId && (
+                        <div className="mt-4">
+                            <span className="mb-2 block text-sm font-medium text-muted-foreground">
+                                {t('settings-page.subscribers')}
+                            </span>
+                            <AdminAvatarStack
+                                users={visibleMockSubscribers('project', currentProjectId).map(toSubscriberUser)}
+                                max={5}
+                                showCount={false}
+                                className="w-auto"
+                            />
+                        </div>
                     )}
                 </div>
             )}

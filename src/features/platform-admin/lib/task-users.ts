@@ -17,6 +17,56 @@ export function getAdminUserInitials(user?: AdminUserBrief | null) {
   return `${first}${last}`.toUpperCase() || displayName[0]?.toUpperCase() || '?'
 }
 
+/** One letter: the name when it exists, otherwise the email. */
+export function getPersonLetter(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || ''
+  return source[0]?.toUpperCase() || '?'
+}
+
+const PERSON_COLORS = [
+  'bg-sky-600 text-white',
+  'bg-violet-600 text-white',
+  'bg-emerald-600 text-white',
+  'bg-amber-500 text-white',
+  'bg-rose-600 text-white',
+  'bg-cyan-600 text-white',
+  'bg-fuchsia-600 text-white',
+  'bg-lime-600 text-white',
+  'bg-orange-600 text-white',
+  'bg-indigo-600 text-white',
+  'bg-teal-600 text-white',
+  'bg-pink-600 text-white',
+  'bg-blue-700 text-white',
+  'bg-red-600 text-white',
+  'bg-green-700 text-white',
+  'bg-purple-700 text-white',
+]
+
+function colorHash(value: string) {
+  let hash = 0
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  }
+  return hash
+}
+
+export function personColorClass(key: string) {
+  return PERSON_COLORS[colorHash(key || '?') % PERSON_COLORS.length]
+}
+
+/** Picks a stable color and skips colors already used in the same row. */
+export function personColorClassUnique(key: string, used: Set<number>) {
+  let index = colorHash(key || '?') % PERSON_COLORS.length
+  if (used.has(index)) {
+    const start = index
+    do {
+      index = (index + 1) % PERSON_COLORS.length
+    } while (used.has(index) && index !== start)
+  }
+  used.add(index)
+  return PERSON_COLORS[index]
+}
+
 export function getAdminUserAvatarUrl(user?: AdminUserBrief | null) {
   return user?.avatar?.small || user?.avatar?.medium
 }

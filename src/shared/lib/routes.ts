@@ -57,6 +57,8 @@ export const routes = {
     settings: {
       list: () => '/settings',
       profile: () => '/settings/profile',
+      organizations: () => '/settings/organizations',
+      projects: () => '/settings/projects',
       organizationsAndProjects: () => '/settings/organizations-and-projects',
       notifications: () => '/settings/notifications',
     },

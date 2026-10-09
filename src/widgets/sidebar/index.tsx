@@ -2,8 +2,9 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckSquare,
+  Building2,
   FolderKanban,
-  Folders,
+  FolderOpen,
   LayoutDashboard,
   Monitor,
   Moon,
@@ -14,7 +15,6 @@ import {
   Sun,
   TowerControl,
   Table2,
-  UserCheck,
   Users,
   Wrench,
 } from 'lucide-react'
@@ -57,7 +57,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const clientItems = [
     { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true },
     { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false },
-    { label: t('sidebar.organizations-and-projects'), href: routes.settings.organizationsAndProjects(), icon: Folders, end: false },
+    { label: t('sidebar.organizations'), href: routes.settings.organizations(), icon: Building2, end: false },
+    { label: t('sidebar.projects'), href: routes.settings.projects(), icon: FolderOpen, end: false },
     { label: t('sidebar.scheduler'), href: routes.scheduler.list(), icon: FolderKanban, end: false },
     { label: t('sidebar.geo-mechanics'), href: routes.geoMechanics.list(), icon: TowerControl, end: false },
     { label: t('sidebar.settings'), href: routes.settings.notifications(), icon: Settings, end: false },
@@ -65,8 +66,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
   const platformItems = [
     { label: t('admin-page.users'), href: routes.admin.users(), icon: Users },
-    { label: t('admin-page.members'), href: routes.admin.members(), icon: UserCheck },
-    { label: t('sidebar.organizations-and-projects'), href: routes.admin.organizationsAndProjects(), icon: Folders },
+    { label: t('sidebar.organizations'), href: routes.admin.organizations(), icon: Building2 },
+    { label: t('sidebar.projects'), href: routes.admin.projects(), icon: FolderOpen },
     { label: t('admin-page.tasks'), href: routes.admin.tasks(), icon: CheckSquare },
     { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench },
     { label: t('admin-page.catalog'), href: routes.admin.catalog(), icon: Table2 },

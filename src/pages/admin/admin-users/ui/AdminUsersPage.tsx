@@ -142,7 +142,7 @@ export function AdminUsersPage() {
                 </TableCell>
                 <TableCell>
                   <Badge variant={user.is_email_verified ? 'default' : 'secondary'}>
-                    {user.is_email_verified
+                    {user.is_active
                       ? t('admin-page.users-table.yes')
                       : t('admin-page.users-table.no')}
                   </Badge>

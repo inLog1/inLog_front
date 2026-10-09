@@ -8,6 +8,7 @@ import {
   useUpdateAdminProjectMutation,
 } from '../../../entities/platform-admin/model/platformAdminSlice'
 import { Button } from '../../../shared/ui/button'
+import { CountrySelect } from '../../../shared/ui/country-select'
 import {
   Dialog,
   DialogContent,
@@ -46,8 +47,6 @@ export function AdminProjectEditDialog({
     name: '',
     organization_id: '',
     reservoir: '',
-    company_customer: '',
-    contractor: '',
     country: '',
   })
 
@@ -58,8 +57,6 @@ export function AdminProjectEditDialog({
       name: project.name,
       organization_id: String(project.organization_id),
       reservoir: project.reservoir ?? '',
-      company_customer: project.company_customer ?? '',
-      contractor: project.contractor ?? '',
       country: project.country ?? '',
     })
   }, [project])
@@ -73,11 +70,9 @@ export function AdminProjectEditDialog({
         id: project.id,
         body: {
           name: form.name.trim(),
-          organization_id: Number(form.organization_id),
+          organization: Number(form.organization_id),
           reservoir: form.reservoir.trim(),
-          company_customer: form.company_customer.trim(),
-          contractor: form.contractor.trim(),
-          country: form.country.trim(),
+          country: form.country.trim() || null,
         },
       }).unwrap()
       toast.success(t('admin-page.project-updated'))
@@ -130,30 +125,12 @@ export function AdminProjectEditDialog({
               onChange={(event) => setForm({ ...form, reservoir: event.target.value })}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="project-customer">{t('admin-page.projects-table.customer')}</Label>
-              <Input
-                id="project-customer"
-                value={form.company_customer}
-                onChange={(event) => setForm({ ...form, company_customer: event.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="project-contractor">{t('admin-page.projects-table.contractor')}</Label>
-              <Input
-                id="project-contractor"
-                value={form.contractor}
-                onChange={(event) => setForm({ ...form, contractor: event.target.value })}
-              />
-            </div>
-          </div>
           <div className="space-y-2">
             <Label htmlFor="project-country">{t('admin-page.projects-table.country')}</Label>
-            <Input
+            <CountrySelect
               id="project-country"
               value={form.country}
-              onChange={(event) => setForm({ ...form, country: event.target.value })}
+              onChange={(code) => setForm({ ...form, country: code })}
             />
           </div>
           <DialogFooter>

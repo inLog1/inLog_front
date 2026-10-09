@@ -222,7 +222,7 @@ async function requestRefresh(explicitRefresh?: string): Promise<RefreshOutcome>
       body: JSON.stringify(explicitRefresh ? { refresh: explicitRefresh } : {}),
     })
 
-    if (response.status === 400 || response.status === 401) return 'unauthorized'
+    if (response.status === 400 || response.status === 401 || response.status === 403) return 'unauthorized'
     if (!response.ok) return 'unavailable'
 
     const data = (await response.json()) as RefreshResponse

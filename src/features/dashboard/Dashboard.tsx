@@ -1,5 +1,6 @@
 'use client'
 import {
+  Building2,
   ChevronRight,
   FolderKanban,
   ListTodo
@@ -29,16 +30,16 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <QuickLinkCard
-              icon={<FolderKanban className="h-6 w-6" />}
+              icon={<Building2 className="h-6 w-6" />}
               title={t('dashboard-page.organizations')}
               description={t('dashboard-page.organizations-description')}
-              to={routes.settings.organizationsAndProjects()}
+              to={routes.settings.organizations()}
             />
             <QuickLinkCard
               icon={<FolderKanban className="h-6 w-6" />}
               title={t('dashboard-page.projects')}
               description={t('dashboard-page.projects-description')}
-              to={routes.settings.organizationsAndProjects()}
+              to={routes.settings.projects()}
             />
             <QuickLinkCard
               icon={<ListTodo className="h-6 w-6" />}

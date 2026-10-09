@@ -1,3 +1,4 @@
-import OrganizationsAndProjects from "./ui/OrganizationsAndProjects";
+import OrganizationsPanel from "./ui/OrganizationsPanel"
+import ProjectsPanel from "./ui/ProjectsPanel"
 
-export { OrganizationsAndProjects }
+export { OrganizationsPanel, ProjectsPanel }

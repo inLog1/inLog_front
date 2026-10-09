@@ -36,26 +36,30 @@ async function attachCsrfHeader(args: string | FetchArgs) {
   return csrfToken ? withCsrfHeader(args, csrfToken) : args
 }
 
-function shouldRefreshAfterUnauthorized(url: string) {
+function shouldRecoverSession(url: string) {
   return !['auth/login/', 'auth/token/refresh/', 'auth/registration/'].some((path) =>
     url.includes(path)
   )
 }
 
+function isSessionRejected(status: unknown) {
+  return status === 401 || status === 403
+}
+
 export const baseQuery: typeof baseQueryStart = async (args, api, extraOptions) => {
   let result = await baseQueryStart(await attachCsrfHeader(args), api, extraOptions)
 
-  if (result.error?.status !== 401) return result
+  if (!isSessionRejected(result.error?.status)) return result
 
   const url = requestUrl(args)
-  if (!shouldRefreshAfterUnauthorized(url)) return result
+  if (!shouldRecoverSession(url)) return result
 
   const outcome = await refreshAccessToken()
   if (outcome === 'ok') {
     result = await baseQueryStart(await attachCsrfHeader(args), api, extraOptions)
   }
 
-  if (result.error?.status === 401 && outcome !== 'unavailable') {
+  if (isSessionRejected(result.error?.status) && outcome !== 'unavailable') {
     redirectToLogin()
   }
 

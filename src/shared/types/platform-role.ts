@@ -2,8 +2,8 @@ export type PlatformRole = 'member' | 'admin' | 'super_admin' | 'security_admin'
 
 export const PLATFORM_ADMIN_ROLES: PlatformRole[] = ['admin', 'super_admin', 'security_admin']
 
-/** Roles that super admin can assign via the admin UI / API */
-export const ASSIGNABLE_PLATFORM_ROLES: PlatformRole[] = ['member', 'admin']
+/** Roles a super admin can assign in the users section. `super_admin` is not assigned here. */
+export const ASSIGNABLE_PLATFORM_ROLES: PlatformRole[] = ['member', 'admin', 'security_admin']
 
 export function isPlatformAdmin(role?: string | null): role is PlatformRole {
   return role === 'admin' || role === 'super_admin' || role === 'security_admin'

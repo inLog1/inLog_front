@@ -79,6 +79,23 @@ export interface AdminMember {
   created_at: string
 }
 
+export interface CreateAdminOrganizationBody {
+  full_name: string
+  short_name: string
+  address?: string | null
+  inn?: string | null
+  kpp?: string | null
+}
+
+export interface CreateAdminProjectBody {
+  name: string
+  reservoir: string
+  organization?: number | null
+  company_customer?: string | null
+  contractor?: string | null
+  country?: string | null
+}
+
 export interface UpdateAdminOrganizationBody {
   full_name?: string
   short_name?: string
@@ -89,11 +106,78 @@ export interface UpdateAdminOrganizationBody {
 
 export interface UpdateAdminProjectBody {
   name?: string
-  organization_id?: number
+  organization?: number | null
   reservoir?: string
   company_customer?: string
   contractor?: string
-  country?: string
+  country?: string | null
+}
+
+export type OrganizationMemberRole = 'admin' | 'member' | 'editor'
+
+export interface AdminOrganizationMember {
+  id: number
+  role: string
+  user: {
+    id: number
+    full_name: string
+    email: string
+  }
+}
+
+export interface CreateAdminOrganizationMemberBody {
+  user: number
+  organization: number
+  role: OrganizationMemberRole
+}
+
+export type OrganizationInviteRole = 'member' | 'editor'
+
+export interface OrganizationEmailInvitation {
+  id: number
+  organization: number
+  invited_by: number
+  role: OrganizationInviteRole
+  email: string
+}
+
+export interface CreateOrganizationEmailInvitationBody {
+  organization: number
+  invited_by: number
+  email: string
+  role: OrganizationInviteRole
+}
+
+export interface CreateOrganizationUserInvitationBody {
+  organization: number
+  invited_by: number
+  user: number
+  role: OrganizationInviteRole
+}
+
+export interface CreateAdminProjectMemberBody {
+  user: number
+  project: number
+  role: OrganizationMemberRole
+}
+
+export interface CreateProjectEmailInvitationBody {
+  project: number
+  invited_by: number
+  email: string
+  role: OrganizationInviteRole
+}
+
+export interface CreateProjectUserInvitationBody {
+  project: number
+  invited_by: number
+  user: number
+  role: OrganizationInviteRole
+}
+
+export interface AdminOrganizationProject {
+  id: number
+  name: string
 }
 
 export interface AdminOrganization {
@@ -106,6 +190,8 @@ export interface AdminOrganization {
   created_at: string
   members_count: number
   projects_count: number
+  members: AdminOrganizationMember[]
+  projects: AdminOrganizationProject[]
 }
 
 export interface AdminProject {
