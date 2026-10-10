@@ -1,13 +1,16 @@
 import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card'
+import { cn } from '../../../shared/lib/utils'
+import { Card, CardContent } from '../../../shared/ui/card'
 
 interface AdminSectionShellProps {
   title: string
   description: string
   actions?: ReactNode
+  banner?: ReactNode
   toolbar?: ReactNode
+  below?: ReactNode
   footer?: ReactNode
   isLoading?: boolean
   isEmpty?: boolean
@@ -19,7 +22,9 @@ export function AdminSectionShell({
   title,
   description,
   actions,
+  banner,
   toolbar,
+  below,
   footer,
   isLoading = false,
   isEmpty = false,
@@ -29,7 +34,7 @@ export function AdminSectionShell({
   const { t } = useTranslation()
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
@@ -38,9 +43,14 @@ export function AdminSectionShell({
         {actions}
       </div>
 
+      {banner}
+
       {toolbar}
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card className={cn(
+        'flex min-h-0 flex-col overflow-hidden',
+        below ? 'max-h-[min(28rem,46vh)] shrink-0' : 'flex-1',
+      )}>
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {isLoading && (
             <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
@@ -56,7 +66,7 @@ export function AdminSectionShell({
           )}
 
           {!isLoading && !isEmpty && (
-            <div className="h-[calc(100vh-280px)] w-full min-w-0 overflow-auto">
+            <div className="min-h-0 w-full min-w-0 flex-1 overflow-auto">
               {children}
             </div>
           )}
@@ -64,6 +74,8 @@ export function AdminSectionShell({
           {footer}
         </CardContent>
       </Card>
+
+      {below}
     </div>
   )
 }

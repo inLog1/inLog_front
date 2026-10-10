@@ -30,7 +30,7 @@ import { AdminOrganizationsPage } from '../../pages/admin/admin-organizations'
 import { AdminProjectsPage } from '../../pages/admin/admin-projects'
 import { AdminTasksPage } from '../../pages/admin/admin-tasks'
 import NotificationsPage from '../../pages/dashboard/notifications'
-import { AdminRoute } from './AdminRoute'
+import { AdminIndexRedirect, AdminRoute } from './AdminRoute'
 
 export function AppRouter() {
   return (
@@ -60,7 +60,7 @@ export function AppRouter() {
             </Route>
             <Route path={routes.admin.list()} element={<AdminRoute />}>
               <Route element={<AdminPage />}>
-                <Route index element={<Navigate to={routes.admin.users()} replace />} />
+                <Route index element={<AdminIndexRedirect />} />
                 <Route path={routes.admin.users()} element={<AdminUsersPage />} />
                 <Route path={routes.admin.members()} element={<Navigate to={routes.admin.users()} replace />} />
                 <Route path={routes.admin.organizations()} element={<AdminOrganizationsPage />} />

@@ -1,13 +1,33 @@
 import { Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
+import { selectUser } from '../../../entities/user/model/selectors'
+import { useGetProjectMembersQuery } from '../../../entities/project/model/projectSlice'
+import type { AdminUserBrief } from '../../../entities/platform-admin/model/types'
+import { canAccessSection } from '../../../shared/lib/available-features'
+import type { MemberResponse } from '../../../shared/types/dto/project'
 
-import { toSubscriberUser, useSubscribersRevision, visibleMockSubscribers } from '../../organizations-and-projects/model/mock-subscribers'
 import { AdminAvatarStack } from '../../platform-admin/ui/AdminAvatarStack'
 import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
 import { type OrgProjectSelectorType, useEnsureOrgProjectParams } from '../model/useEnsureOrgProjectParams'
+
+function memberToSubscriber(member: MemberResponse): AdminUserBrief | null {
+    const user = member.user
+    if (!user?.id) return null
+
+    return {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        name: user.name,
+        avatar: user.avatar
+            ? { small: user.avatar.small, medium: user.avatar.medium }
+            : undefined,
+    }
+}
 
 interface Props {
     type?: OrgProjectSelectorType
@@ -17,7 +37,9 @@ const OrgProjectSelector = ({
     type = 'all',
 }: Props) => {
     const { t } = useTranslation()
-    useSubscribersRevision()
+    const user = useSelector(selectUser)
+    const organizationsOpen = canAccessSection(user, 'organizations')
+    const projectsOpen = canAccessSection(user, 'projects')
     const {
         organizations,
         projects,
@@ -28,6 +50,13 @@ const OrgProjectSelector = ({
         searchParams,
         setSearchParams,
     } = useEnsureOrgProjectParams(type)
+    const { data: members, isLoading: membersLoading } = useGetProjectMembersQuery(currentProjectId ?? 0, {
+        skip: !currentProjectId,
+    })
+    const subscribers = (members ?? []).flatMap((member) => {
+        const subscriber = memberToSubscriber(member)
+        return subscriber ? [subscriber] : []
+    })
 
     const handleOrgChange = (value: string) => {
         const params = new URLSearchParams(searchParams)
@@ -67,12 +96,14 @@ const OrgProjectSelector = ({
                             <p className="text-sm text-muted-foreground">
                                 {t('scheduler-page.no-organizations-yet')}
                             </p>
-                            <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                <Link to={routes.settings.organizations()}>
-                                    <Plus className="h-4 w-4 shrink-0" />
-                                    {t('scheduler-page.create-first-organization')}
-                                </Link>
-                            </Button>
+                            {organizationsOpen && (
+                                <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
+                                    <Link to={routes.settings.organizations()}>
+                                        <Plus className="h-4 w-4 shrink-0" />
+                                        {t('scheduler-page.create-first-organization')}
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <Select
@@ -109,9 +140,9 @@ const OrgProjectSelector = ({
                                     ? t('scheduler-page.no-projects-in-organization')
                                     : t('scheduler-page.select-organization-first')}
                             </p>
-                            {currentOrgId && (
+                            {currentOrgId && projectsOpen && (
                                 <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                    <Link to={currentOrgId ? `${routes.settings.projects()}?org=${currentOrgId}` : routes.settings.projects()}>
+                                    <Link to={`${routes.settings.projects()}?org=${currentOrgId}`}>
                                         <Plus className="h-4 w-4 shrink-0" />
                                         {t('settings-page.create-first-project')}
                                     </Link>
@@ -140,12 +171,16 @@ const OrgProjectSelector = ({
                             <span className="mb-2 block text-sm font-medium text-muted-foreground">
                                 {t('settings-page.subscribers')}
                             </span>
-                            <AdminAvatarStack
-                                users={visibleMockSubscribers('project', currentProjectId).map(toSubscriberUser)}
-                                max={5}
-                                showCount={false}
-                                className="w-auto"
-                            />
+                            {membersLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                                <AdminAvatarStack
+                                    users={subscribers}
+                                    max={5}
+                                    showCount={false}
+                                    className="w-auto"
+                                />
+                            )}
                         </div>
                     )}
                 </div>

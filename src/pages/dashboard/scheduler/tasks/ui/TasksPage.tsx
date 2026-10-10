@@ -4,7 +4,10 @@ import { Building2, Calendar, FolderOpen, Kanban, LayoutList, Plus } from "lucid
 import { Tabs, TabsList, TabsTrigger } from "../../../../../shared/ui/tabs"
 import TasksKanban from "../../../../../features/tasks/tasks-kanban"
 import { useTranslation } from "react-i18next"
+import { useSelector } from "react-redux"
 import { Link, useSearchParams } from "react-router-dom"
+import { selectUser } from "../../../../../entities/user/model/selectors"
+import { canAccessSection } from "../../../../../shared/lib/available-features"
 import { cn } from "../../../../../shared/lib/utils"
 import { TasksRoadmap } from "../../../../../features/tasks/tasks-roadmap"
 import { useEnsureOrgProjectParams } from "../../../../../features/org-project-selector"
@@ -15,10 +18,12 @@ type ViewMode = "list" | "kanban" | "roadmap"
 
 const TasksPage = () => {
     const { t } = useTranslation()
+    const user = useSelector(selectUser)
     const [viewMode, setViewMode] = useState<ViewMode>("list")
     const [searchParams] = useSearchParams()
     const projectId = searchParams.get('project')
     const { hasNoOrganizations, hasNoProjects } = useEnsureOrgProjectParams()
+    const createTargetOpen = canAccessSection(user, hasNoOrganizations ? 'organizations' : 'projects')
 
     if (hasNoOrganizations || hasNoProjects) {
         return (
@@ -34,14 +39,16 @@ const TasksPage = () => {
                             ? t('scheduler-page.need-organization-and-project')
                             : t('scheduler-page.need-project')}
                     </p>
-                    <Button asChild variant="outline">
-                        <Link to={hasNoOrganizations ? routes.settings.organizations() : routes.settings.projects()}>
-                            <Plus className="h-4 w-4" />
-                            {hasNoOrganizations
-                                ? t('scheduler-page.create-first-organization')
-                                : t('settings-page.create-first-project')}
-                        </Link>
-                    </Button>
+                    {createTargetOpen && (
+                        <Button asChild variant="outline">
+                            <Link to={hasNoOrganizations ? routes.settings.organizations() : routes.settings.projects()}>
+                                <Plus className="h-4 w-4" />
+                                {hasNoOrganizations
+                                    ? t('scheduler-page.create-first-organization')
+                                    : t('settings-page.create-first-project')}
+                            </Link>
+                        </Button>
+                    )}
                 </div>
             </div>
         )

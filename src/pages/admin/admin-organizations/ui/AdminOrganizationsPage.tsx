@@ -1,7 +1,10 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
+import { selectUser } from '../../../../entities/user/model/selectors'
+import { canAccessSection } from '../../../../shared/lib/available-features'
 import { toast } from 'sonner'
 import {
   useDeleteAdminOrganizationMutation,
@@ -44,6 +47,8 @@ function memberUsers(organization: AdminOrganization): AdminUserBrief[] {
 
 export function AdminOrganizationsPage() {
   const { t } = useTranslation()
+  const user = useSelector(selectUser)
+  const projectsOpen = canAccessSection(user, 'projects')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [editingOrganization, setEditingOrganization] = useState<AdminOrganization | null>(null)
@@ -154,12 +159,16 @@ export function AdminOrganizationsPage() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Link
-                    to={`${routes.admin.projects()}?organization=${organization.id}`}
-                    className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
+                  {projectsOpen ? (
+                    <Link
+                      to={`${routes.admin.projects()}?organization=${organization.id}`}
+                      className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <NameChipStack items={organization.projects ?? []} />
+                    </Link>
+                  ) : (
                     <NameChipStack items={organization.projects ?? []} />
-                  </Link>
+                  )}
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   {organization.created_at ? formatAdminDateShort(organization.created_at) : '—'}

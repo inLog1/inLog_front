@@ -40,6 +40,13 @@ export interface User {
   position: string
   about_myself: string
   role?: RoleType | string
+  /**
+   * Разделы, которые можно показать этому пользователю.
+   * `measurements` и `wells` устарели и не учитываются.
+   */
+  availableFeatures?: string[]
+  /** То же поле, если API отдаёт его в snake_case. */
+  available_features?: string[]
   avatar: Avatar
   phone_number: string | null
   settings: UserSettings

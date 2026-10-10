@@ -87,6 +87,19 @@ export function getAdminTaskCreator(task: AdminTask): AdminUserBrief | null {
   }
 }
 
+export function getAdminTaskDoerUsers(task: AdminTask): AdminUserBrief[] {
+  const users = (task.doers ?? [])
+    .map((doer) => doer.user)
+    .filter((user): user is AdminUserBrief => Boolean(user?.id))
+
+  const seen = new Set<number>()
+  return users.filter((user) => {
+    if (seen.has(user.id)) return false
+    seen.add(user.id)
+    return true
+  })
+}
+
 export function getAdminTaskMembers(task: AdminTask): AdminUserBrief[] {
   const members = task.members?.length
     ? task.members

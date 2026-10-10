@@ -52,9 +52,10 @@ export const taskApi = createApi({
             },
         }),
 
-        getTask: builder.query<Task, { projectId: number; taskSlug: string }>({
-            query: ({ projectId, taskSlug }) => ({
+        getTask: builder.query<Task, { projectId: number; taskSlug: string; archived?: boolean }>({
+            query: ({ projectId, taskSlug, archived }) => ({
                 url: `projects/${projectId}/tasks/task/${taskSlug}/`,
+                ...(archived ? { params: { archived: true } } : {}),
             }),
             async onQueryStarted(_, { queryFulfilled }) {
                 try {
@@ -85,10 +86,11 @@ export const taskApi = createApi({
             },
         }),
 
-        updateTask: builder.mutation<Task, { projectId: number; taskSlug: string; data: { id?: number, parent?: number } & Partial<TaskUpdate> }>({
-            query: ({ projectId, taskSlug, data }) => ({
+        updateTask: builder.mutation<Task, { projectId: number; taskSlug: string; archived?: boolean; data: { id?: number, parent?: number } & Partial<TaskUpdate> }>({
+            query: ({ projectId, taskSlug, archived, data }) => ({
                 url: `projects/${projectId}/tasks/task/${taskSlug}/`,
                 method: 'PATCH',
+                ...(archived ? { params: { archived: true } } : {}),
                 body: data,
             }),
             async onQueryStarted({ taskSlug }, { dispatch, queryFulfilled, getState }) {

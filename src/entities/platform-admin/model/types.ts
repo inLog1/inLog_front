@@ -7,6 +7,19 @@ export interface AdminAccess {
   permissions: string[]
 }
 
+export interface FeatureProfile {
+  id: number
+  name: string
+  features: string[]
+  members: number[]
+}
+
+export interface FeatureProfileWriteBody {
+  name: string
+  features: string[]
+  members: number[]
+}
+
 export interface AdminResourceFieldChoice {
   value: string
   label: string
@@ -238,6 +251,7 @@ export interface AdminTask {
   creator?: AdminUserBrief
   doers?: AdminTaskDoer[]
   members?: AdminUserBrief[]
+  tags?: string[]
   status_id: number
   status_name_en: string
   status_name_ru: string
@@ -246,6 +260,14 @@ export interface AdminTask {
   is_template: boolean
   parent_id: number | null
   created_at: string
+}
+
+export interface UpdateAdminTaskBody {
+  name: string
+  priority: string
+  status: number
+  archived: boolean
+  is_template: boolean
 }
 
 export interface AdminTaskStatus {

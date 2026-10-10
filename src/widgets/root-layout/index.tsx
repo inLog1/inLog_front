@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAccessToken } from '../../shared/api/auth-session'
+import { deniedSectionRedirect } from '../../shared/lib/available-features'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { isPlatformAdmin, isSuperAdmin } from '../../shared/types/platform-role'
 import { Header } from '../header'
@@ -107,6 +108,8 @@ export function RootLayout() {
     verifyAndRedirect()
   }, [verifyAndRedirect])
 
+  const sectionRedirect = user ? deniedSectionRedirect(user, location.pathname) : null
+
   if (isUserLoading || isOrgsLoading || isProjectsLoading || lockedToAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -135,7 +138,7 @@ export function RootLayout() {
         />
 
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          <Outlet />
+          {sectionRedirect ? <Navigate to={sectionRedirect} replace /> : <Outlet />}
         </main>
       </div>
       </div>

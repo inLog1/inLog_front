@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   useGetAdminAccessQuery,
   useGetAdminResourcesQuery,
 } from '../../entities/platform-admin/model/platformAdminSlice'
+import { selectUser } from '../../entities/user/model/selectors'
 import { useGetMeQuery } from '../../entities/user/model/userSlice'
+import { firstAccessiblePlatformPath } from '../../shared/lib/available-features'
 import { isPlatformAdmin } from '../../shared/types/platform-role'
 import { routes } from '../../shared/lib/routes'
 
@@ -35,4 +38,9 @@ export function AdminRoute() {
   }
 
   return <Outlet />
+}
+
+export function AdminIndexRedirect() {
+  const user = useSelector(selectUser)
+  return <Navigate to={firstAccessiblePlatformPath(user)} replace />
 }

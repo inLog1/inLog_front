@@ -2,7 +2,10 @@ import { FolderOpen, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "react-hot-toast"
+import { useSelector } from "react-redux"
 import { Link, useSearchParams } from "react-router-dom"
+import { selectUser } from "../../../entities/user/model/selectors"
+import { canAccessSection } from "../../../shared/lib/available-features"
 import { useGetOrganizationsQuery } from "../../../entities/organization/model/organizationSlice"
 import { useDeleteProjectMutation, useGetProjectsQuery } from "../../../entities/project/model/projectSlice"
 import type { Project } from "../../../entities/project/model/types"
@@ -25,6 +28,8 @@ const ALL_ORGANIZATIONS = "all"
 
 const ProjectsPanel = () => {
     const { t } = useTranslation()
+    const user = useSelector(selectUser)
+    const organizationsOpen = canAccessSection(user, 'organizations')
     const countries = usePopularCountries()
     const [searchParams, setSearchParams] = useSearchParams()
     const [search, setSearch] = useState("")
@@ -125,12 +130,14 @@ const ProjectsPanel = () => {
                         </div>
                         <h2 className="text-lg font-semibold">{t('scheduler-page.no-organizations-yet')}</h2>
                         <p className="mt-2 text-sm text-muted-foreground">{t('settings-page.empty-organizations-hint')}</p>
-                        <Button className="mt-6" asChild>
-                            <Link to={routes.settings.organizations()}>
-                                <Plus className="h-4 w-4" />
-                                {t('scheduler-page.create-first-organization')}
-                            </Link>
-                        </Button>
+                        {organizationsOpen && (
+                            <Button className="mt-6" asChild>
+                                <Link to={routes.settings.organizations()}>
+                                    <Plus className="h-4 w-4" />
+                                    {t('scheduler-page.create-first-organization')}
+                                </Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
             ) : (

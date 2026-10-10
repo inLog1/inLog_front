@@ -47,7 +47,7 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
       return t('header.profile')
     }
     if (pathname.includes('settings')) {
-      return t('settings-page.title')
+      return t('header.notifications')
     }
     if (pathname.includes('constructor')) {
       return t('admin-page.constructor')

@@ -2,7 +2,10 @@ import { Building2, Loader2, MapPin, Pencil, Plus, Trash2, Users } from "lucide-
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "react-hot-toast"
+import { useSelector } from "react-redux"
 import { Link } from "react-router-dom"
+import { selectUser } from "../../../entities/user/model/selectors"
+import { canAccessSection } from "../../../shared/lib/available-features"
 import { useDeleteOrganizationMutation, useGetOrganizationsQuery } from "../../../entities/organization/model/organizationSlice"
 import type { Organization } from "../../../entities/organization/model/types"
 import { useGetProjectsQuery } from "../../../entities/project/model/projectSlice"
@@ -27,6 +30,8 @@ function initials(name?: string) {
 
 const OrganizationsPanel = () => {
     const { t } = useTranslation()
+    const user = useSelector(selectUser)
+    const projectsOpen = canAccessSection(user, 'projects')
     const [search, setSearch] = useState("")
     const [extraFilters, setExtraFilters] = useState({ address: "", projects: "all" })
     const [orgToDelete, setOrgToDelete] = useState<Organization | null>(null)
@@ -204,12 +209,16 @@ const OrganizationsPanel = () => {
                                         <p className="mb-1.5 text-xs font-medium text-muted-foreground">
                                             {t('settings-page.projects')}
                                         </p>
-                                        <Link
-                                            to={`${routes.settings.projects()}?org=${organization.id}`}
-                                            className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                        >
+                                        {projectsOpen ? (
+                                            <Link
+                                                to={`${routes.settings.projects()}?org=${organization.id}`}
+                                                className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            >
+                                                <NameChipStack items={organizationProjects} />
+                                            </Link>
+                                        ) : (
                                             <NameChipStack items={organizationProjects} />
-                                        </Link>
+                                        )}
                                     </div>
 
                                     <div className="mt-3 flex items-center justify-between gap-2">
