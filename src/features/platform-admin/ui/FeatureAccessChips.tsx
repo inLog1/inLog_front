@@ -26,7 +26,7 @@ const FEATURE_TONES: Record<string, ChipTone> = {
   wells: tone('--success', 36),
 }
 
-const FALLBACK_TONE = tone('--muted-foreground', 12, 40)
+const FALLBACK_TONE = tone('--muted-foreground', 12)
 
 export function FeatureAccessChips({ features }: { features: readonly string[] }) {
   const { t } = useTranslation()
