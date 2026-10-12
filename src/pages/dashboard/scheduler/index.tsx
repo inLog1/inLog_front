@@ -33,8 +33,8 @@ const SchedulerPage = () => {
 
     return (
         <RootPageLayout navItems={navItems}>
-            <div className="h-full w-full">
-                <div className="pl-2 min-w-0">
+            <div className="h-full min-h-0 w-full">
+                <div className="h-full min-h-0 min-w-0">
                 <Outlet />
                 </div>
             </div>

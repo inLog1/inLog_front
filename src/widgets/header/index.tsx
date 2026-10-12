@@ -66,12 +66,16 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
   }
 
   return (
-    <header className="app-header sticky top-0 z-30 flex h-16 items-center justify-between px-6">
+    <header className="app-header sticky top-0 z-30 flex h-16 items-center justify-between gap-2 px-3 sm:px-6">
       <div className="flex min-w-0 items-center">
         <div
           data-collapsed={sidebarCollapsed ? 'true' : 'false'}
           inert={!sidebarCollapsed}
-          className="sidebar-reveal overflow-hidden"
+          className={cn(
+            'overflow-hidden motion-reduce:transition-none',
+            'transition-[width,margin,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+            sidebarCollapsed ? 'mr-2 w-8 opacity-100 sm:mr-3' : 'pointer-events-none mr-0 w-0 opacity-0',
+          )}
         >
           <Tooltip>
             <TooltipTrigger asChild>
@@ -92,7 +96,7 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
             <TooltipContent side="bottom">{t('sidebar.expand')}</TooltipContent>
           </Tooltip>
         </div>
-        <h1 className="truncate text-xl font-semibold tracking-tight text-shell-header-foreground">{getPageTitle()}</h1>
+        <h1 className="truncate text-base font-semibold tracking-tight text-shell-header-foreground sm:text-xl">{getPageTitle()}</h1>
       </div>
 
       <div className="flex items-center rounded-full border border-shell-toolbar-border bg-shell-toolbar p-1 text-shell-toolbar-foreground shadow-[0_1px_2px_rgba(0,0,0,0.18)]">

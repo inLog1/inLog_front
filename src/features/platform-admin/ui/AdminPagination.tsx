@@ -24,7 +24,7 @@ export function AdminPagination({
   const canNext = offset + limit < count
 
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-border px-4 py-3">
+    <div className="flex flex-col gap-3 border-t border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
       <p className="text-sm text-muted-foreground">
         {t('admin-page.pagination.showing', { from, to, count })}
       </p>

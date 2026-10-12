@@ -1,4 +1,4 @@
-import { Loader2, Plus, Search, SortAsc, SortDesc, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Search, SortAsc, SortDesc, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '../../../shared/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../../shared/ui/dialog'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../../shared/ui/resizable'
+import { ResponsiveSplit } from '../../../shared/ui/responsive-split'
 
 import { useCreateTaskMutation, useDeleteTaskMutation, useGetStatusesQuery, useGetTaskQuery, useGetTasksQuery, useGetTaskTagsQuery, useUpdateTaskMutation } from '../../../entities/task/model/taskSlice'
 
@@ -207,24 +207,17 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
         />
     }
 
-    return (
-        <ResizablePanelGroup
-            className="h-fit rounded-lg border border-border "
-            orientation="horizontal"
-        >
-            <ResizablePanel
-                defaultSize={40}
-            >
-                <div className="flex flex-col h-full ">
-                    <div className="p-4 ">
-                        <div className="flex items-center justify-between mb-4">
-                            <h1 className="text-2xl font-bold tracking-tight">
+    const taskListPane = (
+                <div className="flex h-full min-h-0 flex-col">
+                    <div className="p-3 sm:p-4">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
                                 {t(`${type}.title`)}
                             </h1>
                             <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
                                 <DialogTrigger asChild>
-                                    <Button size="sm" disabled={tasksLoading || taskFetching || !projectId}>
-                                        <Plus className="h-4 w-4 mr-2" />
+                                    <Button size="sm" className="w-full sm:w-auto" disabled={tasksLoading || taskFetching || !projectId}>
+                                        <Plus className="mr-2 h-4 w-4" />
                                         {isTemplates ? t(`templates-page.create-template`) : t(`tasks-page.create-task`)}
                                     </Button>
                                 </DialogTrigger>
@@ -237,7 +230,7 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
                             </Dialog>
                         </div>
 
-                        <div className="space-y-2 grid grid-cols-[1fr_auto] gap-1">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -302,15 +295,30 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
                         }}
                     />
                 </div>
-            </ResizablePanel>
+    )
 
-            <ResizableHandle withHandle />
-
-            <ResizablePanel defaultSize={60} className="border-none rounded-none">
-                <div className={isTemplates ? "h-[calc(100vh-64px-28px)]" : "h-[calc(100vh-64px-32px-32px-16px)]"}>
-                    {renderTaskDetails()}
+    return (
+        <ResponsiveSplit
+            className="h-full min-h-0 rounded-lg border border-border"
+            mobile={selectedTaskSlug ? 'main' : 'aside'}
+            asideDefaultSize={40}
+            mainDefaultSize={60}
+            aside={taskListPane}
+            main={
+                <div className="flex h-full min-h-0 flex-col">
+                    {selectedTaskSlug && (
+                        <div className="border-b border-border p-2 lg:hidden">
+                            <Button variant="ghost" size="sm" onClick={handleCloseTaskDetails}>
+                                <ArrowLeft className="h-4 w-4" />
+                                {t('buttons.back')}
+                            </Button>
+                        </div>
+                    )}
+                    <div className="min-h-0 flex-1">
+                        {renderTaskDetails()}
+                    </div>
                 </div>
-            </ResizablePanel>
-        </ResizablePanelGroup>
+            }
+        />
     )
 }

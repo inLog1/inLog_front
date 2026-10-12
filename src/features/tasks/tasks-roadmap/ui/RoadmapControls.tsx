@@ -61,7 +61,7 @@ const RoadmapControls = (props: Props) => {
     }, [debouncedSearchValue, initialValues.name__icontains])
 
     return (
-        <div className="grid grid-cols-[1fr_auto] gap-6 pl-1">
+        <div className="grid grid-cols-1 gap-3 pl-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
             <div className="col-span-1 w-full flex items-center gap-2">
                 <div className="space-y-2 w-full flex items-center gap-2">
                     <Input

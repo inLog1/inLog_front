@@ -25,7 +25,7 @@ export function DebouncedSearchInput({
     }, [delay, text])
 
     return (
-        <div className="relative min-w-[240px] flex-1 max-w-xl">
+        <div className="relative min-w-0 flex-1 sm:max-w-xl">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
                 value={text}

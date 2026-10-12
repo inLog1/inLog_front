@@ -243,7 +243,7 @@ export function AdminTasksPage() {
       }
       toolbar={
         <div className="space-y-3">
-          <div className="flex w-full items-center justify-between gap-3">
+          <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Tabs value={tab} onValueChange={handleTabChange}>
               <TabsList>
                 <TabsTrigger value="tasks">{t('admin-page.tasks-tab.tasks')}</TabsTrigger>
@@ -253,7 +253,7 @@ export function AdminTasksPage() {
             </Tabs>
             <Button
               type="button"
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               onClick={() => {
                 if (tab === 'statuses') setIsStatusCreateOpen(true)
                 else if (tab === 'tags') setIsTagCreateOpen(true)

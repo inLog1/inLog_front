@@ -32,8 +32,6 @@ import KanbanColumn from './KanbanColumn'
 import SortableTaskCard from './SortableTaskCard'
 import { ScrollArea } from '../../../../shared/ui/scroll-area'
 
-const KANBAN_HEIGHT = 'h-[calc(100vh-64px-32px-32px-16px)]';
-
 interface Props {
     isLoading?: boolean
     onTaskClick?: (task: Task | undefined) => void
@@ -222,7 +220,7 @@ const TasksKanban = (props: Props) => {
     
     if (isLoading || statusesLoading || isTasksLoading) {
         return (
-            <div className={cn("flex items-center justify-center", KANBAN_HEIGHT)}>
+            <div className="flex h-full min-h-0 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         )
@@ -241,7 +239,7 @@ const TasksKanban = (props: Props) => {
                 },
             }}
         >
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <div className="flex h-full min-h-0 gap-3 overflow-x-auto pb-2">
                 {statuses?.map(status => (
                     <KanbanColumn
                         key={status.id}
@@ -254,7 +252,7 @@ const TasksKanban = (props: Props) => {
                             id={status.id.toString()}
                             strategy={verticalListSortingStrategy}
                         >
-                            <ScrollArea className=" h-[calc(100vh-64px-32px-32px-16px-80px)] flex flex-col gap-2">
+                            <ScrollArea className="flex h-full min-h-0 flex-col gap-2">
                                 {columns[status.id]?.map((task, taskIndex) => (
                                     <SortableTaskCard
                                         key={task.id}

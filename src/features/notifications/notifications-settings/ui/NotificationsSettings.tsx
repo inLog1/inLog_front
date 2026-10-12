@@ -257,7 +257,7 @@ const NotificationsSettings = () => {
                                     onAnimationEnd={() => setBouncingDay(null)}
                                     disabled={isBusy}
                                     className={cn(
-                                        'w-12 h-12 flex items-center justify-center rounded-full cursor-pointer border text-sm font-medium transition-colors',
+                                        'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border text-xs font-medium transition-colors sm:h-12 sm:w-12 sm:text-sm',
                                         'disabled:pointer-events-none disabled:opacity-50',
                                         bouncingDay === day.id && 'animate-bounce-pop',
                                         activeDays.includes(day.id)
@@ -276,7 +276,7 @@ const NotificationsSettings = () => {
             {/* Table */}
             <div className="rounded-lg border overflow-hidden">
                 {/* Header */}
-                <div className="grid grid-cols-[1fr_120px_120px] bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
+                <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-x-2 border-b bg-muted/50 px-3 py-3 text-sm font-medium text-muted-foreground sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] sm:px-4">
                     <div className="flex items-center gap-2">
                         <span>{t('notifications-settings.notification-type')}</span>
                         {isBusy && (
@@ -284,8 +284,8 @@ const NotificationsSettings = () => {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 justify-center">
-                        <span>{t('notifications-settings.email')}</span>
+                    <div className="flex items-center justify-center gap-2">
+                        <span className="hidden sm:inline">{t('notifications-settings.email')}</span>
                         <Switch
                             checked={allEmailOn}
                             onCheckedChange={toggleAllEmail}
@@ -293,8 +293,8 @@ const NotificationsSettings = () => {
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 justify-center">
-                        <span>inLog</span>
+                    <div className="flex items-center justify-center gap-2">
+                        <span className="hidden sm:inline">inLog</span>
                         <Switch
                             checked={allInlogOn}
                             onCheckedChange={toggleAllInlog}
@@ -307,7 +307,7 @@ const NotificationsSettings = () => {
                 <ul className="divide-y">
                     {isUserSettingsLoading
                         ? Array.from({ length: 10 }).map((_, i) => (
-                            <li key={i} className="grid grid-cols-[1fr_120px_120px] items-center px-4 py-3">
+                            <li key={i} className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] items-center gap-x-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] sm:px-4">
                                 <Skeleton className="h-4 w-48" />
                                 <div className="flex justify-center"><Skeleton className="h-5 w-9 rounded-full" /></div>
                                 <div className="flex justify-center"><Skeleton className="h-5 w-9 rounded-full" /></div>
@@ -316,9 +316,9 @@ const NotificationsSettings = () => {
                         : tableData.map(row => (
                             <li
                                 key={row.id}
-                                className="grid grid-cols-[1fr_120px_120px] items-center px-4 py-3 text-sm hover:bg-muted/30 transition-colors"
+                                className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] items-center gap-x-2 px-3 py-3 text-sm transition-colors hover:bg-muted/30 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] sm:px-4"
                             >
-                                <span className="text-foreground">{row.title}</span>
+                                <span className="min-w-0 text-foreground">{row.title}</span>
 
                                 <div className="flex justify-center">
                                     {row.email_checked !== undefined ? (

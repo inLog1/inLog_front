@@ -22,8 +22,6 @@ import type { RoadmapColumnOption, RoadmapDetalizationMode } from '../model/type
 import RoadmapControls from './RoadmapControls'
 import './TaskRoadmap.css'
 
-const CONTAINER_HEIGHT = 'calc(100vh - 200px)'
-
 function TasksRoadmap() {
     const { t, i18n } = useTranslation()
     const { theme } = useTheme()
@@ -158,7 +156,7 @@ function TasksRoadmap() {
     }, [taskTypes])
 
     return (
-        <div className="flex flex-col gap-4 pt-1">
+        <div className="flex h-full min-h-0 flex-col gap-4 pt-1">
             <RoadmapControls
                 disabled={isLoading}
                 initialValues={{
@@ -172,9 +170,7 @@ function TasksRoadmap() {
                 onFilterChange={setFilterParams}
             />
 
-            <div className="rounded-lg overflow-hidden overflow-y-auto"
-                style={{ height: CONTAINER_HEIGHT }}
-            >
+            <div className="min-h-0 flex-1 overflow-hidden overflow-y-auto rounded-lg">
 
                 {
                     (ganttTasks.length > 0 && !isLoading) ? (

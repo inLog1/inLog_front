@@ -35,7 +35,7 @@ export function UserRoleSelect({ role, canManage, disabled, onChange }: UserRole
       disabled={disabled}
       onValueChange={(value) => onChange(value as PlatformRole)}
     >
-      <SelectTrigger className="w-[210px]">
+      <SelectTrigger className="w-full max-w-[13.125rem]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

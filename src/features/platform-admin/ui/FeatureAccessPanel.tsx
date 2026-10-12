@@ -155,7 +155,7 @@ function AudienceColumn({
         divided && 'border-b border-border md:border-b-0 md:border-r',
       )}
     >
-      <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+      <div className="flex flex-col items-start gap-2 px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="text-sm font-medium">{t(`admin-page.feature-access.audiences.${audience}`)}</div>
           <div className="text-xs text-muted-foreground">

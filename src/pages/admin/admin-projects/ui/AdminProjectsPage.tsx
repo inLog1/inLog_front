@@ -32,13 +32,11 @@ import {
   TableRow,
 } from '../../../../shared/ui/table'
 
-const ALL_ORGANIZATIONS = 'all'
-
 export function AdminProjectsPage() {
   const { t } = useTranslation()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [appliedSearch, setAppliedSearch] = useState('')
-  const [extraFilters, setExtraFilters] = useState({ country: 'all', reservoir: '', created: 'all' })
+  const [extraFilters] = useState({ country: 'all', reservoir: '', created: 'all' })
   const [offset, setOffset] = useState(0)
   const [editingProject, setEditingProject] = useState<AdminProject | null>(null)
   const [membersProject, setMembersProject] = useState<AdminProject | null>(null)

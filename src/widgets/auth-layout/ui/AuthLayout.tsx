@@ -13,8 +13,8 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     >
       <SignHeader />
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md bg-card/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-border/50">
+      <main className="flex flex-1 flex-col overflow-y-auto px-4 py-6 sm:py-12">
+        <div className="m-auto w-full max-w-md rounded-2xl border border-border/50 bg-card/80 p-5 shadow-2xl backdrop-blur-md sm:p-8">
           {children}
         </div>
       </main>

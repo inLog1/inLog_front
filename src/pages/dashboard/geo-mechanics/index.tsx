@@ -14,7 +14,7 @@ const GeoMechanicsPage = () => {
             label: t('geo-mechanics-page.single-track-graphics'),
             icon: BedSingle,
             content: (
-                <Card className="p-6 bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl">
+                <Card className="border-border/50 bg-card/80 p-3 shadow-2xl backdrop-blur-sm sm:p-6">
                     <WellLogPlotDemo />
                 </Card>
             ),
@@ -24,7 +24,7 @@ const GeoMechanicsPage = () => {
             label: t('geo-mechanics-page.double-track-graphics'),
                 icon: BedDouble,
             content: (
-                <Card className="p-6 bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl">
+                <Card className="border-border/50 bg-card/80 p-3 shadow-2xl backdrop-blur-sm sm:p-6">
                     <WellLogPlotTwoTracksDemo />
                 </Card>
             ),
@@ -32,8 +32,8 @@ const GeoMechanicsPage = () => {
     ]
 
     return (
-        <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 p-4" >
-            <h1 className="text-2xl font-bold mb-4">{t('geo-mechanics-page.graphics')}</h1>
+        <div className="h-full overflow-y-auto p-3 sm:p-4" >
+            <h1 className="mb-4 text-xl font-bold sm:text-2xl">{t('geo-mechanics-page.graphics')}</h1>
 
 
             <Tabs defaultValue="single-track-graphics" className="w-full">

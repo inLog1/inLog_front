@@ -41,10 +41,10 @@ const Dashboard = () => {
     ].filter((item) => item !== false)
 
     return (
-        <div className="space-y-10">
-      <Card className="m-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <div className="h-full overflow-y-auto">
+      <Card className="m-3 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 sm:m-4">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold text-primary">
+          <CardTitle className="text-2xl font-bold text-primary sm:text-3xl">
             {t('dashboard-page.welcome')}
           </CardTitle>
         </CardHeader>
@@ -91,7 +91,7 @@ function QuickLinkCard({
     to: string
   }) {
     return (
-      <Button asChild variant="outline" className="h-auto py-6 px-6 flex flex-col items-start gap-2 text-foreground hover:bg-primary/5 hover:text-foreground">
+      <Button asChild variant="outline" className="flex h-auto flex-col items-start gap-2 whitespace-normal px-4 py-5 text-left text-foreground hover:bg-primary/5 hover:text-foreground sm:px-6 sm:py-6">
         <Link to={to}>
           <div className="text-primary">{icon}</div>
           <div className="font-medium text-foreground">{title}</div>

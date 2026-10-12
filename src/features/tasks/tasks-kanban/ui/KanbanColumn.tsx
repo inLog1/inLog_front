@@ -35,7 +35,7 @@ const KanbanColumn = ({
         <Card
             ref={setNodeRef}
             className={cn(
-                "flex flex-col w-[320px] border-border flex-shrink-0 h-full transition-all duration-200",
+                "flex h-full w-[min(85vw,20rem)] flex-shrink-0 flex-col border-border transition-all duration-200 sm:w-80",
                 isOver && "ring-2 ring-primary ring-opacity-50 bg-accent/50",
                 className
             )}

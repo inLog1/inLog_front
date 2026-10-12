@@ -686,7 +686,7 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                 <AccordionItem value="task-details">
                   <AccordionTrigger>{isTemplate ? t('templates-page.templates-details') : t('tasks-page.task-details')}</AccordionTrigger>
                   <AccordionContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <EditableField<FormValues>
                         name="priority"
                         label={fieldLabel(t('fields.priority'), <FlagIcon className="w-4 h-4" />)}

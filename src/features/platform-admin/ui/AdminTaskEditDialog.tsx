@@ -306,7 +306,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                 name="name"
                 label={t('fields.name')}
                 control={form.control}
-                onSave={(name, value) => updateField(name, value)}
+                onSave={(name, value) => updateField(name as keyof FormValues, value)}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <EditableField<FormValues>
@@ -336,7 +336,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                       {t(`fields.priority-types.${value}`)}
                     </span>
                   )}
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
                 <EditableField<FormValues>
                   name="status"
@@ -347,7 +347,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                   renderValue={(value) =>
                     statusOptions.find((status) => status.value === String(value))?.label || t('fields.not-specified')
                   }
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
                 <EditableField<FormValues>
                   name="due_date_start"
@@ -358,7 +358,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                     <span>{value ? format(new Date(value), DATE_VIEW_FORMAT) : t('fields.not-specified')}</span>
                   )}
                   renderCustom={(value, save) => <DatePicker value={value ?? undefined} onChange={(date) => save(date ?? null)} />}
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
                 <EditableField<FormValues>
                   name="due_date_end"
@@ -369,7 +369,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                     <span>{value ? format(new Date(value), DATE_VIEW_FORMAT) : t('fields.not-specified')}</span>
                   )}
                   renderCustom={(value, save) => <DatePicker value={value ?? undefined} onChange={(date) => save(date ?? null)} />}
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
                 <EditableField<FormValues>
                   name="doers"
@@ -377,7 +377,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                   control={form.control}
                   type="multiple-select"
                   options={people}
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
                 <EditableField<FormValues>
                   name="supervisor"
@@ -389,7 +389,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                     if (!value || value === NO_SUPERVISOR) return t('fields.not-specified')
                     return people.find((person) => person.value === String(value))?.label || t('fields.not-specified')
                   }}
-                  onSave={(name, value) => updateField(name, value)}
+                  onSave={(name, value) => updateField(name as keyof FormValues, value)}
                 />
               </div>
               <EditableField<FormValues>
@@ -409,7 +409,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                     maxTags={10}
                   />
                 )}
-                onSave={(name, value) => updateField(name, value)}
+                onSave={(name, value) => updateField(name as keyof FormValues, value)}
               />
               <EditableField<FormValues>
                 name="description"
@@ -426,7 +426,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
                 renderCustom={(value, save) => (
                   <TaskDescription value={value || ''} onChange={(next) => save(next)} />
                 )}
-                onSave={(name, value) => updateField(name, value)}
+                onSave={(name, value) => updateField(name as keyof FormValues, value)}
               />
               {creatorName ? (
                 <div className="space-y-2">

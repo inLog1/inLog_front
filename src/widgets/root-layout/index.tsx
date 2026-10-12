@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAccessToken } from '../../shared/api/auth-session'
 import { deniedSectionRedirect } from '../../shared/lib/available-features'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
+import { cn } from '../../shared/lib/utils'
 import { isPlatformAdmin, isSuperAdmin } from '../../shared/types/platform-role'
 import { Header } from '../header'
 import { Sidebar } from '../sidebar'
@@ -14,13 +15,23 @@ import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 
 const SIDEBAR_STORAGE_KEY = 'inlog.sidebar-collapsed'
+const MOBILE_SHELL_QUERY = '(max-width: 1023px)'
 
-function readSidebarCollapsed() {
+function isMobileShell() {
+  return typeof window !== 'undefined' && window.matchMedia(MOBILE_SHELL_QUERY).matches
+}
+
+function readStoredSidebarCollapsed() {
   try {
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'
   } catch {
     return false
   }
+}
+
+function readSidebarCollapsed() {
+  if (isMobileShell()) return true
+  return readStoredSidebarCollapsed()
 }
 
 export function RootLayout() {
@@ -34,14 +45,31 @@ export function RootLayout() {
   }, [shell])
   const accessToken = useAccessToken()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed)
+  const previousPath = useRef(location.pathname)
 
   useEffect(() => {
+    if (isMobileShell()) return
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed))
     } catch {
       // Приватный режим или переполненное хранилище не должны ломать интерфейс.
     }
   }, [sidebarCollapsed])
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_SHELL_QUERY)
+    const onChange = () => {
+      setSidebarCollapsed(media.matches ? true : readStoredSidebarCollapsed())
+    }
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    if (previousPath.current === location.pathname) return
+    previousPath.current = location.pathname
+    if (isMobileShell()) setSidebarCollapsed(true)
+  }, [location.pathname])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -119,14 +147,27 @@ export function RootLayout() {
   }
 
   return (
-    <div data-shell={shell} className="flex h-screen flex-col bg-background text-foreground">
+    <div data-shell={shell} className="flex h-dvh flex-col bg-background text-foreground">
       <div className="flex min-h-0 flex-1 overflow-hidden">
+      {!sidebarCollapsed && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          aria-label={t('sidebar.collapse')}
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
       <div
         id="app-sidebar"
         data-collapsed={sidebarCollapsed ? 'true' : 'false'}
         inert={sidebarCollapsed}
         aria-hidden={sidebarCollapsed}
-        className="sidebar-shell h-full shrink-0 overflow-hidden"
+        className={cn(
+          'h-full min-w-0 shrink-0 overflow-hidden motion-reduce:transition-none',
+          'transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:w-60 max-lg:shadow-2xl',
+          sidebarCollapsed ? 'w-0 max-lg:-translate-x-full' : 'w-60 max-lg:translate-x-0',
+        )}
       >
         <Sidebar onCollapse={() => setSidebarCollapsed(true)} />
       </div>

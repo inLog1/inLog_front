@@ -9,7 +9,7 @@ import ConstructorNodeDetails from "../../../../features/constructor/constructor
 import { ConstructorTree } from "../../../../features/constructor/constructor-tree"
 import { getTopmostNodeId } from "../../../../features/constructor/constructor-tree/utils"
 import { errorsHandler } from "../../../../shared/lib/errors-handler"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../../../../shared/ui/resizable"
+import { ResponsiveSplit } from "../../../../shared/ui/responsive-split"
 
 const AdminConstructorPage = () => {
     const { t } = useTranslation()
@@ -205,26 +205,24 @@ const AdminConstructorPage = () => {
     }
 
     return (
-        <ResizablePanelGroup
-            className="h-fit rounded-lg border border-border "
-            orientation="horizontal"
-        >
-            <ResizablePanel
-                defaultSize={100}
-            >
-                <div className="p-4 h-full w-full">
+        <ResponsiveSplit
+            className="h-full min-h-0 rounded-lg border border-border"
+            asideDefaultSize={100}
+            mainDefaultSize={60}
+            aside={
+                <div className="h-full w-full p-3 sm:p-4">
                     {isLoadingAdminPanelNodes || isFetchingAdminPanelNodes ? (
-                        <div className="flex items-center justify-center h-full w-full">
+                        <div className="flex h-full w-full items-center justify-center">
                             <Loader2 className="h-4 w-4 animate-spin" />
                         </div>
                     ) : (!isLoadingAdminPanelNodes && adminPanelNodes?.length === 0) ? (
-                        <div className="flex items-center justify-center h-full w-full">
+                        <div className="flex h-full w-full items-center justify-center">
                             <p className="text-sm text-muted-foreground">
                                 {t('admin-page.no-nodes-available')}
                             </p>
                         </div>
                     ) : (
-                        <div className="w-full h-full">
+                        <div className="h-full w-full">
                             <ConstructorTree
                                 nodes={adminPanelNodes || []}
                                 selectedIds={selectedNodeId ? [selectedNodeId] : []}
@@ -236,16 +234,12 @@ const AdminConstructorPage = () => {
                         </div>
                     )}
                 </div>
-
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            <ResizablePanel defaultSize={60} className="border-none rounded-none">
-                <div className="h-[calc(100vh-64px-32px)] p-4">
+            }
+            main={
+                <div className="h-full min-h-0 p-3 sm:p-4">
                     {
                         !selectedNodeId && (
-                            <div className="flex items-center justify-center h-full">
+                            <div className="flex h-full items-center justify-center">
                                 <p className="text-sm text-muted-foreground">
                                     {t('admin-page.no-entity-selected')}
                                 </p>
@@ -262,8 +256,8 @@ const AdminConstructorPage = () => {
                         />
                     )}
                 </div>
-            </ResizablePanel>
-        </ResizablePanelGroup>
+            }
+        />
     )
 }
 

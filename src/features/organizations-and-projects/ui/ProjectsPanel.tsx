@@ -179,7 +179,7 @@ const ProjectsPanel = () => {
                                         { value: ALL_ORGANIZATIONS, label: t("settings-page.all-organizations") },
                                         ...organizations.map((organization) => ({
                                             value: String(organization.id),
-                                            label: organization.shortName || organization.fullName,
+                                            label: organization.shortName || organization.fullName || "—",
                                         })),
                                     ],
                                 },

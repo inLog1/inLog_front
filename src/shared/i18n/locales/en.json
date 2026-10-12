@@ -240,6 +240,7 @@
 
     "buttons": {
         "cancel": "Cancel",
+        "back": "Back",
         "continue": "Continue",
         "save": "Save",
         "delete": "Delete",

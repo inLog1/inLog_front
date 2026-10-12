@@ -27,8 +27,8 @@ const TasksPage = () => {
 
     if (hasNoOrganizations || hasNoProjects) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="text-center max-w-md text-muted-foreground border border-border/50 rounded-lg p-10">
+            <div className="flex min-h-[50vh] items-center justify-center px-4">
+                <div className="max-w-md rounded-lg border border-border/50 p-6 text-center text-muted-foreground sm:p-10">
                     {hasNoOrganizations ? (
                         <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                     ) : (
@@ -55,31 +55,34 @@ const TasksPage = () => {
     }
 
     return (
-        <div className="space-y-4 min-w-0">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 sm:gap-4">
             <div className="flex justify-start">
                 <Tabs
                     value={viewMode}
                     onValueChange={(value) => setViewMode(value as ViewMode)}
-                    className="w-auto"
+                    className="w-full max-w-md"
                 >
-                    <TabsList className="grid w-[400px] grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger disabled={!projectId} value="list" className={cn("flex items-center gap-2 cursor-pointer", !projectId && "opacity-50 cursor-not-allowed")}>
                             <LayoutList className="h-4 w-4" />
-                            <span>{t('buttons.list')}</span>
+                            <span className="hidden sm:inline">{t('buttons.list')}</span>
+                            <span className="sr-only sm:hidden">{t('buttons.list')}</span>
                         </TabsTrigger>
                         <TabsTrigger disabled={!projectId} value="kanban" className={cn("flex items-center gap-2 cursor-pointer", !projectId && "opacity-50 cursor-not-allowed")}>
                             <Kanban className="h-4 w-4" />
-                            <span>{t('buttons.kanban')}</span>
+                            <span className="hidden sm:inline">{t('buttons.kanban')}</span>
+                            <span className="sr-only sm:hidden">{t('buttons.kanban')}</span>
                         </TabsTrigger>
                         <TabsTrigger disabled={!projectId} value="roadmap" className={cn("flex items-center gap-2 cursor-pointer", !projectId && "opacity-50 cursor-not-allowed")}>
                             <Calendar className="h-4 w-4" />
-                            <span>{t('buttons.roadmap')}</span>
+                            <span className="hidden sm:inline">{t('buttons.roadmap')}</span>
+                            <span className="sr-only sm:hidden">{t('buttons.roadmap')}</span>
                         </TabsTrigger>
                     </TabsList>
                 </Tabs>
             </div>
 
-            <div className="h-full">
+            <div className="min-h-0 flex-1">
                 {viewMode === "list" && <Tasks />}
                 {viewMode === "kanban" && (
                     <div className="h-full w-full overflow-hidden min-w-0">

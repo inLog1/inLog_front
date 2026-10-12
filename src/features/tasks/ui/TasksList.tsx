@@ -3,7 +3,6 @@ import { Card } from '../../../shared/ui/card'
 import { memo, useCallback, useEffect, useRef } from 'react'
 import { TaskCard, TaskCardSkeleton } from '../../../entities/task'
 import type { Task, TasksFilterParams } from '../../../entities/task/model/types'
-import { cn } from '../../../shared/lib/utils'
 import { ScrollArea } from '../../../shared/ui/scroll-area'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/ui/button'
@@ -28,8 +27,6 @@ interface Props {
   }
   hasMore?: boolean
 }
-
-const TASKS_LIST_HEIGHT = 'h-[calc(100vh-280px)]'
 
 const TasksList = ({
   tasks,
@@ -93,7 +90,7 @@ const TasksList = ({
 
   if (tasks.length === 0 && !isLoading && !isFetching) {
     return (
-      <div className="pt-[50%] h-full">
+      <div className="flex h-full min-h-0 flex-1 items-center pt-[20%]">
         <div className="text-center text-muted-foreground">
           {isTemplates ? t(`templates-page.templates-absent-message`) : t(`tasks-page.tasks-absent-message`)}
           {Object.values(filterParams).filter(Boolean).length > 2 && (
@@ -113,9 +110,9 @@ const TasksList = ({
   }
 
   return (
-    <Card className="px-4 border-none bg-transparent">
+    <Card className="flex min-h-0 flex-1 flex-col border-none bg-transparent px-3 sm:px-4">
 
-      <ScrollArea className={cn("flex flex-col gap-2 pr-3 -mr-3", TASKS_LIST_HEIGHT)}>
+      <ScrollArea className="min-h-0 flex-1 pr-3 -mr-3">
         {(isFetching || isLoading) && (
           <div className="w-full h-full flex items-center flex-col gap-2  text-muted-foreground">
             {Array.from({ length: 10 }).map((_, index) => (

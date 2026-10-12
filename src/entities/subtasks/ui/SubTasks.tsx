@@ -93,8 +93,8 @@ const SubTasks = ({
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label htmlFor="title" className="sm:text-right">
                 {t('fields.title')}
               </Label>
               <Input
@@ -103,7 +103,7 @@ const SubTasks = ({
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={isTemplate ? t('fields.enter-subtemplate-name') : t('fields.enter-subtask-name')}
-                className="col-span-3"
+                className="sm:col-span-3"
                 autoFocus
               />
             </div>

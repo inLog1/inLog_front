@@ -122,8 +122,8 @@ export function AdminCatalogPage() {
   const rows = rowsPage?.results ?? []
 
   return (
-    <div className="flex h-full min-h-0 gap-4">
-      <aside className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+    <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:gap-4">
+      <aside className="flex h-72 w-full shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground lg:h-full lg:w-72">
         <div className="space-y-3 border-b border-border p-3">
           <div>
             <h2 className="text-sm font-semibold">{t('admin-page.catalog')}</h2>

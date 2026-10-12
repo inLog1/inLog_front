@@ -167,15 +167,15 @@ const handleCopyLink = () => {
             <DialogTitle>{t('subtasks-entity.edit-subtask')}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-title" className="text-right">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label htmlFor="edit-title" className="sm:text-right">
                 {t('fields.title')}
               </Label>
               <Input
                 id="edit-title"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="col-span-3"
+                className="sm:col-span-3"
                 autoFocus
               />
             </div>

@@ -7,7 +7,7 @@ const NotificationsPage = () => {
     const { t } = useTranslation()
 
     return (
-        <div className="pl-2">
+        <div className="min-w-0">
             <Tabs defaultValue="all">
                 <TabsList>
                     <TabsTrigger value="all">

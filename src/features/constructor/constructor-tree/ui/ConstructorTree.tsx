@@ -319,7 +319,7 @@ const ConstructorTree = ({
                         </p>
                     </div>
                 ) : (
-                    <ScrollArea className="h-full overflow-y-auto max-h-[calc(100vh-180px)]">
+                    <ScrollArea className="h-full min-h-0 overflow-y-auto">
                         <div {...tree.getContainerProps()} className="space-y-0.5 h-full">
                             {tree.getItems().map((item: any) => {
                                 const nodeId = item.getItemData()
