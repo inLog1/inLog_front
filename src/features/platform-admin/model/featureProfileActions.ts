@@ -1,11 +1,4 @@
 import type { FeatureProfile, FeatureProfileWriteBody } from '../../../entities/platform-admin/model/types'
-import { applyFeatureToggle } from './featureAccessPolicy'
-import type { BulkAudience } from './featureAccessPolicy'
-
-export const AUDIENCE_PROFILE_NAMES: Record<BulkAudience, string> = {
-  admin: 'Админы',
-  member: 'Пользователи',
-}
 
 type ProfileWriter = {
   createProfile: (body: FeatureProfileWriteBody) => { unwrap: () => Promise<unknown> }
@@ -26,24 +19,6 @@ export function readUserFeatures(
   const selected = catalog.filter((feature) => profile.features.includes(feature))
   if (catalog.length > 0 && selected.length === catalog.length) return null
   return selected
-}
-
-export function toggledFeatureMap(
-  userIds: readonly number[],
-  feature: string,
-  enabled: boolean,
-  profiles: readonly FeatureProfile[],
-  catalog: readonly string[],
-): Map<number, string[] | null> {
-  const next = new Map<number, string[] | null>()
-  for (const userId of userIds) {
-    next.set(userId, applyFeatureToggle(readUserFeatures(userId, profiles, catalog), feature, enabled, catalog))
-  }
-  return next
-}
-
-export function uniformFeatureMap(userIds: readonly number[], features: string[] | null) {
-  return new Map(userIds.map((userId) => [userId, features]))
 }
 
 function sameFeatures(left: readonly string[], right: readonly string[]) {

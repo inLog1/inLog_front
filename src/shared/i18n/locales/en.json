@@ -581,28 +581,8 @@
         "users": "Users",
         "users-description": "All registered users with signup date and role management.",
         "feature-access": {
-            "title": "Section access settings",
-            "description-super": "Separately for every admin and separately for every user.",
-            "description-admin": "For every user at once. Admin accounts stay unchanged.",
-            "audiences": {
-                "admin": "Admins",
-                "member": "Users"
-            },
-            "audience-hint": {
-                "admin": "For every admin at once",
-                "member": "For every user at once"
-            },
-            "empty-admin": "There are no admins.",
-            "empty-member": "There are no users.",
-            "status-all": "Open for everyone",
-            "status-none": "Closed for everyone",
-            "status-mixed": "Open for {{open}} of {{total}}",
-            "enable-all": "Open all",
-            "disable-all": "Close all",
             "load-error": "Could not load the section list",
             "empty": "The section list is empty",
-            "all-open": "All sections",
-            "some-open": "{{open}} of {{total}}",
             "features": {
                 "organizations": "Organizations",
                 "projects": "Projects",
@@ -838,7 +818,7 @@
             "role": "Role",
             "verified": "Email verified",
             "registered-at": "Registered at",
-            "access": "Sections",
+            "access": "Available sections",
             "actions": "Actions",
             "yes": "Yes",
             "no": "No"

@@ -1,5 +1,5 @@
 import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -28,9 +28,8 @@ import { AdminPagination } from '../../../../features/platform-admin/ui/AdminPag
 import { DebouncedSearchInput } from '../../../../features/platform-admin/ui/DebouncedSearchInput'
 import { AdminSectionShell } from '../../../../features/platform-admin/ui/AdminSectionShell'
 import { AdminUserCell } from '../../../../features/platform-admin/ui/AdminUserCell'
-import type { Task, TaskPriority } from '../../../../entities/task/model/types'
-import { useGetTasksQuery } from '../../../../entities/task/model/taskSlice'
-import type { AdminTask, AdminTaskDoer, AdminTaskStatus, AdminTaskTag } from '../../../../entities/platform-admin/model/types'
+import type { TaskPriority } from '../../../../entities/task/model/types'
+import type { AdminTask, AdminTaskStatus, AdminTaskTag } from '../../../../entities/platform-admin/model/types'
 import { getPriorityColorStyle } from '../../../../shared/lib/utils'
 import { Button } from '../../../../shared/ui/button'
 import {
@@ -102,41 +101,6 @@ export function AdminTasksPage() {
       }
     })
   }, [organizationsQuery.data?.results, projectsQuery.data?.results, tasksQuery.data?.results])
-  const projectIds = useMemo(
-    () => [...new Set(tasks.map((task) => task.project_id).filter((id) => id > 0))],
-    [tasks],
-  )
-  const [projectTaskIndex, setProjectTaskIndex] = useState<Record<number, Task>>({})
-  const projectTaskSignatures = useRef<Record<number, string>>({})
-  const rememberProjectTasks = useCallback((projectId: number, list: Task[]) => {
-    const signature = list
-      .map((item) => `${item.id}:${item.priority}:${(item.doers ?? []).map((doer) => doer.id).join(',')}:${(item.tags ?? []).map((tag) => tag.name).join(',')}`)
-      .join('|')
-    if (projectTaskSignatures.current[projectId] === signature) return
-    projectTaskSignatures.current[projectId] = signature
-    setProjectTaskIndex((current) => {
-      const next = { ...current }
-      for (const item of list) next[item.id] = item
-      return next
-    })
-  }, [])
-  const displayTasks = useMemo(
-    () =>
-      tasks.map((task) => {
-        const full = projectTaskIndex[task.id]
-        if (!full) return task
-        const doers = doersFromTask(full)
-        return {
-          ...task,
-          priority: full.priority || task.priority,
-          doers: doers.length > 0 ? doers : task.doers,
-          archived: full.archived,
-          is_template: Boolean(full.is_template),
-          tags: (full.tags ?? []).flatMap((tag) => (tag.name ? [tag.name] : [])),
-        }
-      }),
-    [projectTaskIndex, tasks],
-  )
   const statusesQuery = useGetAdminTaskStatusesQuery(
     { limit: ADMIN_PAGE_SIZE, offset },
     { skip: tab !== 'statuses' }
@@ -228,9 +192,6 @@ export function AdminTasksPage() {
 
   return (
     <>
-    {projectIds.map((projectId) => (
-      <ProjectTaskIndex key={projectId} projectId={projectId} onTasks={rememberProjectTasks} />
-    ))}
     <AdminSectionShell
       title={t('admin-page.tasks')}
       description={t('admin-page.tasks-description')}
@@ -312,7 +273,7 @@ export function AdminTasksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayTasks.map((task) => {
+              {tasks.map((task) => {
                 const doers = getAdminTaskDoerUsers(task)
                 const priority = task.priority as TaskPriority | ''
                 return (
@@ -582,41 +543,4 @@ export function AdminTasksPage() {
     />
     </>
   )
-}
-
-function doersFromTask(task: Task): AdminTaskDoer[] {
-  return (task.doers ?? []).flatMap((doer) => {
-    const user = doer.user
-    if (!user?.id) return []
-    return [
-      {
-        id: doer.id,
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          avatar: user.avatar,
-        },
-      },
-    ]
-  })
-}
-
-function ProjectTaskIndex({
-  projectId,
-  onTasks,
-}: {
-  projectId: number
-  onTasks: (projectId: number, tasks: Task[]) => void
-}) {
-  const { data } = useGetTasksQuery(
-    { projectId, params: { limit: 200, offset: 0 } },
-    { skip: !projectId },
-  )
-
-  useEffect(() => {
-    if (data?.results) onTasks(projectId, data.results)
-  }, [data, onTasks, projectId])
-
-  return null
 }

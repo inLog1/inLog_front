@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { selectIsSuperAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
-import { canAccessSection, type AppSection } from '../../shared/lib/available-features'
+import { orderSidebarEntries } from '../../shared/lib/available-features'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../../shared/ui/button'
@@ -55,24 +55,24 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
   const isPlatform = isPlatformConsolePath(location.pathname)
 
-  const clientItems = [
-    { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true },
-    { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false },
+  const clientItems = orderSidebarEntries(user, [
+    { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true, pin: 'start' as const },
+    { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false, section: 'reports' as const },
     { label: t('sidebar.organizations'), href: routes.settings.organizations(), icon: Building2, end: false, section: 'organizations' as const },
     { label: t('sidebar.projects'), href: routes.settings.projects(), icon: FolderOpen, end: false, section: 'projects' as const },
     { label: t('sidebar.scheduler'), href: routes.scheduler.list(), icon: FolderKanban, end: false, section: 'scheduler' as const },
-    { label: t('sidebar.geo-mechanics'), href: routes.geoMechanics.list(), icon: TowerControl, end: false },
+    { label: t('sidebar.geo-mechanics'), href: routes.geoMechanics.list(), icon: TowerControl, end: false, section: 'geoMechanics' as const },
     { label: t('header.notifications'), href: routes.settings.notifications(), icon: Bell, end: false, section: 'notifications' as const },
-  ].filter((item) => isSectionVisible(user, item.section))
+  ])
 
-  const platformItems = [
+  const platformItems = orderSidebarEntries(user, [
     { label: t('admin-page.users'), href: routes.admin.users(), icon: Users, section: 'users' as const },
     { label: t('sidebar.organizations'), href: routes.admin.organizations(), icon: Building2, section: 'organizations' as const },
     { label: t('sidebar.projects'), href: routes.admin.projects(), icon: FolderOpen, section: 'projects' as const },
     { label: t('admin-page.tasks'), href: routes.admin.tasks(), icon: CheckSquare, section: 'tasks' as const },
     { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench, section: 'constructor' as const },
-    { label: t('admin-page.catalog'), href: routes.admin.catalog(), icon: Table2 },
-  ].filter((item) => isSectionVisible(user, item.section))
+    { label: t('admin-page.catalog'), href: routes.admin.catalog(), icon: Table2, pin: 'end' as const },
+  ])
 
   const itemClass = (active: boolean) =>
     cn(
@@ -169,13 +169,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
       </div>
     </aside>
   )
-}
-
-function isSectionVisible(
-  user: Parameters<typeof canAccessSection>[0],
-  section?: AppSection,
-) {
-  return !section || canAccessSection(user, section)
 }
 
 function ThemeMenu() {

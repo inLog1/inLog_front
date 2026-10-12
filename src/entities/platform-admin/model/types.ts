@@ -252,6 +252,11 @@ export interface AdminTask {
   doers?: AdminTaskDoer[]
   members?: AdminUserBrief[]
   tags?: string[]
+  tag_items?: { id: number; name: string }[]
+  description?: string
+  due_date_start?: string | null
+  due_date_end?: string | null
+  supervisor_user_id?: number | null
   status_id: number
   status_name_en: string
   status_name_ru: string
@@ -263,11 +268,21 @@ export interface AdminTask {
 }
 
 export interface UpdateAdminTaskBody {
+  name?: string
+  description?: string
+  priority?: string
+  status?: number
+  archived?: boolean
+  is_template?: boolean
+  due_date_start?: string | null
+  due_date_end?: string | null
+  tags?: number[]
+}
+
+export interface CreateAdminTaskBody {
   name: string
   priority: string
-  status: number
-  archived: boolean
-  is_template: boolean
+  project: number
 }
 
 export interface AdminTaskStatus {

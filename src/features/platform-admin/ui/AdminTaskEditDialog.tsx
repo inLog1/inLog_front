@@ -3,33 +3,27 @@ import { CalendarIcon, EyeIcon, FlagIcon, Kanban, Loader2, TagIcon, UserIcon } f
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useDispatch } from 'react-redux'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import {
-  platformAdminApi,
   useAddAdminTaskMemberMutation,
   useAddAdminTaskSupervisorMutation,
+  useCreateAdminTaskTagMutation,
   useGetAdminProjectMembersQuery,
   useGetAdminTaskDoersQuery,
+  useGetAdminTaskQuery,
   useGetAdminTaskStatusesQuery,
   useGetAdminTaskSupervisorsQuery,
   useGetAdminTaskTagsQuery,
   useRemoveAdminTaskMemberMutation,
   useRemoveAdminTaskSupervisorMutation,
+  useUpdateAdminTaskMutation,
 } from '../../../entities/platform-admin/model/platformAdminSlice'
-import type { AdminTask } from '../../../entities/platform-admin/model/types'
-import type { Task, TaskPriority } from '../../../entities/task/model/types'
-import {
-  taskApi,
-  useAddTaskTagMutation,
-  useGetTaskQuery,
-  useUpdateTaskMutation,
-} from '../../../entities/task/model/taskSlice'
+import type { AdminTask, UpdateAdminTaskBody } from '../../../entities/platform-admin/model/types'
+import type { TaskPriority } from '../../../entities/task/model/types'
 import { DATE_VIEW_FORMAT, priorityTypes } from '../../../shared/config/constants'
 import { format } from 'date-fns'
 import { getPriorityColorStyle } from '../../../shared/lib/utils'
-import type { TaskUpdate } from '../../../shared/types/dto/task'
 import { DatePicker } from '../../../shared/ui/date-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../shared/ui/dialog'
 import { EditableField } from '../../../shared/ui/editable-field'
@@ -62,29 +56,17 @@ interface AdminTaskEditDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-function supervisorUserId(task?: Task | null) {
-  const supervisor = task?.supervisor
-  if (!supervisor || typeof supervisor !== 'object' || !('user' in supervisor)) return ''
-  return supervisor.user?.id ? String(supervisor.user.id) : ''
-}
-
 export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditDialogProps) {
   const { t } = useTranslation()
-  const dispatch = useDispatch()
-  const [updateTask] = useUpdateTaskMutation()
+  const [updateTask] = useUpdateAdminTaskMutation()
   const [addDoer] = useAddAdminTaskMemberMutation()
   const [deleteDoer] = useRemoveAdminTaskMemberMutation()
   const [addSupervisor] = useAddAdminTaskSupervisorMutation()
   const [deleteSupervisor] = useRemoveAdminTaskSupervisorMutation()
-  const [addTag] = useAddTaskTagMutation()
-  const { data: fullTask, isFetching, isError } = useGetTaskQuery(
-    {
-      projectId: task?.project_id ?? 0,
-      taskSlug: task?.slug ?? '',
-      archived: Boolean(task?.archived),
-    },
-    { skip: !open || !task?.project_id || !task.slug },
-  )
+  const [addTag] = useCreateAdminTaskTagMutation()
+  const { data: fullTask, isFetching, isError } = useGetAdminTaskQuery(task?.id ?? 0, {
+    skip: !open || !task,
+  })
   const { data: statuses } = useGetAdminTaskStatusesQuery(
     { limit: 100, offset: 0, project: task?.project_id },
     { skip: !open || !task },
@@ -130,12 +112,12 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
       name: fullTask?.name || task.name,
       description: fullTask?.description || '',
       priority: fullTask?.priority || task.priority || priorityTypes.medium,
-      status: String(fullTask?.status?.id || task.status_id || ''),
+      status: String(fullTask?.status_id || task.status_id || ''),
       due_date_start: fullTask?.due_date_start ? new Date(fullTask.due_date_start) : null,
       due_date_end: fullTask?.due_date_end ? new Date(fullTask.due_date_end) : null,
       doers: (fullTask?.doers ?? []).flatMap((doer) => (doer.user?.id ? [String(doer.user.id)] : [])),
-      supervisor: supervisorUserId(fullTask) || NO_SUPERVISOR,
-      tags: (fullTask?.tags ?? []).flatMap((tag) => (tag.name ? [tag.name] : [])),
+      supervisor: fullTask?.supervisor_user_id ? String(fullTask.supervisor_user_id) : NO_SUPERVISOR,
+      tags: fullTask?.tags ?? [],
     })
     setArchived(fullTask?.archived ?? task.archived)
     setIsTemplate(Boolean(fullTask?.is_template ?? task.is_template))
@@ -149,9 +131,8 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
     for (const doer of fullTask?.doers ?? []) {
       if (doer.user?.id) map.set(doer.user.id, doer.user.full_name || doer.user.email)
     }
-    const supervisor = fullTask?.supervisor
-    if (supervisor && 'user' in supervisor && supervisor.user?.id) {
-      map.set(supervisor.user.id, supervisor.user.full_name || supervisor.user.email)
+    if (fullTask?.supervisor_user_id && !map.has(fullTask.supervisor_user_id)) {
+      map.set(fullTask.supervisor_user_id, String(fullTask.supervisor_user_id))
     }
     return [...map.entries()].map(([id, label]) => ({ value: String(id), label }))
   }, [fullTask, members])
@@ -159,25 +140,14 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
   const tagOptions = useMemo(() => {
     const names = new Set<string>()
     for (const tag of tagsCatalog?.results ?? []) if (tag.name) names.add(tag.name)
-    for (const tag of fullTask?.tags ?? []) if (tag.name) names.add(tag.name)
+    for (const tag of fullTask?.tags ?? []) if (tag) names.add(tag)
     return [...names]
   }, [fullTask, tagsCatalog?.results])
 
   if (!task) return null
 
-  const refreshLists = () => {
-    dispatch(taskApi.util.invalidateTags(['Tasks', 'Task']))
-    dispatch(platformAdminApi.util.invalidateTags([{ type: 'AdminTasks', id: 'LIST' }]))
-  }
-
-  const saveTask = async (data: Partial<TaskUpdate>) => {
-    await updateTask({
-      projectId: task.project_id,
-      taskSlug: fullTask?.slug || task.slug,
-      archived: fullTask?.archived ?? task.archived,
-      data: { id: fullTask?.id ?? task.id, ...data },
-    }).unwrap()
-    refreshLists()
+  const saveTask = async (data: UpdateAdminTaskBody) => {
+    await updateTask({ id: task.id, body: data }).unwrap()
   }
 
   const updateField = async (field: keyof FormValues, value: FormValues[keyof FormValues]) => {
@@ -192,11 +162,11 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
         await changeTags(value as string[])
       } else if (field === 'due_date_start' || field === 'due_date_end') {
         const date = value instanceof Date ? value.toISOString() : null
-        await saveTask({ [field]: date } as Partial<TaskUpdate>)
+        await saveTask({ [field]: date })
       } else if (field === 'status') {
         await saveTask({ status: Number(value) })
       } else {
-        await saveTask({ [field]: value } as Partial<TaskUpdate>)
+        await saveTask({ [field]: value } as UpdateAdminTaskBody)
       }
       form.setValue(field, value as never)
       toast.success(t('notice-list.task-data-saved-successfully'))
@@ -238,7 +208,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
   const changeTags = async (nextNames: string[]) => {
     const known = [
       ...(tagsCatalog?.results ?? []).map((tag) => ({ id: tag.id, name: tag.name })),
-      ...(fullTask?.tags ?? []).map((tag) => ({ id: tag.id, name: tag.name || '' })),
+      ...(fullTask?.tag_items ?? []),
     ]
     const tagIds: number[] = []
     for (const tagName of nextNames) {
@@ -247,7 +217,7 @@ export function AdminTaskEditDialog({ task, open, onOpenChange }: AdminTaskEditD
         tagIds.push(existing.id)
         continue
       }
-      const created = await addTag({ projectId: task.project_id, data: { name: tagName } }).unwrap()
+      const created = await addTag({ project: task.project_id, name: tagName }).unwrap()
       if (created?.id) tagIds.push(created.id)
     }
     await saveTask({ tags: tagIds })

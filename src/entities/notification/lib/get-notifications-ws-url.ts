@@ -1,3 +1,5 @@
+import { getConfiguredApiBaseUrl } from '../../../shared/api/api-base-url'
+
 export function getNotificationsWsUrl(token: string): string {
   const customWsBase = import.meta.env.VITE_WSS_BASE_URL as string | undefined
 
@@ -6,7 +8,7 @@ export function getNotificationsWsUrl(token: string): string {
     return `${base}notifications/?token=${encodeURIComponent(token)}`
   }
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/'
+  const apiBase = getConfiguredApiBaseUrl()
   const httpBase = apiBase.replace(/\/api\/?$/, '/')
   const wsBase = httpBase.replace(/^http/, 'ws')
 

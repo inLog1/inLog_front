@@ -16,12 +16,7 @@ export type UserAccessDraft = {
 type Drafts = Record<number, UserAccessDraft>
 
 const STORAGE_KEY = 'inlog.user-access-drafts'
-const PRESET_KEY = 'inlog.audience-access-presets'
 const EMPTY_DRAFTS: Drafts = {}
-
-type AudiencePresets = Record<'admin' | 'member', string[] | null>
-
-const DEFAULT_PRESETS: AudiencePresets = { admin: null, member: null }
 
 function sanitizeFeatures(value: unknown): string[] | null {
   if (value == null) return null
@@ -55,24 +50,7 @@ function readDrafts(): Drafts {
   }
 }
 
-function readPresets(): AudiencePresets {
-  if (typeof window === 'undefined') return DEFAULT_PRESETS
-
-  try {
-    const raw = window.localStorage.getItem(PRESET_KEY)
-    if (!raw) return DEFAULT_PRESETS
-    const parsed = JSON.parse(raw) as Partial<AudiencePresets>
-    return {
-      admin: sanitizeFeatures(parsed.admin),
-      member: sanitizeFeatures(parsed.member),
-    }
-  } catch {
-    return DEFAULT_PRESETS
-  }
-}
-
 let drafts = readDrafts()
-let audiencePresets = readPresets()
 const listeners = new Set<() => void>()
 
 function subscribe(listener: () => void) {
@@ -90,78 +68,19 @@ function persist(next: Drafts) {
   emit()
 }
 
-function persistPresets(next: AudiencePresets) {
-  audiencePresets = next
-  window.localStorage.setItem(PRESET_KEY, JSON.stringify(next))
-  emit()
-}
-
-export function canManageFeatureAccess(role?: string | null) {
-  return role === 'admin' || isSuperAdmin(role)
-}
-
-export type BulkAudience = 'admin' | 'member'
-
-/** Супер-админ видит две группы, админ — только пользователей. */
-export function bulkAudiencesForActor(role?: string | null): BulkAudience[] {
-  if (isSuperAdmin(role)) return ['admin', 'member']
-  if (role === 'admin') return ['member']
-  return []
-}
-
-export function isInBulkAudience(audience: BulkAudience, targetRole: string) {
-  return audience === 'admin' ? targetRole === 'admin' : targetRole === 'member'
-}
-
-/** Кого затрагивает общий переключатель. Админ — только обычных пользователей. */
-export function isBulkAccessTarget(actorRole: string | null | undefined, targetRole: string) {
+/** Админ меняет разделы только у обычных пользователей, супер-админ — у всех, кроме супер-админов. */
+export function canEditUserFeatures(actorRole: string | null | undefined, targetRole: string) {
   if (isSuperAdmin(actorRole)) return targetRole !== 'super_admin'
   if (actorRole === 'admin') return targetRole === 'member'
   return false
-}
-
-export function canEditUserFeatures(actorRole: string | null | undefined, targetRole: string) {
-  return isBulkAccessTarget(actorRole, targetRole)
 }
 
 export function useUserAccessDrafts() {
   return useSyncExternalStore(subscribe, () => drafts, () => EMPTY_DRAFTS)
 }
 
-/** Набор разделов роли, когда на странице ещё нет таких пользователей. `null` — открыты все. */
-export function useAudiencePreset(audience: 'admin' | 'member') {
-  const presets = useSyncExternalStore(subscribe, () => audiencePresets, () => DEFAULT_PRESETS)
-  return presets[audience]
-}
-
-export function setAudiencePresetFeature(
-  audience: 'admin' | 'member',
-  feature: string,
-  enabled: boolean,
-  catalog: readonly string[],
-) {
-  persistPresets({
-    ...audiencePresets,
-    [audience]: applyFeatureToggle(audiencePresets[audience], feature, enabled, catalog),
-  })
-}
-
-export function setAudiencePresetAll(audience: 'admin' | 'member', enabled: boolean) {
-  persistPresets({
-    ...audiencePresets,
-    [audience]: enabled ? null : [],
-  })
-}
-
 export function readUserAccessDraft(userId: number) {
   return drafts[userId]
-}
-
-/** `null` в черновике — открыты все разделы из каталога `GET /api/admin/features/`. */
-export function resolvedFeatures(draft: UserAccessDraft | undefined, catalog: readonly string[]): string[] {
-  if (!draft || draft.features == null) return [...catalog]
-  const selected = new Set(draft.features)
-  return catalog.filter((feature) => selected.has(feature))
 }
 
 export function applyFeatureToggle(
@@ -195,36 +114,3 @@ export function clearUserAccess(userId: number) {
   persist(next)
 }
 
-export function setUsersFeature(
-  userIds: number[],
-  feature: string,
-  enabled: boolean,
-  catalog: readonly string[],
-) {
-  if (userIds.length === 0) return
-  const next = { ...drafts }
-
-  for (const userId of userIds) {
-    const current = next[userId]
-    next[userId] = {
-      ...current,
-      features: applyFeatureToggle(current?.features ?? null, feature, enabled, catalog),
-    }
-  }
-
-  persist(next)
-}
-
-export function setUsersAllFeatures(userIds: number[], enabled: boolean) {
-  if (userIds.length === 0) return
-  const next = { ...drafts }
-
-  for (const userId of userIds) {
-    next[userId] = {
-      ...next[userId],
-      features: enabled ? null : [],
-    }
-  }
-
-  persist(next)
-}

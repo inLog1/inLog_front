@@ -1,15 +1,13 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDispatch } from 'react-redux'
 import { toast } from 'sonner'
 import {
-  platformAdminApi,
+  useCreateAdminTaskMutation,
   useGetAdminOrganizationsQuery,
   useGetAdminProjectsQuery,
 } from '../../../entities/platform-admin/model/platformAdminSlice'
 import type { TaskPriority } from '../../../entities/task/model/types'
-import { useCreateTaskMutation } from '../../../entities/task/model/taskSlice'
 import { priorityTypes } from '../../../shared/config/constants'
 import { Button } from '../../../shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../shared/ui/dialog'
@@ -24,8 +22,7 @@ interface AdminTaskCreateDialogProps {
 
 export function AdminTaskCreateDialog({ open, onOpenChange }: AdminTaskCreateDialogProps) {
   const { t } = useTranslation()
-  const dispatch = useDispatch()
-  const [createTask, { isLoading }] = useCreateTaskMutation()
+  const [createTask, { isLoading }] = useCreateAdminTaskMutation()
   const { data: organizations } = useGetAdminOrganizationsQuery(
     { limit: 200, offset: 0 },
     { skip: !open },
@@ -68,10 +65,10 @@ export function AdminTaskCreateDialog({ open, onOpenChange }: AdminTaskCreateDia
 
     try {
       await createTask({
-        projectId: Number(projectId),
-        data: { name: name.trim(), priority },
+        name: name.trim(),
+        priority,
+        project: Number(projectId),
       }).unwrap()
-      dispatch(platformAdminApi.util.invalidateTags([{ type: 'AdminTasks', id: 'LIST' }]))
       toast.success(t('admin-page.task-created'))
       onOpenChange(false)
     } catch (error) {

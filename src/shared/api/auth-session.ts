@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { t } from 'i18next'
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../config/constants'
 import { routes } from '../lib/routes'
+import { getApiBaseUrl } from './api-base-url'
 
 type AuthStatus = 'unknown' | 'authenticated' | 'anonymous'
 type RefreshOutcome = 'ok' | 'unauthorized' | 'unavailable'
@@ -22,7 +23,11 @@ type AuthSession = {
   accessTokenExpiration?: string | null
 }
 
+const REFRESH_SKEW_MS = 60_000
+const REFRESH_RETRY_MS = 90_000
+
 let accessToken: string | null = null
+let accessExpiresAt: number | null = null
 let refreshToken: string | null = null
 let csrfToken: string | null = null
 let csrfInFlight: Promise<string | null> | null = null
@@ -67,6 +72,7 @@ async function requestCsrfToken(): Promise<string | null> {
   try {
     const response = await fetch(`${getApiBaseUrl()}auth/csrf/`, {
       credentials: 'include',
+      cache: 'no-store',
       headers: { Accept: 'application/json' },
     })
     if (!response.ok) return csrfToken
@@ -101,11 +107,6 @@ export function useAuthStatus() {
 
 export function useAccessToken() {
   return useSyncExternalStore(subscribeAuth, getAccessToken, getAccessToken)
-}
-
-function getApiBaseUrl() {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/'
-  return base.endsWith('/') ? base : `${base}/`
 }
 
 function readJwtExpiry(token: string) {
@@ -152,17 +153,36 @@ function clearRefreshTimer() {
   }
 }
 
+function accessTokenExpiresSoon() {
+  return accessExpiresAt != null && accessExpiresAt - Date.now() <= REFRESH_SKEW_MS
+}
+
+function handleRefreshOutcome(outcome: RefreshOutcome) {
+  if (outcome === 'unauthorized') redirectToLogin()
+  if (outcome === 'unavailable') scheduleRefreshRetry(REFRESH_RETRY_MS)
+}
+
+function runScheduledRefresh() {
+  void refreshAccessToken().then(handleRefreshOutcome)
+}
+
 function scheduleRefresh(expiresAt: number | null) {
   clearRefreshTimer()
+  accessExpiresAt = expiresAt
   if (!expiresAt) return
 
-  const delay = Math.max(expiresAt - Date.now() - 60_000, 5_000)
-  refreshTimer = setTimeout(() => {
-    void refreshAccessToken().then((outcome) => {
-      if (outcome === 'unauthorized') redirectToLogin()
-      if (outcome === 'unavailable') scheduleRefresh(Date.now() + 90_000)
-    })
-  }, delay)
+  const delay = Math.max(expiresAt - Date.now() - REFRESH_SKEW_MS, 0)
+  refreshTimer = setTimeout(runScheduledRefresh, delay)
+}
+
+function scheduleRefreshRetry(delayMs: number) {
+  clearRefreshTimer()
+  refreshTimer = setTimeout(runScheduledRefresh, delayMs)
+}
+
+export function ensureFreshAccessToken() {
+  if (!accessToken || !accessTokenExpiresSoon()) return Promise.resolve()
+  return refreshAccessToken().then(() => undefined)
 }
 
 function applyAccessToken(token: string, expiration?: string | null) {
@@ -186,6 +206,7 @@ export function beginLogout() {
 
 export function clearAuthSession() {
   accessToken = null
+  accessExpiresAt = null
   refreshToken = null
   clearRefreshTimer()
   purgeLegacyStorage()
@@ -222,7 +243,8 @@ async function requestRefresh(explicitRefresh?: string): Promise<RefreshOutcome>
       body: JSON.stringify(explicitRefresh ? { refresh: explicitRefresh } : {}),
     })
 
-    if (response.status === 400 || response.status === 401 || response.status === 403) return 'unauthorized'
+    if (response.status === 403) return 'unavailable'
+    if (response.status === 400 || response.status === 401) return 'unauthorized'
     if (!response.ok) return 'unavailable'
 
     const data = (await response.json()) as RefreshResponse
@@ -285,6 +307,12 @@ export function bootstrapAuth() {
     bootstrapPromise = (async () => {
       const outcome = await refreshAccessToken()
       if (outcome === 'ok' || accessToken) return
+
+      if (outcome === 'unavailable') {
+        bootstrapPromise = null
+        scheduleRefreshRetry(REFRESH_RETRY_MS)
+        return
+      }
 
       const legacyAccess = readStoredToken(ACCESS_TOKEN)
       if (legacyAccess && !isExpired(legacyAccess)) {

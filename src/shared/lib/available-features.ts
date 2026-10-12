@@ -26,6 +26,21 @@ export type AppSection =
   | 'users'
   | 'tasks'
   | 'scheduler'
+  | 'reports'
+  | 'geoMechanics'
+
+/** Код из `available_features`, который открывает раздел и задаёт его место в меню. */
+const SECTION_FEATURE: Record<Exclude<AppSection, 'home'>, string> = {
+  organizations: 'organizations',
+  projects: 'projects',
+  notifications: 'notifications',
+  constructor: 'constructor',
+  users: 'users',
+  tasks: 'tasks',
+  scheduler: 'tasks',
+  reports: 'reports',
+  geoMechanics: 'geo_mechanics',
+}
 
 type FeatureUser = Pick<User, 'role' | 'availableFeatures' | 'available_features'> | null | undefined
 
@@ -42,7 +57,7 @@ export function readAvailableFeatures(user: FeatureUser): string[] {
   )
 }
 
-export function hasAvailableFeature(user: FeatureUser, feature: AvailableFeature): boolean {
+export function hasAvailableFeature(user: FeatureUser, feature: string): boolean {
   if (isSuperAdmin(user?.role)) return true
   return readAvailableFeatures(user).includes(feature)
 }
@@ -60,7 +75,9 @@ export function canAccessSection(user: FeatureUser, section: AppSection): boolea
     case 'notifications':
     case 'constructor':
     case 'users':
-      return hasAvailableFeature(user, section)
+    case 'reports':
+    case 'geoMechanics':
+      return hasAvailableFeature(user, SECTION_FEATURE[section])
     case 'tasks':
       return hasAvailableFeature(user, 'tasks') && isPlatformAdmin(user?.role)
     case 'scheduler':
@@ -68,6 +85,36 @@ export function canAccessSection(user: FeatureUser, section: AppSection): boolea
     default:
       return false
   }
+}
+
+type OrderedEntry = {
+  section?: AppSection
+  /** `start` — всегда первым (главная). `end` — всегда последним (каталог). */
+  pin?: 'start' | 'end'
+}
+
+/**
+ * Пункты меню в порядке `available_features`.
+ * Главная закреплена первой. Раздел без своего кода в списке не показывается.
+ */
+export function orderSidebarEntries<T extends OrderedEntry>(user: FeatureUser, items: readonly T[]): T[] {
+  const features = readAvailableFeatures(user)
+
+  return items
+    .filter((item) => item.pin != null || (item.section != null && canAccessSection(user, item.section)))
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => entryRank(a.item, a.index, features) - entryRank(b.item, b.index, features))
+    .map(({ item }) => item)
+}
+
+function entryRank(item: OrderedEntry, index: number, features: string[]) {
+  if (item.pin === 'start') return -1_000_000
+  if (item.pin === 'end') return 1_000_000 + index
+
+  const feature = item.section && item.section !== 'home' ? SECTION_FEATURE[item.section] : undefined
+  const featureIndex = feature ? features.indexOf(feature) : -1
+  if (featureIndex === -1) return 100_000 + index
+  return featureIndex
 }
 
 const SECTION_PATHS: { section: AppSection; paths: string[] }[] = [
@@ -111,6 +158,14 @@ const SECTION_PATHS: { section: AppSection; paths: string[] }[] = [
     section: 'notifications',
     paths: [routes.settings.notifications()],
   },
+  {
+    section: 'reports',
+    paths: [routes.admin.reports()],
+  },
+  {
+    section: 'geoMechanics',
+    paths: [routes.geoMechanics.list()],
+  },
 ]
 
 export function sectionForPathname(pathname: string): AppSection | null {
@@ -133,10 +188,18 @@ const PLATFORM_SECTION_PATHS: { section: AppSection; path: string }[] = [
   { section: 'constructor', path: routes.admin.constructor() },
 ]
 
-/** Первый открытый раздел админки. Каталог не зависит от availableFeatures. */
+/** Первый открытый раздел админки в порядке `available_features`. Каталог от списка не зависит. */
 export function firstAccessiblePlatformPath(user: FeatureUser): string {
-  const match = PLATFORM_SECTION_PATHS.find((item) => canAccessSection(user, item.section))
-  return match?.path ?? routes.admin.catalog()
+  const features = readAvailableFeatures(user)
+  const accessible = PLATFORM_SECTION_PATHS.filter((item) => canAccessSection(user, item.section))
+  accessible.sort((a, b) => featureRank(features, a.section) - featureRank(features, b.section))
+  return accessible[0]?.path ?? routes.admin.catalog()
+}
+
+function featureRank(features: string[], section: AppSection) {
+  if (section === 'home') return -1
+  const index = features.indexOf(SECTION_FEATURE[section])
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index
 }
 
 /** Куда увести с закрытого раздела. Главная остаётся доступной всегда. */

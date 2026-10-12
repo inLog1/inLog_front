@@ -15,9 +15,9 @@ import { ADMIN_PAGE_SIZE, formatAdminDate } from '../../../../features/platform-
 import { useAdminDeleteDialog } from '../../../../features/platform-admin/lib/useAdminDeleteDialog'
 import { AdminDeleteConfirmDialog } from '../../../../features/platform-admin/ui/AdminDeleteConfirmDialog'
 import { AdminPagination } from '../../../../features/platform-admin/ui/AdminPagination'
-import { AdminSearchBar } from '../../../../features/platform-admin/ui/AdminSearchBar'
 import { AdminSectionShell } from '../../../../features/platform-admin/ui/AdminSectionShell'
-import { FeatureAccessPanel } from '../../../../features/platform-admin/ui/FeatureAccessPanel'
+import { DebouncedSearchInput } from '../../../../features/platform-admin/ui/DebouncedSearchInput'
+import { FeatureAccessChips } from '../../../../features/platform-admin/ui/FeatureAccessChips'
 import { readUserFeatures } from '../../../../features/platform-admin/model/featureProfileActions'
 import { PlatformRoleBadge } from '../../../../features/platform-admin/ui/PlatformRoleBadge'
 import { UserEditDialog } from '../../../../features/platform-admin/ui/UserEditDialog'
@@ -46,7 +46,6 @@ export function AdminUsersPage() {
   const { t } = useTranslation()
   const currentUser = useSelector(selectUser)
   const drafts = useUserAccessDrafts()
-  const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
@@ -73,8 +72,9 @@ export function AdminUsersPage() {
   const users = data?.results ?? []
   const isBusy = isLoading || isFetching || isDeletingUser || isDeleting
 
-  const handleSearch = () => {
-    setAppliedSearch(search.trim())
+  const setSearch = (value: string) => {
+    const next = value.trim()
+    setAppliedSearch((current) => (current === next ? current : next))
     setOffset(0)
   }
 
@@ -104,15 +104,14 @@ export function AdminUsersPage() {
       isLoading={isLoading}
       isEmpty={!isLoading && users.length === 0}
       toolbar={
-        <AdminSearchBar
-          value={search}
-          onChange={setSearch}
-          onSubmit={handleSearch}
-          placeholder={t('admin-page.search-users')}
-          actionLabel={t('admin-page.search')}
-        />
+        <div className="w-full max-w-xl">
+          <DebouncedSearchInput
+            value={appliedSearch}
+            onDebouncedChange={setSearch}
+            placeholder={t('admin-page.search-users')}
+          />
+        </div>
       }
-      below={<FeatureAccessPanel />}
       footer={
         data ? (
           <AdminPagination
@@ -125,16 +124,16 @@ export function AdminUsersPage() {
         ) : null
       }
     >
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>{t('admin-page.users-table.email')}</TableHead>
-            <TableHead>{t('admin-page.users-table.name')}</TableHead>
-            <TableHead>{t('admin-page.users-table.role')}</TableHead>
-            <TableHead>{t('admin-page.users-table.verified')}</TableHead>
-            <TableHead>{t('admin-page.users-table.registered-at')}</TableHead>
-            <TableHead>{t('admin-page.users-table.access')}</TableHead>
-            <TableHead className="text-right">{t('admin-page.users-table.actions')}</TableHead>
+            <TableHead className="w-[15%]">{t('admin-page.users-table.email')}</TableHead>
+            <TableHead className="w-[12%]">{t('admin-page.users-table.name')}</TableHead>
+            <TableHead className="w-[12%]">{t('admin-page.users-table.role')}</TableHead>
+            <TableHead className="w-[9%]">{t('admin-page.users-table.verified')}</TableHead>
+            <TableHead className="w-[14%]">{t('admin-page.users-table.registered-at')}</TableHead>
+            <TableHead className="w-[30%]">{t('admin-page.users-table.access')}</TableHead>
+            <TableHead className="w-[8%] text-right">{t('admin-page.users-table.actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -144,13 +143,19 @@ export function AdminUsersPage() {
             const isSelf = currentUser?.id === user.id
             const isTargetSuperAdmin = role === 'super_admin'
             const features = readUserFeatures(user.id, profiles, catalog)
-            const openCount = isTargetSuperAdmin || features == null ? catalog.length : features.length
             const catalogReady = !isCatalogLoading && !isProfilesLoading && !isCatalogError && !isProfilesError && catalog.length > 0
+            const visibleFeatures = !catalogReady
+              ? null
+              : isTargetSuperAdmin || features == null
+                ? catalog
+                : features
 
             return (
               <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.email}</TableCell>
-                <TableCell>{displayName(user, draft?.name, draft?.surname)}</TableCell>
+                <TableCell className="truncate font-medium" title={user.email}>{user.email}</TableCell>
+                <TableCell className="truncate" title={displayName(user, draft?.name, draft?.surname)}>
+                  {displayName(user, draft?.name, draft?.surname)}
+                </TableCell>
                 <TableCell>
                   <PlatformRoleBadge role={role} showSuperAdminHint={isTargetSuperAdmin} />
                 </TableCell>
@@ -161,18 +166,15 @@ export function AdminUsersPage() {
                       : t('admin-page.users-table.no')}
                   </Badge>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">
+                <TableCell className="text-muted-foreground">
                   {formatAdminDate(user.created_at)}
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                  {!catalogReady
-                    ? '—'
-                    : openCount === catalog.length
-                    ? t('admin-page.feature-access.all-open')
-                    : t('admin-page.feature-access.some-open', {
-                        open: openCount,
-                        total: catalog.length,
-                      })}
+                <TableCell>
+                  {visibleFeatures == null ? (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  ) : (
+                    <FeatureAccessChips features={visibleFeatures} />
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   {isTargetSuperAdmin ? (

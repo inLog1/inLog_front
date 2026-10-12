@@ -15,6 +15,7 @@ import type {
   AdminTaskStatus,
   AdminTaskTag,
   UpdateAdminTaskBody,
+  CreateAdminTaskBody,
   AdminUser,
   AdminUserBrief,
   PaginatedResponse,
@@ -426,6 +427,20 @@ export const platformAdminApi = createApi({
             ]
           : [{ type: 'AdminTasks', id: 'LIST' }],
     }),
+    getAdminTask: builder.query<AdminTask, number>({
+      query: (taskId) => `admin/task/${taskId}/`,
+      transformResponse: (response: AdminTaskResponse) => toAdminTask(response),
+      providesTags: (_result, _error, taskId) => [{ type: 'AdminTasks', id: taskId }],
+    }),
+    createAdminTask: builder.mutation<AdminTask, CreateAdminTaskBody>({
+      query: (body) => ({
+        url: 'admin/task/',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: AdminTaskResponse) => toAdminTask(response),
+      invalidatesTags: [{ type: 'AdminTasks', id: 'LIST' }],
+    }),
     deleteAdminTask: builder.mutation<void, number>({
       query: (taskId) => ({
         url: `admin/task/${taskId}/`,
@@ -433,16 +448,17 @@ export const platformAdminApi = createApi({
       }),
       invalidatesTags: [{ type: 'AdminTasks', id: 'LIST' }],
     }),
-    updateAdminTask: builder.mutation<
-      AdminTask,
-      { projectId: number; slug: string; body: UpdateAdminTaskBody }
-    >({
-      query: ({ projectId, slug, body }) => ({
-        url: `projects/${projectId}/tasks/task/${encodeURIComponent(slug)}/`,
+    updateAdminTask: builder.mutation<AdminTask, { id: number; body: UpdateAdminTaskBody }>({
+      query: ({ id, body }) => ({
+        url: `admin/task/${id}/`,
         method: 'PATCH',
         body,
       }),
-      invalidatesTags: [{ type: 'AdminTasks', id: 'LIST' }],
+      transformResponse: (response: AdminTaskResponse) => toAdminTask(response),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'AdminTasks', id: 'LIST' },
+        { type: 'AdminTasks', id },
+      ],
     }),
     getAdminTaskDoers: builder.query<AdminTaskDoer[], number>({
       query: (taskId) => ({
@@ -731,6 +747,10 @@ type AdminTaskResponse = {
   status_name_en?: string
   status_name_ru?: string
   priority?: string | null
+  description?: string | null
+  due_date_start?: string | null
+  due_date_end?: string | null
+  supervisor?: { id?: number; user?: AdminUserBrief | number | null } | number | null
   archived?: boolean
   is_template?: boolean
   parent_id?: number | null
@@ -768,6 +788,30 @@ function toAdminTaskLinks(
   })
 }
 
+function doersFromAdminTask(raw: AdminTaskResponse): AdminTaskDoer[] {
+  const fromMembers = (raw.members ?? []).flatMap((member) => {
+    const user = member.user && typeof member.user === 'object' ? member.user : undefined
+    if (!user?.id || !member.id || member.type === 'supervisor') return []
+    return [{ id: member.id, user }]
+  })
+  if (fromMembers.length > 0) return fromMembers
+
+  return (raw.doers ?? []).flatMap((doer) => (doer.user?.id ? [doer] : []))
+}
+
+function supervisorUserId(raw: AdminTaskResponse) {
+  const supervisor = raw.supervisor
+  if (supervisor && typeof supervisor === 'object') {
+    const user = supervisor.user
+    if (user && typeof user === 'object' && user.id) return user.id
+  }
+
+  const member = (raw.members ?? []).find(
+    (item) => item.type === 'supervisor' && item.user && typeof item.user === 'object' && item.user.id,
+  )
+  return member && typeof member.user === 'object' ? member.user.id ?? null : null
+}
+
 function toAdminTask(raw: AdminTaskResponse): AdminTask {
   const project = raw.project && typeof raw.project === 'object' ? raw.project : null
   const projectId = project?.id ?? (typeof raw.project === 'number' ? raw.project : raw.project_id) ?? 0
@@ -797,17 +841,18 @@ function toAdminTask(raw: AdminTaskResponse): AdminTask {
     creator_email: raw.creator?.email ?? raw.creator_email ?? '',
     creator_name: raw.creator?.full_name || raw.creator_name,
     creator: raw.creator ?? undefined,
-    doers: (raw.members ?? []).flatMap((member) => {
-      const user = member.user && typeof member.user === 'object' ? member.user : undefined
-      if (!user?.id || !member.id || member.type === 'supervisor') return []
-      return [{ id: member.id, user }]
-    }),
+    doers: doersFromAdminTask(raw),
     members: (raw.members ?? []).flatMap((member) => {
       const user = member.user && typeof member.user === 'object' ? member.user : undefined
       if (!user?.id || member.type === 'supervisor') return []
       return [user]
     }),
     tags: (raw.tags ?? []).flatMap((tag) => (tag.name ? [tag.name] : [])),
+    tag_items: (raw.tags ?? []).flatMap((tag) => (tag.id && tag.name ? [{ id: tag.id, name: tag.name }] : [])),
+    description: raw.description ?? '',
+    due_date_start: raw.due_date_start ?? null,
+    due_date_end: raw.due_date_end ?? null,
+    supervisor_user_id: supervisorUserId(raw),
     status_id: statusId,
     status_name_en: status?.name_en || raw.status_name_en || '',
     status_name_ru: status?.name_ru || raw.status_name_ru || '',
@@ -965,6 +1010,8 @@ export const {
   useCreateAdminProjectMutation,
   useDeleteAdminProjectMutation,
   useGetAdminTasksQuery,
+  useGetAdminTaskQuery,
+  useCreateAdminTaskMutation,
   useDeleteAdminTaskMutation,
   useUpdateAdminTaskMutation,
   useGetAdminTaskDoersQuery,

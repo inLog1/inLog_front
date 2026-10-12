@@ -1,7 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../../../shared/lib/utils'
 import { Card, CardContent } from '../../../shared/ui/card'
 
 interface AdminSectionShellProps {
@@ -10,7 +9,6 @@ interface AdminSectionShellProps {
   actions?: ReactNode
   banner?: ReactNode
   toolbar?: ReactNode
-  below?: ReactNode
   footer?: ReactNode
   isLoading?: boolean
   isEmpty?: boolean
@@ -24,7 +22,6 @@ export function AdminSectionShell({
   actions,
   banner,
   toolbar,
-  below,
   footer,
   isLoading = false,
   isEmpty = false,
@@ -47,10 +44,7 @@ export function AdminSectionShell({
 
       {toolbar}
 
-      <Card className={cn(
-        'flex min-h-0 flex-col overflow-hidden',
-        below ? 'max-h-[min(28rem,46vh)] shrink-0' : 'flex-1',
-      )}>
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {isLoading && (
             <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
@@ -74,8 +68,6 @@ export function AdminSectionShell({
           {footer}
         </CardContent>
       </Card>
-
-      {below}
     </div>
   )
 }

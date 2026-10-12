@@ -1,4 +1,4 @@
-import { ChevronDown, Languages, PanelLeftOpen } from 'lucide-react'
+import { ChevronDown, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
@@ -108,6 +108,23 @@ export function Header({ sidebarCollapsed, onExpandSidebar }: HeaderProps) {
   )
 }
 
+function LanguageMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden className={className}>
+      <defs>
+        <clipPath id="language-mark-disc">
+          <circle cx="8" cy="8" r="5.7" />
+        </clipPath>
+      </defs>
+      <circle cx="8" cy="8" r="6.15" stroke="currentColor" strokeWidth="1.35" />
+      <g clipPath="url(#language-mark-disc)" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <ellipse cx="8" cy="8" rx="2.45" ry="6.4" />
+        <path d="M1.5 8h13M2.4 5.2h11.2M2.4 10.8h11.2" />
+      </g>
+    </svg>
+  )
+}
+
 function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
   const [updateUserSettings] = useUpdateUserSettingsMutation()
@@ -129,7 +146,7 @@ function LanguageSwitcher() {
           variant="ghost"
           className="h-8 gap-1.5 rounded-full bg-shell-chip px-2.5 text-sm font-semibold text-shell-chip-foreground shadow-none hover:bg-shell-chip-hover hover:text-shell-chip-foreground"
         >
-          <Languages className="text-shell-chip-icon" />
+          <LanguageMark className="text-shell-chip-icon" />
           {currentLanguage}
           <ChevronDown className="opacity-50" />
         </Button>

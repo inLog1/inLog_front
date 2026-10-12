@@ -1,8 +1,9 @@
 import { fetchBaseQuery, type FetchArgs } from '@reduxjs/toolkit/query'
-import { ensureCsrfToken, getAccessToken, redirectToLogin, refreshAccessToken } from './auth-session'
+import { getApiBaseUrl } from './api-base-url'
+import { ensureCsrfToken, ensureFreshAccessToken, getAccessToken, redirectToLogin, refreshAccessToken } from './auth-session'
 
 const baseQueryStart = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/',
+  baseUrl: getApiBaseUrl(),
   credentials: 'include',
   prepareHeaders: (headers) => {
     const token = getAccessToken()
@@ -43,15 +44,17 @@ function shouldRecoverSession(url: string) {
 }
 
 function isSessionRejected(status: unknown) {
-  return status === 401 || status === 403
+  return status === 401
 }
 
 export const baseQuery: typeof baseQueryStart = async (args, api, extraOptions) => {
+  const url = requestUrl(args)
+  if (shouldRecoverSession(url)) await ensureFreshAccessToken()
+
   let result = await baseQueryStart(await attachCsrfHeader(args), api, extraOptions)
 
   if (!isSessionRejected(result.error?.status)) return result
 
-  const url = requestUrl(args)
   if (!shouldRecoverSession(url)) return result
 
   const outcome = await refreshAccessToken()
