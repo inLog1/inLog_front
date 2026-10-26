@@ -1,0 +1,389 @@
+{
+  "commit": "c88fbde63b930102f2318b5b72811f3cbb8e355e",
+  "files": [
+    {
+      "path": "src/entities/admin/index.ts",
+      "sha256": "e1e57ade97599f648a25c77c598a7c9c3f1b0bda7644ebb2f2b8899c33862599"
+    },
+    {
+      "path": "src/entities/admin/model/adminSlice.ts",
+      "sha256": "90cc395a4babded0e1e4c6f4ca4f2393a3392f3fd981e7647782b82687acf1e9"
+    },
+    {
+      "path": "src/entities/admin/model/selectors.ts",
+      "sha256": "acae055a161eeb59bbbc9049ba5122aaed5f7bfbe55af89099cd15368f5b0758"
+    },
+    {
+      "path": "src/entities/admin/model/types.ts",
+      "sha256": "91f5974177a02ca6e7e30b13dc78b75c0c154ec80a21dfa14f94a2a6d05fe961"
+    },
+    {
+      "path": "src/entities/subtasks/index.ts",
+      "sha256": "d2bc5ead8ade6e1d3207813c72c2a0ce80ee0522cb7704f7f82630c8858e1772"
+    },
+    {
+      "path": "src/entities/subtasks/ui/SubTask.tsx",
+      "sha256": "acd44df0871ba417f37e937d84f59f1da59c9602de8b3549a8ef0027e9779509"
+    },
+    {
+      "path": "src/entities/subtasks/ui/SubTasks.tsx",
+      "sha256": "87248e3486fc2e771ad90e0a36f2cbeb853d3e3290a9b227cf5fe72b9383c0fa"
+    },
+    {
+      "path": "src/entities/task/index.ts",
+      "sha256": "fa93c239b793dff55cf7990bef4de108dbb8770b4a64bf72baaa296e8ac2c803"
+    },
+    {
+      "path": "src/entities/task/model/selectors.ts",
+      "sha256": "6d9fc0026c95c8851a07314ae1cb71c50b9df152b6279b4936333fc97b9d36d6"
+    },
+    {
+      "path": "src/entities/task/model/taskSlice.ts",
+      "sha256": "a1f6873149eb35218a08337c5480426f03b79231e1cd34dbc82b51cd943d834f"
+    },
+    {
+      "path": "src/entities/task/model/types.ts",
+      "sha256": "1259e5d3d09c8333c93c8dbc0c0a714dfd57a5d488f24c71d42e50aa9ddbeaa2"
+    },
+    {
+      "path": "src/entities/task/ui/TaskCard.tsx",
+      "sha256": "00f5e54235e3130a4eb131e78f2b1253a4875578dfeb10c08c4c5d56e6bc7a40"
+    },
+    {
+      "path": "src/entities/task/ui/TaskCardSkeleton.tsx",
+      "sha256": "40c50dbcbe4ce69686651e9bc08398940305aba6028c4bdd17cf39edd5ee34d6"
+    },
+    {
+      "path": "src/entities/task-comments/index.ts",
+      "sha256": "ee26afb332a24a16cf87b25c70b42ccace88c1a22823fa464ce5dd5d76792c8e"
+    },
+    {
+      "path": "src/entities/task-comments/ui/TaskComment.tsx",
+      "sha256": "203bfbadc2fb91f69558e377adea4e7606390658b258b9a02f3dffa5217089bc"
+    },
+    {
+      "path": "src/entities/task-comments/ui/TaskComments.tsx",
+      "sha256": "e3f9299ee333d6967560442dcb2b7726492251d61b8c0899786fe129432d758e"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/index.ts",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/model/ConstructorNodeContext.tsx",
+      "sha256": "14661916d8153597c71ecf4312b3314c6af674868e390191544b0405104ba1a4"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorNodeConnections.tsx",
+      "sha256": "00b503dff658f3161e0caabcd6ff7ab4ef4b30e8c9e4ee218fdfc7c4db3ea240"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorNodeDetails.tsx",
+      "sha256": "6d036e5b80b26ee079e5b12211574f62ba362352462ee624f483d5b784f4218d"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorTab.tsx",
+      "sha256": "648d666f91ba3d409f8230db5b6daecb6d4c9f63296da9582f330d7d4751bb47"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorTableWrapper.tsx",
+      "sha256": "45448d1e5e666082abc00dff10fdd51f3453e9c7d2448d0e58289c55768f9311"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorTabs.tsx",
+      "sha256": "5f99e26147e43354acc5cf520fefab2a84472885014fe09f962c5c42dde26c75"
+    },
+    {
+      "path": "src/features/constructor/constructor-node-details/ui/ConstructorTabsConnections.tsx",
+      "sha256": "6d1fd362e6bc07708393efcf7f4da8beb7fb620176570e77fbe77381b9500835"
+    },
+    {
+      "path": "src/features/constructor/constructor-table/index.ts",
+      "sha256": "82b2a7dc63a40857ac487e01f76872ff17b3f19bdf8eb258e966e4c4a0dbfa53"
+    },
+    {
+      "path": "src/features/constructor/constructor-table/model/types.ts",
+      "sha256": "c26f016ed0bdf5cc915f85cb480904a70571a362ddc4c73d7a3110edc40e980a"
+    },
+    {
+      "path": "src/features/constructor/constructor-table/ui/ConstructorTable.tsx",
+      "sha256": "4f7323e86273f7db8872fac4b8929ae14ef5212b4fe5bbf93deedb74c920af43"
+    },
+    {
+      "path": "src/features/constructor/constructor-table/ui/ConstructorTableEditingRow.tsx",
+      "sha256": "89b1caeda5dd630bd9ecd382bec7eb60800b6a17756947b34f7ec6aa614f902a"
+    },
+    {
+      "path": "src/features/constructor/constructor-table/ui/ConstructorTableFormDialog.tsx",
+      "sha256": "85d753efc8241266a26724dad9cb1315e2db8adf94fbf4f49fc74c85ec95d409"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/index.ts",
+      "sha256": "e4f898422526c253936a254d585e5a0c645a6c89985b535c61b1b985b95a6dec"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/model/hooks/use-related-tabs-options.ts",
+      "sha256": "7a17306320ea6eebbba9e026ff173c10b3f91ccbfa896c96de99e2533e1448a7"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/ui/ConstructorTree.tsx",
+      "sha256": "0030c17216b0ba0916511870f77e0f9cbf4ddf5f0e2c8ffbdfe0e8e9160463ae"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/ui/ConstructorTreeNode.tsx",
+      "sha256": "7997d1640cbf5805e575aaa49ebccd40ed29768cb5755862f7f15c5bf07abe7f"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/ui/TreeNodeFormDialog.tsx",
+      "sha256": "9400ab8f49c37a855e2441512e94aed7de707a718d988cf88a43f638b1180774"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/ui/TreeNodeFormDialogTab.tsx",
+      "sha256": "4e042ee5a919623b2e4c0b96e32c3e88be0131d89881031bf95b085c8cecd60e"
+    },
+    {
+      "path": "src/features/constructor/constructor-tree/utils.ts",
+      "sha256": "8229ab9cd78c982e0ff88a3b971dbec425eec6f2ab0dbf387e10ae87e90942c6"
+    },
+    {
+      "path": "src/features/report/report-details/index.ts",
+      "sha256": "229e6f215579210e0ffdb860d6e2f6d08d0581122019c5b0e44c311ff0835ee4"
+    },
+    {
+      "path": "src/features/report/report-details/ui/ReportDetails.tsx",
+      "sha256": "395bfab296fd0f827b9fb0afe93852a2c2102bc3384a6fff537052d9603fc626"
+    },
+    {
+      "path": "src/features/report/report-details/ui/ReportTable.tsx",
+      "sha256": "5c47adf730b6794f2e6116ddc594f17487dea16ca8956129da3b3c038d996f5a"
+    },
+    {
+      "path": "src/features/report/report-tree/index.ts",
+      "sha256": "549e123ac5cab7c39abef8f2dd52f65225f66726f85c624afc001e00bd66a371"
+    },
+    {
+      "path": "src/features/report/report-tree/ui/ReportTree.tsx",
+      "sha256": "27b51c4ce1a4fb5ddc1186af4ca4b735b4cdbc318e11c7ddc927cda5862ba87c"
+    },
+    {
+      "path": "src/features/report/report-tree/ui/ReportTreeColumn.tsx",
+      "sha256": "8c0bfbd633c54ff4859476fba32ca125f64723d17b84076aab7f07d1f7184c97"
+    },
+    {
+      "path": "src/features/report/report-tree/ui/ReportTreeNode.tsx",
+      "sha256": "8f62be74e2fdbac30d8a37fdb62475304e6ff061f5a9334a7188122a7d789e9b"
+    },
+    {
+      "path": "src/features/report/report-tree/ui/ReportTreeTab.tsx",
+      "sha256": "34b282493e3afa943e73a930567ca6872948d6db114c3239fa79a845b1b59c15"
+    },
+    {
+      "path": "src/features/task-details/index.ts",
+      "sha256": "09e1cea261a4b6151debb4c4cf7a354ff9ce28f1ab5d51c59bb5de42c62ada98"
+    },
+    {
+      "path": "src/features/task-details/ui/TaskDescription.tsx",
+      "sha256": "1a63cc341c4e7dbff694bde0d5600754e1f046c832329929a0c9369377249f54"
+    },
+    {
+      "path": "src/features/task-details/ui/TaskDetails.tsx",
+      "sha256": "df39c99fb5eff005dd88d506be20d2d1bff0e1a686ef579ff6a750a40cf4e9f2"
+    },
+    {
+      "path": "src/features/tasks/index.ts",
+      "sha256": "1c6d3389fccbdf6b1f9931e0f21a6bf40cd8885ba22069ab5bf572ca49910ac8"
+    },
+    {
+      "path": "src/features/tasks/model/types.ts",
+      "sha256": "be3d8359ead5447ae76af69f1bed23ade3716fe17b1959f1ff6941f9ef094cd9"
+    },
+    {
+      "path": "src/features/tasks/tasks-kanban/index.ts",
+      "sha256": "334e1d8c0e3d6e039fa16192f1caabefcf59596181595ffb053e2601cdac0105"
+    },
+    {
+      "path": "src/features/tasks/tasks-kanban/ui/KanbanColumn.tsx",
+      "sha256": "f536fd04d5e9efa75d91e53abf89fce74156f184c4494846355ecb9c3f164b7e"
+    },
+    {
+      "path": "src/features/tasks/tasks-kanban/ui/SortableTaskCard.tsx",
+      "sha256": "fe4833ea01b14efe4669098f8d61ffe48a4c116881302532a52df1533cb54e2f"
+    },
+    {
+      "path": "src/features/tasks/tasks-kanban/ui/TasksKanban.tsx",
+      "sha256": "5d953f4f06e3c76cc53cf766d6f27e18adff42c5b9be58e5cb069e4782fd6383"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/index.ts",
+      "sha256": "8ee60eb336d0991bab7a07ed49a058311f06a84c9ee071da080082eb2b25e251"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/lib/data.ts",
+      "sha256": "b9b6965a83f7758455551bd1b44c89de410b9fa76cdbbe33fd2cec29c5597100"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/lib/roadmapHelpers.tsx",
+      "sha256": "0cd7e61e9b0d12ff16ff1e12d6b648b098b5687217f68b65e0ee167c1aa3fbd2"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/model/types.ts",
+      "sha256": "aee70679bd08efb6c11023a128e6dd0b72f338194f5c58ccbe0a1bb3574eeb53"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/RoadmapControls.tsx",
+      "sha256": "539338cc2c5efccc877bd2a0a4869b4227ae18ff9e84898706687d3b13bb8ed6"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/RoadmapDetalization.tsx",
+      "sha256": "f0f59ce654f0f46f346e9291ce5324544081a5020aa68401e3d2a47e8bea6a56"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/RoadmapFilter.tsx",
+      "sha256": "03b83cbedf28e1096fa19f8921255c2adec65f5256d5f4cc0103bf2eb50df651"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/RoadmapSettings.tsx",
+      "sha256": "a0503c1373545792dfe61759bf06bc6a545dd65f3bb02adc3558162c2dda7790"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/TaskRoadmap.css",
+      "sha256": "edc8ac73302b5ddbd873663fd9a31a51cd09f1b1bfc373f18b5c18e4f71e3fa8"
+    },
+    {
+      "path": "src/features/tasks/tasks-roadmap/ui/TasksRoadmap.tsx",
+      "sha256": "6e89fa2d1333be152ba4904fe8153a098b76039748d82c8cb281abe3553d177e"
+    },
+    {
+      "path": "src/features/tasks/ui/CreateTaskForm.tsx",
+      "sha256": "13c0b5e240e0bc28cfdd56d573f1de703f1ea6433eafed2bcdba9a2dbdc48427"
+    },
+    {
+      "path": "src/features/tasks/ui/Tasks.tsx",
+      "sha256": "a79c016a8662e9a5d9616799d548d840d6f8c18faea61d13d87bc705694d2348"
+    },
+    {
+      "path": "src/features/tasks/ui/TasksFilter.tsx",
+      "sha256": "7607d332c274d65d4e082efabaeaf1349891c55d084f0485820e816681b4402d"
+    },
+    {
+      "path": "src/features/tasks/ui/TasksList.tsx",
+      "sha256": "71c58dec5f0f149f34b59072dc93bfef69ad3b51bd25601aee184a43d2cebe16"
+    },
+    {
+      "path": "src/features/whiteboard/index.ts",
+      "sha256": "49f6bbd567bae578e8c7102dfea11d123bfefaca91f2470219c8f17ecad55989"
+    },
+    {
+      "path": "src/features/whiteboard/lib/constants.ts",
+      "sha256": "7c4b0324f1376d34b635e360b492fa9fc73683e13ccc8ba0ffe67f17a75358ac"
+    },
+    {
+      "path": "src/features/whiteboard/model/create-task-card.ts",
+      "sha256": "8d63d27a67c50efd74123ada49b4bb0bd4f6047ae51a5d22edb31056a8c03892"
+    },
+    {
+      "path": "src/features/whiteboard/model/types.ts",
+      "sha256": "c80d3086134a53e112daba62eeb05d68f23f0cae64f00a7297a96772b0cad678"
+    },
+    {
+      "path": "src/features/whiteboard/model/use-whiteboard-storage.ts",
+      "sha256": "e76f6e25ceb32d74b8ee0657a5bcae111dee1bb3b6f0c801dc6cdd2d710666c1"
+    },
+    {
+      "path": "src/features/whiteboard/ui/TaskCardWidget.tsx",
+      "sha256": "c1b402f972e7cae93b5a4f99f11dbe23a2f214305de1f0bd48f0891028deed78"
+    },
+    {
+      "path": "src/features/whiteboard/ui/Whiteboard.tsx",
+      "sha256": "db7318e2e285ccc7275918857cda2cfde348cdbb654248208445a9a0967252c2"
+    },
+    {
+      "path": "src/features/whiteboard/ui/WhiteboardCanvas.tsx",
+      "sha256": "c1f41d6e7d00e01c22c33a9943b2b20be07027066fc2b2b22e9a32bddd6402f9"
+    },
+    {
+      "path": "src/pages/admin/admin-constructor/index.ts",
+      "sha256": "252e94fd766a21a95eb1ae0cb264de3f0dc92a91868556192a6033e5453a50aa"
+    },
+    {
+      "path": "src/pages/admin/admin-constructor/ui/AdminConstructorPage.tsx",
+      "sha256": "3a9a90c271b1b4f74af8a3708a218aae6fc15cb20c6edd45cd8d5024e16d4219"
+    },
+    {
+      "path": "src/pages/admin/admin-members/index.ts",
+      "sha256": "2f9b74a2f88f4ff118cef2e9f5f019d425ce8a7752bbb53657237e9b9aac448f"
+    },
+    {
+      "path": "src/pages/admin/admin-members/ui/AdminMembersPage.tsx",
+      "sha256": "b2c11f0ca89caa72569227f25e347382dc74dc9799034cfc71c447bf7da38f11"
+    },
+    {
+      "path": "src/pages/admin/admin-organizations/index.ts",
+      "sha256": "3f312b0a486461c47bf7aead8f7339f903ba703c1881b67236878d1154d6ba3f"
+    },
+    {
+      "path": "src/pages/admin/admin-organizations/ui/AdminOrganizationsPage.tsx",
+      "sha256": "9d25efd8c647867ce0bc8a157c9c6a0c978daccccee75978470d3f749d9e9919"
+    },
+    {
+      "path": "src/pages/admin/admin-projects/index.ts",
+      "sha256": "2d7eb6639c3038408cc1647fdaced1b4ec0995482c174316698262aa400a61e2"
+    },
+    {
+      "path": "src/pages/admin/admin-projects/ui/AdminProjectsPage.tsx",
+      "sha256": "c6b62b508af2576b5d88d9470536358f99876fe0bbb5891ebb7d30a5d52fed05"
+    },
+    {
+      "path": "src/pages/admin/admin-reports/index.ts",
+      "sha256": "8e3c52d10124f406a82cea193e95a01fd9d097ac2f456689e05856fc05da64d7"
+    },
+    {
+      "path": "src/pages/admin/admin-reports/ui/AdminReportsPage.tsx",
+      "sha256": "9d3c4dbb3d38bd5b2d72528d174d98625bf25b67fe3feee7c17fbb48d278b3a8"
+    },
+    {
+      "path": "src/pages/admin/admin-tasks/index.ts",
+      "sha256": "a14cd3fcd24d9ca374d1b601b26cfd24c337b6f15e6bd42741d86acca5d8e422"
+    },
+    {
+      "path": "src/pages/admin/admin-tasks/ui/AdminTasksPage.tsx",
+      "sha256": "98cf4e0b6fb818b76c9a28f792367b52a3680d3f6e82f3d01478991b281dc693"
+    },
+    {
+      "path": "src/pages/admin/admin-users/index.ts",
+      "sha256": "483c350820a17e90fdbb47b9ae293bb4f3f5e76a8b5e968e4c0a87174032fe84"
+    },
+    {
+      "path": "src/pages/admin/admin-users/ui/AdminUsersPage.tsx",
+      "sha256": "061dacf7aecd039b1b8d54121a480efd6b85e624b8a024854aac00abfe612eec"
+    },
+    {
+      "path": "src/pages/admin/index.ts",
+      "sha256": "ac7ee062ba630d2c568385fa7a1a7425e083f3bc9fb80a183727be8fcdc075a2"
+    },
+    {
+      "path": "src/pages/admin/ui/AdminPage.tsx",
+      "sha256": "1957dcf530117f7d6cc68e32f7976273d8d2437bd11e7bdd94a155f992886c08"
+    },
+    {
+      "path": "src/pages/dashboard/scheduler/index.tsx",
+      "sha256": "26e63ca50e97da7c4f71c630be7bb89456d8c7a824389c5d594e6e1d4e1ea22d"
+    },
+    {
+      "path": "src/pages/dashboard/scheduler/tasks/index.ts",
+      "sha256": "d7a93c7580377ad564b3c72ce5f034d109b8a8ef1ad5906e09b48329bc9f97ad"
+    },
+    {
+      "path": "src/pages/dashboard/scheduler/tasks/ui/TasksPage.tsx",
+      "sha256": "5a0597a7fc223bebf58dd0d37bb63bf2d4412c864f3e301aaff46c757c798333"
+    },
+    {
+      "path": "src/pages/dashboard/scheduler/templates/index.ts",
+      "sha256": "bd251b957233fffaa920cecf934bbd35494ddaac5e4e4ee7ced6826478553b12"
+    },
+    {
+      "path": "src/pages/dashboard/scheduler/templates/ui/TemplatesPage.tsx",
+      "sha256": "2fdb99d98ee28b3e946c6e03fd6b841e2c851547a4d99473716588bae0c81ea8"
+    }
+  ]
+}

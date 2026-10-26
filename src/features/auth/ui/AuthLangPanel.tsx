@@ -9,14 +9,14 @@ import {
 } from '../../../shared/ui/dropdown-menu'
 import type { LanguageType } from '../../../shared/types/enums'
 
-export function AuthLangPanel() {
+export function AuthLangPanel({ tone = 'overlay' }: { tone?: 'overlay' | 'light' }) {
   const { i18n } = useTranslation()
 
   const [open, setOpen] = useState(false)
-  const currentLang = i18n.language as LanguageType
+  const currentLang = (i18n.resolvedLanguage || i18n.language || 'ru').slice(0, 2)
 
   const changeLanguage = async (lang: LanguageType) => {
-    i18n.changeLanguage(lang)
+    await i18n.changeLanguage(lang)
     setOpen(false)
   }
 
@@ -27,7 +27,9 @@ export function AuthLangPanel() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
-        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className={tone === 'light'
+          ? 'flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-[var(--auth-muted)] hover:bg-white'
+          : 'cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'}
       >
         <Globe className="h-4 w-4" />
         <span className="font-medium">{currentLang.toUpperCase()}</span>

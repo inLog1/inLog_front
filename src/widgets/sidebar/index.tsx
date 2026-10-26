@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../shared/ui/dropdown-menu'
-import { LogoIcon } from '../../shared/ui/icons/LogoIcon'
+import { AppLogo } from '../../shared/ui/app-logo'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../shared/ui/tooltip'
 import { UserMenu } from '../header/ui/UserMenu'
 
@@ -95,17 +95,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
       </Tooltip>
 
       <div className="border-b border-shell-line px-3 py-3">
-        <div className="flex items-center gap-2 px-1">
-          <LogoIcon className="h-8 w-8 shrink-0 text-shell-foreground" />
-          <div className="min-w-0">
-            <div className="text-sm font-semibold leading-none">inLog</div>
-            {isPlatformAdmin && (
-              <div className="mt-1 text-xs leading-tight text-shell-muted">
-                {isPlatform ? t('sidebar.platform-console') : t('sidebar.user-area')}
-              </div>
-            )}
-          </div>
-        </div>
+        <AppLogo
+          className="px-1"
+          subtitle={isPlatformAdmin ? (
+            <div className="mt-1 text-xs leading-tight text-shell-muted">
+              {isPlatform ? t('sidebar.platform-console') : t('sidebar.user-area')}
+            </div>
+          ) : null}
+        />
 
         {isPlatformAdmin && (
           <button

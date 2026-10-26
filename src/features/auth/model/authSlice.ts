@@ -8,7 +8,7 @@ import type {
   PasswordResetConfirmResponse,
   ConfirmEmailChangeRequest,
 } from '../../../shared/types/dto/auth'
-import { ACCESS_TOKEN, REFRESH_TOKEN } from '../../../shared/config/constants'
+import { writeSession } from '../../../shared/api/session-storage'
 import { baseQuery } from '../../../shared/api/clientApi'
 
 export const authApi = createApi({
@@ -33,12 +33,15 @@ export const authApi = createApi({
         try {
           const { data } = await queryFulfilled
           if (data?.access_token) {
-            localStorage.setItem(ACCESS_TOKEN, JSON.stringify(data.access_token))
+            writeSession({
+              accessToken: data.access_token,
+              refreshToken: data.refresh_token,
+              subjectId: typeof data.user?.id === 'number' ? data.user.id : null,
+            })
           }
-          if (data?.refresh_token) {
-            localStorage.setItem(REFRESH_TOKEN, JSON.stringify(data.refresh_token))
-          }
-        } catch {}
+        } catch {
+          // The form renders the credential error. Storage stays unchanged.
+        }
       },
     }),
 
@@ -48,11 +51,8 @@ export const authApi = createApi({
         method: 'POST',
         signal: AbortSignal.timeout(10000),
       }),
-      async onQueryStarted(_, { queryFulfilled }) {
-        try {
-          await queryFulfilled
-          localStorage.removeItem(ACCESS_TOKEN)
-        } catch {}
+      async onQueryStarted() {
+        // Session cleanup is owned by the shared logout lifecycle, including API failure.
       },
     }),
 

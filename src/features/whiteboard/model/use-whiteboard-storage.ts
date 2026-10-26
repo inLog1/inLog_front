@@ -1,14 +1,21 @@
 import { serializeAsJSON } from '@excalidraw/excalidraw'
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import { useCallback, useEffect, useRef } from 'react'
+import { readSessionSubject } from '../../../shared/api/session-storage'
 import { WHITEBOARD_SAVE_DEBOUNCE_MS, WHITEBOARD_STORAGE_PREFIX } from '../lib/constants'
 import type { WhiteboardScene } from './types'
 
-const getStorageKey = (storageKey: string) => `${WHITEBOARD_STORAGE_PREFIX}${storageKey}`
+const getStorageKey = (storageKey: string) => {
+  const subjectId = readSessionSubject()
+  if (subjectId == null) return null
+  return `${WHITEBOARD_STORAGE_PREFIX}${storageKey}:u${subjectId}`
+}
 
 export const loadWhiteboardScene = (storageKey: string): WhiteboardScene | null => {
   try {
-    const raw = localStorage.getItem(getStorageKey(storageKey))
+    const key = getStorageKey(storageKey)
+    if (!key) return null
+    const raw = localStorage.getItem(key)
     if (!raw) {
       return null
     }
@@ -38,7 +45,9 @@ export const saveWhiteboardScene = (
   const files = api.getFiles()
 
   const serialized = serializeAsJSON(elements, appState, files, 'local')
-  localStorage.setItem(getStorageKey(storageKey), serialized)
+  const key = getStorageKey(storageKey)
+  if (!key) return
+  localStorage.setItem(key, serialized)
 }
 
 export const useWhiteboardStorage = (storageKey: string) => {
@@ -56,10 +65,10 @@ export const useWhiteboardStorage = (storageKey: string) => {
       clearTimeout(saveTimeoutRef.current)
     }
 
+    const subjectAtSchedule = readSessionSubject()
     saveTimeoutRef.current = setTimeout(() => {
-      if (apiRef.current) {
-        saveWhiteboardScene(storageKey, apiRef.current)
-      }
+      if (readSessionSubject() !== subjectAtSchedule || !apiRef.current) return
+      saveWhiteboardScene(storageKey, apiRef.current)
     }, WHITEBOARD_SAVE_DEBOUNCE_MS)
   }, [storageKey])
 

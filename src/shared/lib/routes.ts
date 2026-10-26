@@ -11,6 +11,7 @@ export const routes = {
     checkEmail: () => '/check-email',
     changeEmail: () => '/change-email',
     emailConfirmation: () => '/email-confirmation',
+    mockProvider: () => '/auth/mock-provider',
     verifyGoogle: () => '/verify-google-account',
     verifySlack: () => '/verify-slack-account',
     verifyYandex: () => '/verify-yandex-account',

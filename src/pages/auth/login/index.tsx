@@ -1,12 +1,5 @@
-import { LoginForm } from '../../../features/auth'
-import { AuthLayout } from '../../../widgets/auth-layout'
+import { LoginStage } from '../../../widgets/auth-layout/ui/LoginStage'
 
-const LoginPage = () => {
-  return (
-    <AuthLayout>
-      <LoginForm />
-    </AuthLayout>
-  )
-}
+const LoginPage = () => <LoginStage />
 
 export default LoginPage

@@ -3,7 +3,7 @@ import type { RootState } from '../../../app/store/store'
 import { isPlatformAdmin, isSuperAdmin } from '../../../shared/types/platform-role'
 import type { User } from './types'
 import { userApi } from './userSlice'
-import { ACCESS_TOKEN } from '../../../shared/config/constants'
+import { readAccessToken } from '../../../shared/api/session-storage'
 
 const selectUserApiSlice = (state: RootState) => state[userApi.reducerPath]
 
@@ -52,6 +52,6 @@ export const selectIsSuperAdmin = createSelector(selectUserRole, (role) => isSup
 
 export const selectIsAuthenticatedAlternative = createSelector(
   selectUser,
-  () => !!localStorage.getItem(ACCESS_TOKEN),
+  () => readAccessToken() != null,
   (user, hasToken) => !!user && hasToken
 )

@@ -421,3 +421,73 @@
   }
 }
 
+.auth-stage {
+  --auth-primary: #155EEF;
+  --auth-text: #14243D;
+  --auth-muted: #64748B;
+  --auth-bg: #F5F8FC;
+  --auth-card: #FFFFFF;
+  --auth-border: #E2E8F0;
+  --background: var(--auth-card);
+  --foreground: var(--auth-text);
+  --card: var(--auth-card);
+  --card-foreground: var(--auth-text);
+  --primary: var(--auth-primary);
+  --primary-foreground: #ffffff;
+  --border: var(--auth-border);
+  --input: var(--auth-border);
+  --ring: var(--auth-primary);
+  --muted-foreground: var(--auth-muted);
+  --accent: color-mix(in srgb, var(--auth-primary) 10%, var(--auth-card));
+  --accent-foreground: var(--auth-text);
+  --secondary: #eef3fb;
+  --secondary-foreground: var(--auth-text);
+  --color-background: var(--auth-card);
+  --color-foreground: var(--auth-text);
+  --color-card: var(--auth-card);
+  --color-card-foreground: var(--auth-text);
+  --color-primary: var(--auth-primary);
+  --color-primary-foreground: #ffffff;
+  --color-border: var(--auth-border);
+  --color-input: var(--auth-border);
+  --color-ring: var(--auth-primary);
+  --color-muted-foreground: var(--auth-muted);
+  --color-accent: color-mix(in srgb, var(--auth-primary) 10%, var(--auth-card));
+  --color-accent-foreground: var(--auth-text);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--auth-text);
+  background: var(--auth-bg);
+  color: var(--auth-text);
+  color-scheme: light;
+}
+
+.dark .auth-stage {
+  --auth-primary: #4c82f7;
+  --auth-text: #e8eef8;
+  --auth-muted: #94a3b8;
+  --auth-bg: #0b1220;
+  --auth-card: #152033;
+  --auth-border: #2a3b55;
+  --background: var(--auth-card);
+  --foreground: var(--auth-text);
+  --card: var(--auth-card);
+  --card-foreground: var(--auth-text);
+  --primary: var(--auth-primary);
+  --primary-foreground: #ffffff;
+  --border: var(--auth-border);
+  --input: var(--auth-border);
+  --ring: var(--auth-primary);
+  --muted-foreground: var(--auth-muted);
+  --accent: color-mix(in srgb, var(--auth-primary) 18%, var(--auth-card));
+  --accent-foreground: var(--auth-text);
+  --secondary: color-mix(in srgb, white 8%, var(--auth-card));
+  --secondary-foreground: var(--auth-text);
+  --color-secondary: var(--secondary);
+  color-scheme: dark;
+}
+
+.dark .login-scheme {
+  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: lighten;
+}
+

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../shared/ui/dropdown-menu'
-import { useLogoutMutation } from '../../../features/auth/model/authSlice'
+import { requestLogout } from '../../../shared/api/session-events'
 import { routes } from '../../../shared/lib/routes'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -19,17 +19,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui/avatar'
 export function UserMenu() {
   const { t } = useTranslation()
   const user = useSelector(selectUser)
-  const [logout] = useLogoutMutation()
 
   const handleLogout = async () => {
-    try {
-      await logout().unwrap()
-      localStorage.clear()
-      toast.success(t('notice-list.log-out-success'))
-      window.location.href = routes.login()
-    } catch {
-      toast.error(t('errors.error-logout'))
-    }
+    await requestLogout({ reason: 'user', callApi: true })
+    toast.success(t('notice-list.log-out-success'))
   }
 
   return (

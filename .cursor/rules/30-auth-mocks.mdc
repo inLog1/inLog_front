@@ -1,0 +1,14 @@
+---
+description: "inLog: local/SSO, тестовые сессии, моки и изоляция данных"
+globs: "src/app/**, src/features/auth/**, src/entities/session/**, src/entities/access/**, src/shared/api/**, src/shared/config/**"
+alwaysApply: false
+---
+- Следуй docs/migration/09-mock-scenarios.md и 10-corporate-login.md; неизвестные protocols помечай proposed, не реализуй все интеграции сразу.
+- apiMode mock/live отдельно от authMode local/sso/mixed; mock build может имитировать провайдера, live не допускает этот обход.
+- Один session lifecycle для local, SSO и dev-switch. Переключение пользователя — logout/reset caches/bootstrap; не подмена user в store.
+- Subject связывается через provider+external ID, не через email; role display name не даёт полномочий. Credentials корпоративного провайдера inLog не запрашивает.
+- UI работает через RTK Query. MSW и persisted DB за сетевой границей; fixtures не добавлять внутрь компонентов. Не запускать worker в live и не пропускать неизвестные mock API calls на backend.
+- Не писать реальный пароль/секрет/токен в VITE_* или логи. Публичный mock пароль разрешён только для вымышленных fixtures.
+- DB хранит mutable assignments и настройки с schemaVersion; logout сохраняет DB, reset очищает только собственный namespace с подтверждением.
+- Не смешивать sessions/keys между mock/live. Читай/пиши tokens через единый технический adapter во всех существующих потребителях.
+- Пока доступа/сессии нет или loading — не рендерить protected data. 403 не равен logout, нет grants не равно blocked.

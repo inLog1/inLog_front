@@ -1,0 +1,317 @@
+import {
+  can,
+  effectiveGrants,
+  hasCorporateSuperadmin,
+  delegationGrantsFor,
+} from '../../../entities/access/model/grants'
+import type { AccessSnapshot, SessionAccess } from '../../../entities/access/model/types'
+import type { User, UserSettings } from '../../../entities/user/model/types'
+import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import type { MockIdentity, MockState, MockUser } from '../db/types'
+
+export type FlowResult = {
+  state: MockState
+  status: number
+  body: unknown
+}
+
+const settings: UserSettings = {
+  language: 'ru',
+  timezone: 'Europe/Moscow',
+  sound_notification: false,
+  disabled_email_notifications: [],
+  disabled_inlog_notifications: [],
+  notifiable_days_of_week: [1, 2, 3, 4, 5],
+  notify_from_time: '09:00',
+  notify_to_time: '18:00',
+}
+
+export function toSnapshot(state: MockState): AccessSnapshot {
+  return {
+    roles: state.roles,
+    grants: state.grants,
+    assignments: state.assignments,
+    delegations: state.delegations,
+    systemCapabilities: state.systemCapabilities,
+    projects: state.projects.map((project) => ({
+      id: project.id,
+      organizationId: project.organizationId,
+      corporationId: project.corporationId,
+    })),
+  }
+}
+
+export function resolveIdentity(state: MockState, providerId: string, externalSubject: string): MockIdentity | null {
+  return state.identities.find((item) =>
+    item.providerId === providerId && item.externalSubject === externalSubject,
+  ) ?? null
+}
+
+function userByEmail(state: MockState, email: string): MockUser | undefined {
+  const normalized = email.trim().toLowerCase()
+  return state.users.find((user) => user.email.toLowerCase() === normalized)
+}
+
+function userById(state: MockState, userId: number): MockUser | undefined {
+  return state.users.find((user) => user.id === userId)
+}
+
+export function toLegacyUser(user: MockUser): User {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    patronymic: user.patronymic,
+    surname: user.surname,
+    full_name: [user.surname, user.name, user.patronymic].filter(Boolean).join(' '),
+    company_name: 'Демо-корпорация',
+    position: user.position,
+    about_myself: '',
+    role: user.legacyRole,
+    avatar: {},
+    phone_number: null,
+    settings,
+    belonging: '',
+  }
+}
+
+function issue(state: MockState, user: MockUser): FlowResult {
+  const nonce = crypto.randomUUID()
+  const accessToken = `mock.${user.id}.${nonce}`
+  const refreshToken = `mock.refresh.${user.id}.${nonce}`
+  return {
+    state: {
+      ...state,
+      sessions: [...state.sessions, { id: nonce, userId: user.id, accessToken, refreshToken }],
+    },
+    status: 200,
+    body: {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: toLegacyUser(user),
+    },
+  }
+}
+
+function fail(state: MockState, status: number, code: string): FlowResult {
+  return { state, status, body: { code } }
+}
+
+function sessionUser(state: MockState, token: string | null): MockUser | undefined {
+  if (!token) return undefined
+  const session = state.sessions.find((item) => item.accessToken === token)
+  if (!session) return undefined
+  return userById(state, session.userId)
+}
+
+export function accessFor(state: MockState, user: MockUser): SessionAccess {
+  const snapshot = toSnapshot(state)
+  const grants = effectiveGrants(snapshot, user.id)
+  const delegated = delegationGrantsFor(snapshot, user.id)
+  const capabilities = state.systemCapabilities
+    .filter((item) => item.userId === user.id)
+    .map((item) => item.code)
+  let accessState: SessionAccess['accessState'] = 'ready'
+  if (user.status === 'blocked') accessState = 'blocked'
+  else if (grants.length === 0 && delegated.length === 0 && capabilities.length === 0) accessState = 'pending'
+
+  return {
+    identityId: user.id,
+    memberships: state.memberships
+      .filter((item) => item.userId === user.id)
+      .map((item) => ({ id: item.id, organizationId: item.organizationId, kind: item.kind })),
+    effectiveGrants: grants,
+    delegationGrants: delegated,
+    accessVersion: state.accessVersion,
+    systemCapabilities: capabilities,
+    accessState,
+  }
+}
+
+export function loginWithPassword(state: MockState, email: string, password: string): FlowResult {
+  const user = userByEmail(state, email)
+  if (!user || password !== PUBLIC_FIXTURE_PASSWORD) return fail(state, 401, 'invalid_credentials')
+  if (user.status === 'blocked') return fail(state, 403, 'blocked')
+  return issue(state, user)
+}
+
+export function completeMockSso(state: MockState, providerId: string, externalSubject: string): FlowResult {
+  const identity = resolveIdentity(state, providerId, externalSubject)
+  if (!identity?.userId) return fail(state, 422, 'identity_not_linked')
+  const user = userById(state, identity.userId)
+  if (!user) return fail(state, 422, 'identity_not_linked')
+  if (user.status === 'blocked') return fail(state, 403, 'blocked')
+  return issue(state, user)
+}
+
+export function cancelMockSso(state: MockState): FlowResult {
+  return fail(state, 400, 'sso_cancelled')
+}
+
+export function verifyToken(state: MockState, token: string): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  return { state, status: 200, body: { token } }
+}
+
+export function logoutToken(state: MockState, token: string | null): FlowResult {
+  if (!token) return { state, status: 204, body: null }
+  return {
+    state: { ...state, sessions: state.sessions.filter((item) => item.accessToken !== token) },
+    status: 204,
+    body: null,
+  }
+}
+
+export function currentUser(state: MockState, token: string | null): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  return { state, status: 200, body: toLegacyUser(user) }
+}
+
+export function sessionAccess(state: MockState, token: string | null): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  return { state, status: 200, body: accessFor(state, user) }
+}
+
+function organizationScope(organizationId: number) {
+  return { type: 'organization' as const, organizationId, corporationId: 1 }
+}
+
+export function canReadOrganization(state: MockState, userId: number, organizationId: number): boolean {
+  const snapshot = toSnapshot(state)
+  const scope = organizationScope(organizationId)
+  return can(snapshot, userId, 'projects', 'read', scope)
+    || can(snapshot, userId, 'organizations', 'manage', scope)
+    || state.memberships.some((item) => item.userId === userId && item.organizationId === organizationId)
+}
+
+export function listOrganizations(state: MockState, token: string | null): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const rows = state.organizations
+    .filter((organization) => canReadOrganization(state, user.id, organization.id))
+    .map((organization) => ({
+      id: organization.id,
+      full_name: organization.fullName,
+      short_name: organization.shortName,
+      address: organization.address,
+      role: null,
+    }))
+  return { state, status: 200, body: rows }
+}
+
+export function listProjects(state: MockState, token: string | null, organizationId: number | null): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const snapshot = toSnapshot(state)
+  if (organizationId != null) {
+    const allowed = can(snapshot, user.id, 'projects', 'read', organizationScope(organizationId))
+    if (!allowed) return fail(state, 403, 'forbidden')
+  }
+  const rows = state.projects
+    .filter((project) => organizationId == null || project.organizationId === organizationId)
+    .filter((project) => can(snapshot, user.id, 'projects', 'read', organizationScope(project.organizationId)))
+    .map((project) => ({
+      id: project.id,
+      name: project.name,
+      organization: project.organizationId,
+      role: null,
+      reservoir: '',
+      company_customer: '',
+      contractor: '',
+      country: '',
+    }))
+  return { state, status: 200, body: rows }
+}
+
+export function readTestResource(state: MockState, token: string | null, organizationId: number): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const allowed = can(toSnapshot(state), user.id, 'test-resource', 'read', organizationScope(organizationId))
+  if (!allowed) return fail(state, 403, 'forbidden')
+  return { state, status: 200, body: { ok: true, organizationId, code: 'mock_test_resource' } }
+}
+
+export function mutateAssignment(state: MockState, token: string | null, assignmentId: string, roleId: string): FlowResult {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const assignment = state.assignments.find((item) => item.id === assignmentId)
+  if (!assignment) return fail(state, 404, 'not_found')
+  const role = state.roles.find((item) => item.id === roleId)
+  if (!role) return fail(state, 404, 'not_found')
+  const allowed = can(toSnapshot(state), user.id, 'assignments', 'update', assignment.scope)
+  if (!allowed) return fail(state, 403, 'forbidden')
+  const next: MockState = {
+    ...state,
+    accessVersion: state.accessVersion + 1,
+    assignments: state.assignments.map((item) => item.id === assignmentId ? { ...item, roleId } : item),
+  }
+  return {
+    state: next,
+    status: 200,
+    body: {
+      assignment: next.assignments.find((item) => item.id === assignmentId),
+      corporateSuperadmin: hasCorporateSuperadmin(toSnapshot(next), assignment.userId),
+      roleDisplayName: role.displayName,
+    },
+  }
+}
+
+export function switchUser(state: MockState, userId: number): FlowResult {
+  const user = userById(state, userId)
+  if (!user) return fail(state, 404, 'not_found')
+  if (user.status === 'blocked') return fail(state, 403, 'blocked')
+  return issue(state, user)
+}
+
+export function capabilitiesOf(state: MockState) {
+  const methods = state.authMode === 'mixed' ? ['local', 'sso'] : [state.authMode]
+  return {
+    authMode: state.authMode,
+    methods,
+    providerLabel: 'Тестовый корпоративный провайдер',
+    startPath: '/auth/mock-provider',
+    ssoConfigured: true,
+  }
+}
+
+export function describeAccounts(state: MockState) {
+  return state.users.map((user) => {
+    const access = accessFor(state, user)
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: toLegacyUser(user).full_name,
+      status: user.status,
+      legacyRole: user.legacyRole,
+      accessState: access.accessState,
+      memberships: access.memberships,
+      grants: access.effectiveGrants.map((grant) => ({
+        resource: grant.resource,
+        action: grant.action,
+        scope: grant.scope,
+      })),
+      delegationGrants: access.delegationGrants.map((grant) => ({
+        resource: grant.resource,
+        action: grant.action,
+        scope: grant.scope,
+      })),
+      systemCapabilities: access.systemCapabilities,
+    }
+  })
+}
+
+export function listProviderIdentities(state: MockState) {
+  return state.identities.map((identity) => {
+    const linkedUser = identity.userId == null ? undefined : userById(state, identity.userId)
+    return {
+      providerId: identity.providerId,
+      externalSubject: identity.externalSubject,
+      email: identity.email,
+      linked: linkedUser != null,
+      label: linkedUser ? toLegacyUser(linkedUser).full_name ?? linkedUser.email : identity.email,
+    }
+  })
+}
