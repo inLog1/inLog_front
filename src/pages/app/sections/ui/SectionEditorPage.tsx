@@ -8,6 +8,7 @@ import { useHasOrganizationGrant, useOrganizationAccessReady, useWorkspaceSectio
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { PageHeader, WorkPage } from '../../../../shared/ui/page'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -101,7 +102,11 @@ function EditorGate({ sectionId }: { sectionId: string | null }) {
     after()
   }
   return (
-    <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-4 p-4 pb-24">
+    <WorkPage>
+      <PageHeader
+        title={sectionId == null ? t('sections.create') : t('nav.sections')}
+        breadcrumbs={[{ label: t('nav.sections'), to: href(routes.settings.sections(), 'organization') }, { label: sectionId == null ? t('sections.create') : t('sections.open') }]}
+      />
       <SectionEditor
         key={`${lockedOrg}:${sectionId ?? 'new'}`}
         organizationId={lockedOrg}
@@ -151,6 +156,6 @@ function EditorGate({ sectionId }: { sectionId: string | null }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </WorkPage>
   )
 }

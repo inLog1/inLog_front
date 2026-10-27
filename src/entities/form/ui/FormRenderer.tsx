@@ -11,10 +11,12 @@ export type FormRendererProps = {
   values: FormAnswers
   errors?: Readonly<Record<string, string>>
   readOnly?: boolean
+  /** Readable values for a saved record. Editing stays on inputs. */
+  presentation?: boolean
   onChange?: (fieldId: string, value: FormAnswer) => void
 }
 
-export function FormRenderer({ schema, values, errors, readOnly = false, onChange }: FormRendererProps) {
+export function FormRenderer({ schema, values, errors, readOnly = false, presentation = false, onChange }: FormRendererProps) {
   const { t } = useTranslation()
   if (schema.schemaVersion !== FORM_SCHEMA_VERSION || !Array.isArray(schema.fields)) {
     return <p className="text-sm text-destructive">{t('forms.unknown-schema')}</p>
@@ -33,22 +35,47 @@ export function FormRenderer({ schema, values, errors, readOnly = false, onChang
             {field.help ? (
               <p id={`${field.id}-help`} className="text-xs text-muted-foreground whitespace-pre-wrap">{field.help}</p>
             ) : null}
-            <FieldControl
-              id={field.id}
-              type={field.type}
-              value={values[field.id]}
-              options={field.options}
-              readOnly={readOnly}
-              describedBy={described}
-              invalid={Boolean(error)}
-              onChange={(value) => onChange?.(field.id, value)}
-            />
+            {presentation ? (
+              <p id={field.id} className="whitespace-pre-wrap text-sm text-foreground" aria-describedby={described || undefined}>
+                {presentedValue(field.type, values[field.id], field.options, t)}
+              </p>
+            ) : (
+              <FieldControl
+                id={field.id}
+                type={field.type}
+                value={values[field.id]}
+                options={field.options}
+                readOnly={readOnly}
+                describedBy={described}
+                invalid={Boolean(error)}
+                onChange={(value) => onChange?.(field.id, value)}
+              />
+            )}
             {error ? <p id={`${field.id}-error`} className="text-xs text-destructive">{t(`forms.field-errors.${error}`, { defaultValue: error })}</p> : null}
           </div>
         )
       })}
     </div>
   )
+}
+
+function presentedValue(
+  type: FormSchema['fields'][number]['type'],
+  value: FormAnswer | undefined,
+  options: FormSchema['fields'][number]['options'],
+  t: (key: string) => string,
+): string {
+  if (value == null || value === '') return t('forms.value-empty')
+  if (type === 'boolean') return value === true ? t('forms.value-yes') : t('forms.value-no')
+  if (type === 'single_choice') {
+    const option = options.find((item) => item.id === value)
+    return option?.label ?? String(value)
+  }
+  if (type === 'date' && typeof value === 'string') {
+    const [year, month, day] = value.split('-')
+    if (year && month && day) return `${day}.${month}.${year}`
+  }
+  return String(value)
 }
 
 function FieldControl({

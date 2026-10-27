@@ -6,6 +6,7 @@ import {
   useDeleteAccessRoleMutation,
   useGetAccessDirectoryQuery,
   useGetAccessRoleQuery,
+  useGetSessionAccessQuery,
   useUpdateAccessRoleMutation,
   type AccessGrantView,
   type AccessScope,
@@ -13,6 +14,7 @@ import {
 import { Button } from '../../../shared/ui/button'
 import { Input } from '../../../shared/ui/input'
 import { Textarea } from '../../../shared/ui/textarea'
+import { EditorActions, PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { PermissionSets } from './PermissionSets'
 import { scopeLabel } from './scope-label'
@@ -84,20 +86,21 @@ function ExistingRole({ roleId, backHref }: { roleId: string; backHref: string }
 function CreateDenied({ backHref }: { backHref: string }) {
   const { t } = useTranslation()
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 md:p-6">
-      <Button asChild variant="ghost" className="w-fit px-0">
-        <Link to={backHref}>{t('access.back')}</Link>
-      </Button>
-      <p className="text-sm text-muted-foreground" role="status">{t('access.create-denied')}</p>
+    <WorkPage>
+      <PageHeader
+        title={t('access.edit-title')}
+        breadcrumbs={[{ label: t('nav.access'), to: backHref }, { label: t('access.create-role') }]}
+      />
+      <PageState kind="empty" description={t('access.create-denied')} />
       <p className="text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
-    </div>
+    </WorkPage>
   )
 }
 
 function EditorStatus({ error }: { error: unknown }) {
   const { t } = useTranslation()
-  if (!error) return <p className="p-4 text-sm text-muted-foreground">{t('access.loading')}</p>
-  return <p className="p-4 text-sm text-destructive" role="alert">{t(accessErrorKey(accessFailure(error).code))}</p>
+  if (!error) return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
+  return <WorkPage><PageState kind="error" description={t(accessErrorKey(accessFailure(error).code))} /></WorkPage>
 }
 
 function RoleForm({
@@ -141,6 +144,8 @@ function RoleForm({
   const [createRole, createState] = useCreateAccessRoleMutation()
   const [updateRole, updateState] = useUpdateAccessRoleMutation()
   const [deleteRole, deleteState] = useDeleteAccessRoleMutation()
+  const session = useGetSessionAccessQuery(undefined, { skip: import.meta.env.VITE_API_MODE !== 'mock' })
+  const operatorOwner = session.data?.accessState === 'ready' && session.data.systemCapabilities.includes('corporate_superadmin')
   const offeredIds = new Set(offered.map((item) => item.id))
   const preservedOperational = (initial?.operational ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
   const preservedDelegation = (initial?.delegation ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
@@ -178,13 +183,75 @@ function RoleForm({
     }
   }
 
+  const scopeText = scopeLabel(ownerScope, organizations, projects, t)
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 md:p-6">
-      <Button asChild variant="ghost" className="w-fit px-0">
-        <Link to={backHref}>{t('access.back')}</Link>
-      </Button>
-      <p className="text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
-      <p className="text-sm text-muted-foreground">{t('access.owner')}: {scopeLabel(ownerScope, organizations, projects, t)}</p>
+    <WorkPage>
+      <PageHeader
+        title={initial ? t('access.edit-title') : t('access.create-role')}
+        description={t('access.edit-lead')}
+        breadcrumbs={[
+          { label: t('nav.access'), to: backHref },
+          { label: initial ? initial.displayName : t('access.create-role') },
+        ]}
+      />
+      {operatorOwner ? (
+        <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
+          <span className="font-medium">{t('access.installation-superadmin')}</span>
+          <span className="mt-1 block text-muted-foreground">{t('access.installation-superadmin-note')}</span>
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">{t('access.role-not-capability')}</p>
+      )}
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="grid min-w-0 gap-1 text-sm">
+          {t('access.name')}
+          <Input value={name} disabled={!canEdit} onChange={(event) => setName(event.target.value)} maxLength={80} />
+        </label>
+        <div className="grid min-w-0 gap-1 text-sm">
+          <span>{t('access.owner')}</span>
+          <p className="flex h-9 items-center rounded-md border border-border bg-card px-3">{scopeText}</p>
+          {ownerScope.type === 'corporation' ? <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p> : null}
+        </div>
+        <label className="grid min-w-0 gap-1 text-sm md:col-span-1">
+          {t('access.description')}
+          <Textarea value={description} disabled={!canEdit} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
+        </label>
+      </div>
+      {!canEdit ? <p className="text-sm text-foreground">{t('access.edit-denied')}</p> : null}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
+        <PermissionSets
+          offered={offered}
+          delegableIds={delegableIds}
+          canDelegateFurther={canDelegateFurther}
+          operationalIds={operationalIds}
+          delegationIds={delegationIds}
+          preservedOperational={preservedOperational}
+          preservedDelegation={preservedDelegation}
+          editable={canEdit}
+          onOperational={setOperationalIds}
+          onDelegation={setDelegationIds}
+        />
+        <RoleSummary
+          scopeText={scopeText}
+          operationalCount={operationalIds.length}
+          delegationCount={delegationIds.length}
+          people={initial?.affectedUserCount ?? 0}
+          assigned={initial != null}
+        />
+      </div>
+      <details className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+        <summary className="cursor-pointer font-medium">{t('access.dependencies-title')}</summary>
+        <ul className="mt-2 space-y-1 text-muted-foreground">
+          <li>{t('access.dependencies.independent')}</li>
+          <li>{t('access.dependencies.schema')}</li>
+          <li>{t('access.dependencies.report')}</li>
+          <li>{t('access.dependencies.task')}</li>
+          <li>{t('access.dependencies.delegate')}</li>
+          <li>{t('access.dependencies.roles')}</li>
+          <li>{t('access.dependencies.forms')}</li>
+          <li>{t('access.dependencies.table-views')}</li>
+        </ul>
+      </details>
       {initial && initial.assignmentCount > 0 ? (
         <div className="rounded-lg border border-border bg-card p-4 text-sm" role="status">
           <p>{t('access.impact', { users: initial.affectedUserCount, count: initial.assignmentCount })}</p>
@@ -195,48 +262,64 @@ function RoleForm({
           </ul>
         </div>
       ) : null}
-      <ul className="space-y-1 text-sm text-muted-foreground">
-        <li>{t('access.dependencies.independent')}</li>
-        <li>{t('access.dependencies.schema')}</li>
-        <li>{t('access.dependencies.report')}</li>
-        <li>{t('access.dependencies.task')}</li>
-        <li>{t('access.dependencies.delegate')}</li>
-        <li>{t('access.dependencies.roles')}</li>
-        <li>{t('access.dependencies.forms')}</li>
-        <li>{t('access.dependencies.table-views')}</li>
-      </ul>
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t('access.name')}
-        <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} />
-      </label>
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t('access.description')}
-        <Textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
-      </label>
-      <PermissionSets
-        offered={offered}
-        delegableIds={delegableIds}
-        canDelegateFurther={canDelegateFurther}
-        operationalIds={operationalIds}
-        delegationIds={delegationIds}
-        preservedOperational={preservedOperational}
-        preservedDelegation={preservedDelegation}
-        onOperational={setOperationalIds}
-        onDelegation={setDelegationIds}
-      />
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button type="button" disabled={!canEdit || createState.isLoading || updateState.isLoading} onClick={() => void save()}>
-          {t('access.save')}
+      <EditorActions
+        notice={(
+          <>
+            {initial && !initial.canDelete ? <p className="text-foreground">{t('access.delete-blocked')}</p> : null}
+            {notice ? <p role="status">{notice}</p> : null}
+            {failure ? <p className="text-destructive" role="alert">{failure}</p> : null}
+          </>
+        )}
+      >
+        <Button asChild variant="outline">
+          <Link to={backHref}>{t('access.cancel')}</Link>
         </Button>
         {initial ? (
           <Button type="button" variant="outline" disabled={deleteState.isLoading || !initial.canDelete} onClick={() => void remove()}>
             {t('access.delete-role')}
           </Button>
         ) : null}
-      </div>
-      {initial && !initial.canDelete ? <p className="text-sm text-muted-foreground">{t('access.delete-blocked')}</p> : null}
-      {notice ? <p className="text-sm" role="status">{notice}</p> : null}
-      {failure ? <p className="text-sm text-destructive" role="alert">{failure}</p> : null}
+        <Button type="button" disabled={!canEdit || createState.isLoading || updateState.isLoading} onClick={() => void save()}>
+          {t('access.save-changes')}
+        </Button>
+      </EditorActions>
+    </WorkPage>
+  )
+}
+
+function RoleSummary({
+  scopeText,
+  operationalCount,
+  delegationCount,
+  people,
+  assigned,
+}: {
+  scopeText: string
+  operationalCount: number
+  delegationCount: number
+  people: number
+  assigned: boolean
+}) {
+  const { t } = useTranslation()
+  const body = (
+    <div className="space-y-3 text-sm">
+      <p><span className="text-muted-foreground">{t('access.owner')}: </span>{scopeText}</p>
+      <p>{t('access.summary-operational', { count: operationalCount })}</p>
+      <p>{delegationCount > 0 ? t('access.summary-delegation', { count: delegationCount }) : t('access.summary-none-delegation')}</p>
+      <p>{assigned ? t('access.summary-people', { count: people }) : t('access.summary-unassigned')}</p>
+      <p className="text-muted-foreground">{t('access.summary-role-note')}</p>
     </div>
+  )
+  return (
+    <>
+      <details className="rounded-lg border border-border bg-card p-3 xl:hidden">
+        <summary className="cursor-pointer text-sm font-medium">{t('access.summary')}</summary>
+        <div className="mt-3">{body}</div>
+      </details>
+      <aside className="sticky top-4 hidden rounded-lg border border-border bg-card p-4 xl:block">
+        <h2 className="text-sm font-semibold">{t('access.summary')}</h2>
+        <div className="mt-3">{body}</div>
+      </aside>
+    </>
   )
 }

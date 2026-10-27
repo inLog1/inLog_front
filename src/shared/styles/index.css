@@ -2,26 +2,26 @@
 
 /* Светлая тема по умолчанию */
 :root {
-  --radius: 5px;                          /* твой --border-radius */
+  --radius: 8px;
 
-  /* Основные семантические (shadcn использует их) */
-  --background: oklch(0.98 0.01 220);     /* ≈ --light-blue / #F4F9FB */
-  --foreground: oklch(0.35 0.04 240);     /* ≈ --main-text-color */
+  /* Рабочая область: светлый фон, плотный текст, непрозрачный вторичный цвет */
+  --background: #F5F7FA;
+  --foreground: #172235;
 
-  --card: oklch(1 0 0);                   /* белый */
-  --card-foreground: oklch(0.35 0.04 240);
+  --card: #ffffff;
+  --card-foreground: #172235;
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.35 0.04 240);
+  --popover: #ffffff;
+  --popover-foreground: #172235;
 
   --primary: oklch(0.68 0.18 250);        /* твой #009EF5 */
   --primary-foreground: oklch(1 0 0);     /* белый текст на primary */
 
-  --secondary: oklch(0.90 0 0);           /* ≈ --gray-color */
-  --secondary-foreground: oklch(0.35 0.04 240);
+  --secondary: #EEF2F6;
+  --secondary-foreground: #172235;
 
-  --muted: oklch(0.95 0.005 220);         /* очень светлый muted */
-  --muted-foreground: oklch(0.45 0 0 / 0.62);
+  --muted: #F5F7FA;
+  --muted-foreground: #596579;
 
   --accent: oklch(0.72 0.14 190);         /* ≈ --mint-color */
   --accent-foreground: oklch(1 0 0);
@@ -29,8 +29,8 @@
   --destructive: oklch(0.65 0.22 25);     /* ≈ #ff6d6d */
   --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.84 0 0);              /* ≈ --border-gray */
-  --input: oklch(0.87 0 0);               /* ≈ --field-border */
+  --border: #E2E8F0;
+  --input: #E2E8F0;
   --ring: oklch(0.68 0.18 250);           /* primary для фокуса */
 
   /* Дополнительные из твоего старого проекта (используй как кастомные) */
@@ -50,7 +50,7 @@
   --error-text-color: var(--destructive);
   --border-radius: var(--radius);
 
-  --radius: 5px;
+  --radius: 8px;
   --cell-size: 44px;
   --calendar-bg: var(--card);
   --calendar-text: var(--foreground);
@@ -103,6 +103,29 @@
   --shell-toolbar-border: rgb(30 58 95 / 0.12);
 }
 
+/* Авторизованная оболочка. Экран входа остаётся на токенах :root, пока data-shell не задан. */
+[data-shell='user'] {
+  --shell-bg: #ffffff;
+  --shell-fg: #172235;
+  --shell-muted: #596579;
+  --shell-line: #E2E8F0;
+  --shell-subtle: #F5F7FA;
+  --shell-subtle-hover: #E8EEF5;
+  --shell-accent: #E7F1FB;
+  --shell-accent-fg: #0B4F86;
+  --shell-header: #ffffff;
+  --shell-header-fg: #172235;
+  --shell-header-border: #E2E8F0;
+  --shell-chip: #F5F7FA;
+  --shell-chip-hover: #E8EEF5;
+  --shell-chip-fg: #172235;
+  --shell-chip-icon: #0B4F86;
+  --shell-divider: #E2E8F0;
+  --shell-toolbar: #ffffff;
+  --shell-toolbar-fg: #172235;
+  --shell-toolbar-border: #E2E8F0;
+}
+
 /* Тёмная тема (если планируешь добавить dark mode позже — подстрой) */
 .dark {
   --background: oklch(0.12 0 240);
@@ -121,7 +144,7 @@
   --secondary-foreground: oklch(0.92 0.01 220);
 
   --muted: oklch(0.22 0.01 240);
-  --muted-foreground: oklch(0.70 0.01 240);
+  --muted-foreground: #A8B3C4;
 
   --accent: oklch(0.72 0.14 190 / 0.8);
   --accent-foreground: oklch(1 0 0);
@@ -183,6 +206,41 @@
   --shell-toolbar: color-mix(in srgb, white 18%, var(--card));
   --shell-toolbar-fg: #f4f8fc;
   --shell-toolbar-border: rgb(255 255 255 / 0.28);
+}
+
+.dark[data-shell='user'],
+.dark [data-shell='user'] {
+  --background: #0E1520;
+  --foreground: #E8EEF6;
+  --card: #172033;
+  --card-foreground: #E8EEF6;
+  --popover: #172033;
+  --popover-foreground: #E8EEF6;
+  --muted: #1C2736;
+  --muted-foreground: #A8B3C4;
+  --border: #2C3A4E;
+  --input: #2C3A4E;
+  --secondary: #1C2736;
+  --secondary-foreground: #E8EEF6;
+  --shell-bg: #121A26;
+  --shell-fg: #E8EEF6;
+  --shell-muted: #A8B3C4;
+  --shell-line: #2C3A4E;
+  --shell-subtle: #1C2736;
+  --shell-subtle-hover: #243246;
+  --shell-accent: #1A3354;
+  --shell-accent-fg: #D6E8FF;
+  --shell-header: #121A26;
+  --shell-header-fg: #E8EEF6;
+  --shell-header-border: #2C3A4E;
+  --shell-chip: #1C2736;
+  --shell-chip-hover: #243246;
+  --shell-chip-fg: #E8EEF6;
+  --shell-chip-icon: #9FC4EE;
+  --shell-divider: #2C3A4E;
+  --shell-toolbar: #172033;
+  --shell-toolbar-fg: #E8EEF6;
+  --shell-toolbar-border: #2C3A4E;
 }
 
 /* Админка платформы: коричневый и оранжевый */

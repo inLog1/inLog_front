@@ -13,6 +13,7 @@ import {
   type PublishedFormResponse,
 } from '../../../entities/form'
 import { Button } from '../../../shared/ui/button'
+import { PageHeader, WorkPage } from '../../../shared/ui/page'
 
 type FormFillProps = {
   organizationId: number
@@ -108,17 +109,19 @@ function FillBody({
 
   return (
     <form
-      className="mx-auto flex min-w-0 max-w-2xl flex-col gap-4 p-4"
+      className="contents"
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
       }}
     >
-      <div>
-        <h2 className="text-lg font-semibold">{pinned.title}</h2>
-        {pinned.description ? <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{pinned.description}</p> : null}
-        <p className="mt-1 text-sm text-muted-foreground">{t('forms.record-version', { number: pinned.versionNumber })}</p>
-      </div>
+      <WorkPage width="form">
+      <PageHeader
+        title={pinned.title}
+        description={pinned.description || undefined}
+      />
+      <p className="text-sm text-foreground">{t('forms.record-version', { number: pinned.versionNumber })}</p>
+      {pinned.schema.fields.some((field) => field.required) ? <p className="text-sm text-foreground">{t('forms.required-note')}</p> : null}
       {conflict || newer ? <p className="text-sm text-destructive" role="alert">{t('forms.fill-conflict')}</p> : null}
       {!canCreate ? <p className="text-sm text-muted-foreground">{t('forms.fill-no-create')}</p> : null}
       <FormRenderer
@@ -137,6 +140,7 @@ function FillBody({
           {submitting ? t('forms.fill-submitting') : t('forms.fill-submit')}
         </Button>
       ) : null}
+      </WorkPage>
     </form>
   )
 }

@@ -29,6 +29,7 @@ import { useHasOrganizationGrant, useOrganizationAccessReady, useWorkspaceSectio
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { ListToolbar, PageHeader, PageHeading, PageState, WorkPage } from '../../../../shared/ui/page'
 import { SectionsBoundary } from './SectionsBoundary'
 
 export function SectionWorkPage() {
@@ -212,38 +213,53 @@ function SectionScreen({
     columns: saved.columns,
   }, rows.currentData) ? rows.currentData : null
   const pages = accepted ? Math.max(1, Math.ceil(accepted.total / accepted.limit)) : 1
+  const appliedFilters = effective?.filters.length ?? 0
+  const dirty = mode === 'published' && saved != null && parsed.ok && workDiffers(parsed.work, saved)
   return (
-    <div className="mx-auto flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden p-4 pb-24">
-      {mode === 'preview' ? <p className="rounded-md border border-border bg-card p-3 text-sm" role="status">{t('sections.preview-banner')}</p> : null}
-      <h2 className="min-w-0 text-lg font-semibold break-words">{title}</h2>
-      {description ? <p className="whitespace-pre-wrap text-sm text-muted-foreground">{description}</p> : null}
-      {mode === 'published' && showCreate && canCreate && createTo ? (
-        <Button asChild className="w-fit"><Link to={createTo}>{createLabel || t('sections.add-record')}</Link></Button>
-      ) : null}
+    <WorkPage>
+      <PageHeading>{title}</PageHeading>
+      {mode === 'preview' ? <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">{t('sections.preview-banner')}</p> : null}
+      <PageHeader
+        title={title}
+        description={description || undefined}
+        breadcrumbs={[
+          { label: t('home.title'), to: href(routes.dashboard(), 'app') },
+          { label: title },
+        ]}
+        actions={mode === 'published' && showCreate && canCreate && createTo ? (
+          <Button asChild><Link to={createTo}>{createLabel || t('sections.add-record')}</Link></Button>
+        ) : undefined}
+      />
       {mode === 'preview' ? <p className="text-sm text-muted-foreground">{t('sections.preview-no-create')}</p> : null}
-      {dependency ? <p className="text-sm text-muted-foreground" role="alert">{t(`sections.errors.${dependency}`)}</p> : null}
-      {!canRecords ? <p className="text-sm text-muted-foreground">{t('sections.preview-need')}</p> : null}
+      {dependency ? <p className="text-sm text-foreground" role="alert">{t(`sections.errors.${dependency}`)}</p> : null}
+      {!canRecords ? <p className="text-sm text-foreground">{t('sections.preview-need')}</p> : null}
       {canRecords && !dependency && view.isError ? (
         <p className="text-sm text-muted-foreground">{t(`tableViews.errors.${readTableError(view.error).code ?? 'generic'}`, { defaultValue: t('tableViews.errors.generic') })}</p>
       ) : null}
       {draft && saved && parsed.ok ? (
         <>
-          {mode === 'published' && workDiffers(parsed.work, saved) ? <p className="rounded-md border border-border bg-card p-3 text-sm" role="status">{t('tableViews.dirty')}</p> : null}
+          {dirty ? <p className="text-sm text-foreground" role="status">{t('tableViews.dirty')}</p> : null}
           {mode === 'published' ? (
             <>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" className="md:hidden" onClick={() => setFiltersOpen((open) => !open)}>{t('tableViews.filters')}</Button>
-                <Button type="button" variant="outline" onClick={() => setSearch((current) => stampWork(current, { page: 1, pageSize: null, sort: null, filters: null }, saved, sectionId))}>{t('tableViews.reset')}</Button>
-              </div>
-              <div className={filtersOpen ? 'min-w-0 rounded-md border border-border p-3 md:block' : 'hidden min-w-0 rounded-md border border-border p-3 md:block'}>
-                <ViewSettings catalog={catalog.data?.columns ?? []} draft={draft} onChange={setDraft} mode="query" />
-                <Button type="button" className="mt-3" onClick={() => setSearch((current) => stampWork(current, {
-                  page: 1,
-                  pageSize: draft.pageSize,
-                  sort: draft.sort,
-                  filters: draft.filters,
-                }, saved, sectionId))}>{t('tableViews.apply')}</Button>
-              </div>
+              <ListToolbar>
+                <Button type="button" variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+                  {t('tableViews.filters-count', { count: appliedFilters })}
+                </Button>
+                {dirty ? (
+                  <Button type="button" variant="ghost" onClick={() => setSearch((current) => stampWork(current, { page: 1, pageSize: null, sort: null, filters: null }, saved, sectionId))}>{t('tableViews.reset')}</Button>
+                ) : null}
+              </ListToolbar>
+              {filtersOpen ? (
+                <div className="min-w-0 rounded-lg border border-border bg-card p-3">
+                  <ViewSettings catalog={catalog.data?.columns ?? []} draft={draft} onChange={setDraft} mode="query" />
+                  <Button type="button" className="mt-3" onClick={() => setSearch((current) => stampWork(current, {
+                    page: 1,
+                    pageSize: draft.pageSize,
+                    sort: draft.sort,
+                    filters: draft.filters,
+                  }, saved, sectionId))}>{t('tableViews.apply')}</Button>
+                </div>
+              ) : null}
             </>
           ) : null}
           {rows.isError ? (
@@ -251,22 +267,26 @@ function SectionScreen({
               ? t(`tableViews.issues.${rowError.issues[0].code}`, { defaultValue: t('tableViews.errors.generic') })
               : t(`tableViews.errors.${rowError.code ?? 'generic'}`, { defaultValue: t('tableViews.errors.generic') })}</p>
           ) : null}
-          {accepted && accepted.total === 0 ? <p className="text-sm text-muted-foreground">{effective && effective.filters.length > 0 ? t('tableViews.no-matches') : t('tableViews.no-records')}</p> : null}
+          {accepted && accepted.total === 0 ? <PageState kind="empty" description={effective && effective.filters.length > 0 ? t('tableViews.no-matches') : t('tableViews.no-records')} /> : null}
           {accepted && accepted.total > 0 ? (
             <>
-              <p className="text-sm text-muted-foreground">{t('tableViews.found', { count: accepted.total })}</p>
-              <RecordTable columns={accepted.columns} rows={accepted.rows} recordHref={recordTo} />
-              {mode === 'published' && effective ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" disabled={effective.page <= 1} onClick={() => setSearch((current) => stampWork(current, { ...parsed.work, page: effective.page - 1 }, saved, sectionId))}>{t('tableViews.previous')}</Button>
-                  <span className="text-sm text-muted-foreground">{t('tableViews.page', { page: effective.page, pages })}</span>
-                  <Button type="button" variant="outline" disabled={effective.page >= pages} onClick={() => setSearch((current) => stampWork(current, { ...parsed.work, page: effective.page + 1 }, saved, sectionId))}>{t('tableViews.next')}</Button>
-                </div>
-              ) : null}
+              <div className="max-h-[32rem] overflow-auto">
+                <RecordTable columns={accepted.columns} rows={accepted.rows} recordHref={recordTo} />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">{t('tableViews.found', { count: accepted.total })}</p>
+                {mode === 'published' && effective ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="outline" disabled={effective.page <= 1} onClick={() => setSearch((current) => stampWork(current, { ...parsed.work, page: effective.page - 1 }, saved, sectionId))}>{t('tableViews.previous')}</Button>
+                    <span className="text-sm text-muted-foreground">{t('tableViews.page', { page: effective.page, pages })}</span>
+                    <Button type="button" variant="outline" disabled={effective.page >= pages} onClick={() => setSearch((current) => stampWork(current, { ...parsed.work, page: effective.page + 1 }, saved, sectionId))}>{t('tableViews.next')}</Button>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : null}
         </>
       ) : null}
-    </div>
+    </WorkPage>
   )
 }

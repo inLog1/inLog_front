@@ -6,6 +6,7 @@ import { useHasOrganizationGrant, useOrganizationAccessReady, useWorkspaceSectio
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { SectionsBoundary } from './SectionsBoundary'
 
 export function SectionListPage() {
@@ -37,19 +38,21 @@ function ListGate() {
   if (!accessReady) return <WorkspaceStatus status="loading" reason={null} />
   if (!canCreate && !canUpdate) return <WorkspaceStatus status="forbidden" reason="missing-permission" />
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 pb-24">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{t('nav.sections')}</h2>
-        {canCreate ? <Button asChild><Link to={href(routes.settings.sectionNew(), 'organization')}>{t('sections.create')}</Link></Button> : null}
-      </div>
-      {list.isLoading ? <p className="text-sm text-muted-foreground">{t('sections.loading')}</p> : null}
+    <WorkPage>
+      <PageHeader
+        title={t('nav.sections')}
+        description={t('nav.sections-description')}
+        actions={canCreate ? <Button asChild><Link to={href(routes.settings.sectionNew(), 'organization')}>{t('sections.create')}</Link></Button> : undefined}
+      />
+      {list.isLoading ? <PageState kind="loading" description={t('sections.loading')} /> : null}
       {list.isError ? (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{t(`sections.errors.${readSectionError(list.error).code ?? 'generic'}`, { defaultValue: t('sections.errors.generic') })}</p>
-          <Button type="button" variant="outline" onClick={() => void list.refetch()}>{t('sections.retry')}</Button>
-        </div>
+        <PageState
+          kind="error"
+          description={t(`sections.errors.${readSectionError(list.error).code ?? 'generic'}`, { defaultValue: t('sections.errors.generic') })}
+          action={<Button type="button" variant="outline" onClick={() => void list.refetch()}>{t('sections.retry')}</Button>}
+        />
       ) : null}
-      {list.data && list.data.sections.length === 0 ? <p className="text-sm text-muted-foreground">{t('sections.empty')}</p> : null}
+      {list.data && list.data.sections.length === 0 ? <PageState kind="empty" description={t('sections.empty')} /> : null}
       <div className="flex min-w-0 flex-col gap-2">
         {list.currentData?.sections.map((item) => (
           <article key={item.id} className="min-w-0 rounded-xl border border-border bg-card p-4">
@@ -64,6 +67,6 @@ function ListGate() {
           </article>
         ))}
       </div>
-    </div>
+    </WorkPage>
   )
 }

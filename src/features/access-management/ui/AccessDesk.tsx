@@ -9,6 +9,7 @@ import {
   type AccessScope,
 } from '../../../entities/access'
 import { Button } from '../../../shared/ui/button'
+import { PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/tabs'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { permissionSummary } from './permission-summary'
@@ -32,17 +33,17 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
   )
 
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 md:p-6">
+    <WorkPage>
+      <PageHeader title={t('nav.access')} description={t('access.lead')} />
       {installationSuperadmin ? (
-        <div className="rounded-lg border border-border bg-card p-4" role="status">
-          <p className="text-sm font-medium">{t('access.installation-superadmin')}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
-        </div>
+        <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
+          <span className="font-medium">{t('access.installation-superadmin')}</span>
+          <span className="mt-1 block text-muted-foreground">{t('access.installation-superadmin-note')}</span>
+        </p>
       ) : null}
+      <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p>
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{t('access.lead')}</p>
-        </div>
+        <div className="min-w-0" />
         {canManageCorporation ? (
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant={area === 'organization' ? 'default' : 'outline'} onClick={() => onArea('organization')}>
@@ -57,8 +58,8 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
       {area === 'organization' && organizationId == null ? (
         <p className="text-sm text-muted-foreground">{t('access.choose-organization')}</p>
       ) : null}
-      {directory.isError ? <p className="text-sm text-destructive" role="alert">{t(accessErrorKey(accessFailure(directory.error).code))}</p> : null}
-      {directory.isLoading ? <p className="text-sm text-muted-foreground">{t('access.loading')}</p> : null}
+      {directory.isError ? <PageState kind="error" description={t(accessErrorKey(accessFailure(directory.error).code))} /> : null}
+      {directory.isLoading ? <PageState kind="loading" description={t('access.loading')} /> : null}
       {directory.data ? (
         <Tabs defaultValue="roles" className="min-w-0">
           <TabsList className="flex h-auto w-full flex-wrap justify-start">
@@ -73,7 +74,7 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
           </TabsContent>
         </Tabs>
       ) : null}
-    </div>
+    </WorkPage>
   )
 }
 
@@ -91,28 +92,41 @@ function RoleList({ directory, roleHref }: { directory: AccessDirectory; roleHre
         )}
       </div>
       {directory.roles.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.roles-empty')}</p> : null}
-      <ul className="flex flex-col gap-3">
-        {directory.roles.map((role) => (
-          <li key={role.id} className="min-w-0 rounded-lg border border-border bg-card p-4">
-            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-base font-semibold">{role.displayName}</h2>
-                {role.description ? <p className="mt-1 text-sm text-muted-foreground">{role.description}</p> : null}
-                <p className="mt-2 text-sm">{t('access.owner')}: {scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('access.assignment-count', { count: role.assignmentCount })}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{permissionSummary(role.operational) || t('access.no-permissions')}</p>
-              </div>
-              {role.canEdit ? (
-                <Button asChild variant="outline" className="shrink-0">
-                  <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
-                </Button>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {directory.roles.length > 0 ? (
+        <div className="min-w-0 overflow-x-auto">
+          <div className="hidden min-w-[40rem] grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] gap-3 px-3 text-xs text-muted-foreground md:grid">
+            <span>{t('access.name')}</span>
+            <span>{t('access.owner')}</span>
+            <span>{t('access.assignments')}</span>
+            <span>{t('access.summary')}</span>
+            <span>{t('access.row-actions')}</span>
+          </div>
+          <ul className="mt-1 flex flex-col gap-2">
+            {directory.roles.map((role) => {
+              const scope = scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)
+              const summary = permissionSummary(role.operational) || t('access.no-permissions')
+              return (
+                <li key={role.id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex flex-col gap-2 md:grid md:min-w-[40rem] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] md:items-center md:gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{role.displayName}</p>
+                      {role.description ? <p className="truncate text-xs text-muted-foreground">{role.description}</p> : null}
+                    </div>
+                    <p className="text-sm">{scope}</p>
+                    <p className="text-sm">{t('access.assignment-count', { count: role.assignmentCount })}</p>
+                    <p className="text-sm text-muted-foreground">{summary}</p>
+                    {role.canEdit ? (
+                      <Button asChild variant="outline" size="sm" className="w-fit">
+                        <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
+                      </Button>
+                    ) : <span className="text-xs text-muted-foreground">{t('access.edit-denied')}</span>}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ) : null}
       <RecentChanges directory={directory} />
     </div>
   )

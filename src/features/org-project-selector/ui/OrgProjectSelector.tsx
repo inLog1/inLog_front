@@ -61,10 +61,10 @@ const OrgProjectSelector = ({
             return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-label={t('workspace.loading')} />
         }
         return (
-            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+            <div id="workspace-context" className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-2">
                 {showOrganization && (
                     <Select value={currentOrgId ? String(currentOrgId) : undefined} onValueChange={handleOrgChange}>
-                        <SelectTrigger className="h-8 w-[min(100%,11rem)] min-w-[8rem] bg-background" aria-label={t('scheduler-page.organization')}>
+                        <SelectTrigger className="h-8 w-auto min-w-0 max-w-[11rem] flex-1 bg-background sm:w-[11rem] sm:flex-none" aria-label={t('scheduler-page.organization')}>
                             <SelectValue placeholder={t('scheduler-page.select-organization-first')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -82,7 +82,7 @@ const OrgProjectSelector = ({
                         onValueChange={handleProjectChange}
                         disabled={!currentOrgId || (!projectsLoading && projects.length === 0)}
                     >
-                        <SelectTrigger className={cn('h-8 w-[min(100%,11rem)] min-w-[8rem] bg-background')} aria-label={t('scheduler-page.projects')}>
+                        <SelectTrigger className={cn('h-8 w-auto min-w-0 max-w-[11rem] flex-1 bg-background sm:w-[11rem] sm:flex-none')} aria-label={t('scheduler-page.projects')}>
                             <SelectValue placeholder={projectsLoading ? t('workspace.loading') : t('scheduler-page.select-project-first')} />
                         </SelectTrigger>
                         <SelectContent>

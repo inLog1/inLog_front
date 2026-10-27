@@ -26,7 +26,7 @@ export function RecordTable({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="min-w-0 max-w-full">
+    <div className="min-w-0 max-w-full overflow-x-auto">
       <Table className="min-w-max">
         <TableHeader>
           <TableRow>

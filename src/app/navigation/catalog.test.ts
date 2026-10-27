@@ -5,7 +5,8 @@ import { createSeed } from '../mocks/db/seed'
 import { toSnapshot } from '../mocks/auth/flow'
 import {
   APP_SECTIONS,
-  homeCards,
+  homeSetupCards,
+  homeWorkCards,
   sectionAccess,
   shouldLoadProjectTasks,
   showRequestsNotice,
@@ -43,7 +44,7 @@ describe('navigation catalog', () => {
       scope: organization,
     }
     const withoutOperation = input()
-    expect(visibleNavigation(withoutOperation).map((item) => item.id)).toEqual(['home', 'profile', 'notifications'])
+    expect(visibleNavigation(withoutOperation).map((item) => item.id)).toEqual(['home'])
     expect(visibleQuickActions(withoutOperation)).toEqual([])
     const mistaken = input({ grants: [{ ...delegated, resource: 'members', action: 'read' }] })
     expect(visibleNavigation(mistaken).some((item) => item.id === 'tasks')).toBe(false)
@@ -126,7 +127,8 @@ describe('navigation catalog', () => {
 
   it('does not turn a corporate capability into a bypass when operational grants are empty', () => {
     const empty = input()
-    expect(homeCards(empty).map((item) => item.id)).toEqual(['profile', 'notifications'])
+    expect(homeWorkCards(empty).map((item) => item.id)).toEqual([])
+    expect(homeSetupCards(empty).map((item) => item.id)).toEqual([])
     expect(showRequestsNotice(empty)).toBe(false)
     expect(visibleNavigation(empty).some((item) => item.id === 'platform-admin' || item.id === 'geo-mechanics')).toBe(false)
   })
@@ -137,14 +139,14 @@ describe('navigation catalog', () => {
       organizationId: 201,
     })
     expect(showRequestsNotice(customer)).toBe(true)
-    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home', 'profile', 'notifications'])
+    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home'])
     expect(shouldLoadProjectTasks(customer)).toBe(false)
   })
 
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'constructor', 'forms', 'reports', 'profile', 'notifications', 'access', 'sections',
+      'home', 'tasks', 'reports', 'forms', 'sections', 'access', 'constructor',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)
@@ -201,5 +203,25 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(input({ grants: [grant('sections', 'read')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(false)
     expect(sectionAccess(desk, input({ systemCapabilities: ['corporate_superadmin'], organizationId: 101 }))).toBe('unavailable')
     expect(APP_SECTIONS.filter((item) => item.path.startsWith('/workspace/sections'))).toEqual([])
+  })
+
+  it('keeps work and setup apart and leaves profile, notifications and table catalogs out of the menu', () => {
+    expect(APP_SECTIONS.find((item) => item.id === 'tasks')?.group).toBe('work')
+    expect(APP_SECTIONS.find((item) => item.id === 'reports')?.group).toBe('work')
+    expect(APP_SECTIONS.find((item) => item.id === 'forms')?.group).toBe('settings')
+    expect(APP_SECTIONS.find((item) => item.id === 'sections')?.group).toBe('settings')
+    expect(APP_SECTIONS.find((item) => item.id === 'access')?.group).toBe('settings')
+    expect(APP_SECTIONS.find((item) => item.id === 'constructor')?.group).toBe('settings')
+    expect(APP_SECTIONS.find((item) => item.id === 'profile')?.surface).toBe('account')
+    expect(APP_SECTIONS.find((item) => item.id === 'notifications')?.surface).toBe('account')
+    expect(APP_SECTIONS.some((item) => item.id === 'table-views' || item.path.includes('table-views'))).toBe(false)
+    expect(APP_SECTIONS.find((item) => item.id === 'platform-admin')?.surface).toBe('preserved')
+    const employee = input({
+      grants: [grant('tasks', 'read'), grant('forms', 'read'), grant('reports', 'read')],
+      organizationId: 101,
+    })
+    expect(homeWorkCards(employee).map((item) => item.id)).toEqual(['tasks', 'reports'])
+    expect(homeSetupCards(employee).map((item) => item.id)).toEqual(['forms'])
+    expect(visibleNavigation(employee).some((item) => item.id === 'profile' || item.id === 'notifications' || item.id === 'access')).toBe(false)
   })
 })

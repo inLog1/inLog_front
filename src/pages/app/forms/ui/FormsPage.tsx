@@ -9,6 +9,7 @@ import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../featur
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../../shared/ui/dialog'
 import { Input } from '../../../../shared/ui/input'
 import { Label } from '../../../../shared/ui/label'
@@ -62,14 +63,15 @@ function FormsList() {
     }
   }
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{t('nav.forms')}</h2>
-        {canCreate ? <Button type="button" onClick={() => setOpen(true)}>{t('forms.create')}</Button> : null}
-      </div>
-      {forms.isLoading ? <p className="text-sm text-muted-foreground">{t('forms.loading')}</p> : null}
-      {forms.isError ? <p className="text-sm text-muted-foreground">{t('forms.errors.generic')}</p> : null}
-      {forms.data && forms.data.forms.length === 0 ? <p className="text-sm text-muted-foreground">{t('forms.list-empty')}</p> : null}
+    <WorkPage>
+      <PageHeader
+        title={t('nav.forms')}
+        description={t('nav.forms-description')}
+        actions={canCreate ? <Button type="button" onClick={() => setOpen(true)}>{t('forms.create')}</Button> : undefined}
+      />
+      {forms.isLoading ? <PageState kind="loading" description={t('forms.loading')} /> : null}
+      {forms.isError ? <PageState kind="error" description={t('forms.errors.generic')} /> : null}
+      {forms.data && forms.data.forms.length === 0 ? <PageState kind="empty" description={t('forms.list-empty')} /> : null}
       {forms.data && forms.data.forms.length > 0 ? (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full min-w-[40rem] border-collapse text-sm">
@@ -123,6 +125,6 @@ function FormsList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </WorkPage>
   )
 }

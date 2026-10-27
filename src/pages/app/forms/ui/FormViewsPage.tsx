@@ -10,6 +10,7 @@ import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../featur
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../../shared/ui/dialog'
 import { FormsBoundary } from './FormsBoundary'
 
@@ -66,25 +67,25 @@ function ViewsGate() {
     }
   }
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 pb-20">
-      <Link className="text-sm text-primary underline-offset-4 hover:underline" to={href(routes.forms.list(), 'organization')}>{t('tableViews.back-forms')}</Link>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{t('tableViews.title')}</h2>
-        {canCreate && canRecords ? (
+    <WorkPage>
+      <PageHeader
+        title={t('tableViews.title')}
+        description={formTitle ? `${t('tableViews.form')}: ${formTitle}` : t('nav.forms-description')}
+        breadcrumbs={[{ label: t('nav.forms'), to: href(routes.forms.list(), 'organization') }, { label: t('tableViews.title') }]}
+        actions={canCreate && canRecords ? (
           <Button asChild>
             <Link to={href(routes.forms.viewCreate(formId), 'organization')}>{t('tableViews.create')}</Link>
           </Button>
-        ) : null}
-      </div>
-      {formTitle ? <p className="text-sm text-muted-foreground">{t('tableViews.form')}: {formTitle}</p> : null}
-      {views.isLoading ? <p className="text-sm text-muted-foreground">{t('tableViews.loading')}</p> : null}
+        ) : undefined}
+      />
+      {views.isLoading ? <PageState kind="loading" description={t('tableViews.loading')} /> : null}
       {views.isError ? (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">{t('tableViews.errors.generic')}</p>
           <Button type="button" variant="outline" onClick={() => void views.refetch()}>{t('tableViews.retry')}</Button>
         </div>
       ) : null}
-      {views.data && views.data.views.length === 0 ? <p className="text-sm text-muted-foreground">{t('tableViews.empty')}</p> : null}
+      {views.data && views.data.views.length === 0 ? <PageState kind="empty" description={t('tableViews.empty')} /> : null}
       {views.data && views.data.views.length > 0 ? (
         <div className="min-w-0 max-w-full overflow-x-auto">
           <table className="w-full min-w-[36rem] border-collapse text-sm">
@@ -127,6 +128,6 @@ function ViewsGate() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </WorkPage>
   )
 }

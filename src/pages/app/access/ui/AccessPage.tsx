@@ -6,6 +6,7 @@ import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useEnsureOrgProjectParams } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
+import { PageHeader, WorkPage } from '../../../../shared/ui/page'
 
 const mode = accessManagementMode(import.meta.env.VITE_API_MODE)
 
@@ -17,10 +18,9 @@ export function AccessPage() {
 function AccessUnavailable() {
   const { t } = useTranslation()
   return (
-    <div className="mx-auto max-w-xl p-6" role="status">
-      <h2 className="text-lg font-semibold">{t('access.unavailable-title')}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{t('access.unavailable-body')}</p>
-    </div>
+    <WorkPage width="form">
+      <PageHeader title={t('access.unavailable-title')} description={t('access.unavailable-body')} />
+    </WorkPage>
   )
 }
 

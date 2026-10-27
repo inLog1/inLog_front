@@ -7,6 +7,7 @@ import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../featur
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { PageHeader, WorkPage } from '../../../../shared/ui/page'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -94,7 +95,11 @@ function EditorGate() {
     after()
   }
   return (
-    <>
+    <WorkPage>
+      <PageHeader
+        title={t('forms.edit')}
+        breadcrumbs={[{ label: t('nav.forms'), to: href(routes.forms.list(), 'organization') }, { label: t('forms.edit') }]}
+      />
       <FormEditor
         key={lockedOrg}
         organizationId={lockedOrg}
@@ -141,6 +146,6 @@ function EditorGate() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </WorkPage>
   )
 }

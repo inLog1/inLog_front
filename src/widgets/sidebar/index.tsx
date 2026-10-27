@@ -30,21 +30,27 @@ type SidebarProps = {
   homeTo: string
   groups: SidebarGroupModel[]
   profileTo: string
+  accountNote?: string
   onNavigate?: () => void
 }
 
-export function Sidebar({ homeTo, groups, profileTo, onNavigate }: SidebarProps) {
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2)
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
+}
+
+export function Sidebar({ homeTo, groups, profileTo, accountNote, onNavigate }: SidebarProps) {
   const { t } = useTranslation()
   const user = useSelector(selectUser)
   const userName = useSelector(selectUserFullName) || user?.email
 
   return (
-    <aside className="flex h-full w-60 min-w-60 flex-col bg-shell text-shell-foreground">
+    <aside className="flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
       <div className="flex items-center justify-between gap-2 border-b border-shell-line px-3 py-3">
         <NavLink
           to={homeTo}
           onClick={onNavigate}
-          className="min-w-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent"
+          className="min-w-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={t('home.title')}
         >
           <AppLogo />
@@ -76,8 +82,8 @@ export function Sidebar({ homeTo, groups, profileTo, onNavigate }: SidebarProps)
                 end={item.end}
                 onClick={onNavigate}
                 className={({ isActive }) => cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent',
-                  isActive && 'bg-shell-accent text-shell-accent-foreground hover:bg-shell-accent',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isActive && 'bg-shell-accent font-medium text-shell-accent-foreground hover:bg-shell-accent',
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -92,12 +98,15 @@ export function Sidebar({ homeTo, groups, profileTo, onNavigate }: SidebarProps)
         <NavLink
           to={profileTo}
           onClick={onNavigate}
-          className="block min-w-0 rounded-md px-1 py-1 hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent"
+          className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1 hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <div className="truncate text-sm text-shell-foreground">{userName}</div>
-          {user?.position && (
-            <div className="truncate text-xs text-shell-muted">{user.position}</div>
-          )}
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-shell-accent text-xs font-medium text-shell-accent-foreground" aria-hidden>
+            {initials(userName || '')}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm text-shell-foreground">{userName}</span>
+            <span className="block truncate text-xs text-shell-muted">{accountNote || user?.position || t('nav.profile')}</span>
+          </span>
         </NavLink>
         <div className="flex items-center gap-2">
           <Button

@@ -10,7 +10,7 @@ import { routes } from '../../shared/lib/routes'
 
 export type SectionGroup = 'primary' | 'work' | 'settings'
 export type SectionContext = 'none' | 'organization' | 'project'
-export type SectionSurface = 'navigation' | 'nested' | 'preserved'
+export type SectionSurface = 'navigation' | 'nested' | 'preserved' | 'account'
 
 export type SectionAccess =
   | 'allowed'
@@ -26,7 +26,7 @@ export type AppSection = {
   path: string
   group: SectionGroup
   context: SectionContext
-  /** navigation is the sidebar and the home cards. nested stays inside a working section. preserved is a direct URL only. */
+  /** navigation is the sidebar. nested stays inside a working section. preserved is a direct URL only. account is the profile and notification entry, not a menu row. */
   surface: SectionSurface
 }
 
@@ -71,24 +71,6 @@ export const APP_SECTIONS: readonly AppSection[] = [
     surface: 'navigation',
   },
   {
-    id: 'constructor',
-    labelKey: 'nav.constructor',
-    descriptionKey: 'nav.constructor-description',
-    path: routes.admin.constructor(),
-    group: 'work',
-    context: 'organization',
-    surface: 'navigation',
-  },
-  {
-    id: 'forms',
-    labelKey: 'nav.forms',
-    descriptionKey: 'nav.forms-description',
-    path: routes.forms.list(),
-    group: 'work',
-    context: 'organization',
-    surface: 'navigation',
-  },
-  {
     id: 'reports',
     labelKey: 'nav.reports',
     descriptionKey: 'nav.reports-description',
@@ -98,28 +80,10 @@ export const APP_SECTIONS: readonly AppSection[] = [
     surface: 'navigation',
   },
   {
-    id: 'profile',
-    labelKey: 'nav.profile',
-    descriptionKey: 'nav.profile-description',
-    path: routes.settings.profile(),
-    group: 'settings',
-    context: 'none',
-    surface: 'navigation',
-  },
-  {
-    id: 'notifications',
-    labelKey: 'nav.notifications',
-    descriptionKey: 'nav.notifications-description',
-    path: routes.settings.notifications(),
-    group: 'settings',
-    context: 'none',
-    surface: 'navigation',
-  },
-  {
-    id: 'access',
-    labelKey: 'nav.access',
-    descriptionKey: 'nav.access-description',
-    path: routes.settings.access(),
+    id: 'forms',
+    labelKey: 'nav.forms',
+    descriptionKey: 'nav.forms-description',
+    path: routes.forms.list(),
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
@@ -132,6 +96,42 @@ export const APP_SECTIONS: readonly AppSection[] = [
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
+  },
+  {
+    id: 'access',
+    labelKey: 'nav.access',
+    descriptionKey: 'nav.access-description',
+    path: routes.settings.access(),
+    group: 'settings',
+    context: 'organization',
+    surface: 'navigation',
+  },
+  {
+    id: 'constructor',
+    labelKey: 'nav.constructor',
+    descriptionKey: 'nav.constructor-description',
+    path: routes.admin.constructor(),
+    group: 'settings',
+    context: 'organization',
+    surface: 'navigation',
+  },
+  {
+    id: 'profile',
+    labelKey: 'nav.profile',
+    descriptionKey: 'nav.profile-description',
+    path: routes.settings.profile(),
+    group: 'settings',
+    context: 'none',
+    surface: 'account',
+  },
+  {
+    id: 'notifications',
+    labelKey: 'nav.notifications',
+    descriptionKey: 'nav.notifications-description',
+    path: routes.settings.notifications(),
+    group: 'settings',
+    context: 'none',
+    surface: 'account',
   },
   {
     id: 'templates',
@@ -284,8 +284,12 @@ export function visibleNavigation(input: NavigationInput): AppSection[] {
   )
 }
 
-export function homeCards(input: NavigationInput): AppSection[] {
-  return visibleNavigation(input).filter((section) => section.id !== 'home')
+export function homeWorkCards(input: NavigationInput): AppSection[] {
+  return visibleNavigation(input).filter((section) => section.group === 'work')
+}
+
+export function homeSetupCards(input: NavigationInput): AppSection[] {
+  return visibleNavigation(input).filter((section) => section.group === 'settings')
 }
 
 function actionVisible(

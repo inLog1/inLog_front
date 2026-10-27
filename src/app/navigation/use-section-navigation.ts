@@ -12,17 +12,21 @@ export function useOrganizationSectionLinks(
   organizationId: number | null,
   grants: Parameters<typeof grantAllows>[0],
   enforceGrants: boolean,
-): SectionNavItem[] {
+): { items: SectionNavItem[]; pending: boolean } {
   const canRead = !enforceGrants || (
     organizationId != null && grantAllows(grants, 'sections', 'read', { organizationId, projectId: null })
   )
+  const skipped = mode !== 'mock' || organizationId == null || (enforceGrants && !canRead)
   const query = useGetSectionNavigationQuery(
     { organizationId: organizationId ?? 0 },
-    { skip: mode !== 'mock' || organizationId == null || (enforceGrants && !canRead) },
+    { skip: skipped },
   )
-  return visibleOrganizationSections({
-    organizationId: mode === 'mock' ? organizationId : null,
-    failed: query.isError,
-    items: query.isError ? null : query.currentData?.sections ?? null,
-  })
+  return {
+    items: visibleOrganizationSections({
+      organizationId: mode === 'mock' ? organizationId : null,
+      failed: query.isError,
+      items: query.isError ? null : query.currentData?.sections ?? null,
+    }),
+    pending: !skipped && !query.isError && query.currentData == null,
+  }
 }

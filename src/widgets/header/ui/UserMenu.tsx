@@ -34,7 +34,7 @@ export function UserMenu() {
           <AvatarImage src={user?.avatar?.medium} alt={user?.fullName} />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar> */}
-        <Avatar className="h-8 w-8 cursor-pointer border-2 border-white/30">
+        <Avatar className="h-8 w-8 cursor-pointer border border-border">
           <AvatarImage
             src={user?.avatar?.medium}
             alt={`${user?.surname} ${user?.name}`}

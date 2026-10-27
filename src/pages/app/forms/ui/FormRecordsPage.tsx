@@ -5,6 +5,7 @@ import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
+import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { FormsBoundary } from './FormsBoundary'
 
 export function FormRecordsPage() {
@@ -35,12 +36,14 @@ function RecordsGate() {
     )
   }
   return (
-    <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-4 p-4">
-      <Link className="text-sm text-primary underline-offset-4 hover:underline" to={href(routes.forms.list(), 'organization')}>{t('forms.back-forms')}</Link>
-      <h2 className="text-lg font-semibold">{t('forms.records-title')}</h2>
-      {records.isLoading ? <p className="text-sm text-muted-foreground">{t('forms.loading')}</p> : null}
-      {records.isError ? <p className="text-sm text-muted-foreground">{t('forms.not-found')}</p> : null}
-      {records.data && records.data.records.length === 0 ? <p className="text-sm text-muted-foreground">{t('forms.records-empty')}</p> : null}
+    <WorkPage width="form">
+      <PageHeader
+        title={t('forms.records-title')}
+        breadcrumbs={[{ label: t('nav.forms'), to: href(routes.forms.list(), 'organization') }, { label: t('forms.records-title') }]}
+      />
+      {records.isLoading ? <PageState kind="loading" description={t('forms.loading')} /> : null}
+      {records.isError ? <PageState kind="error" description={t('forms.not-found')} /> : null}
+      {records.data && records.data.records.length === 0 ? <PageState kind="empty" description={t('forms.records-empty')} /> : null}
       {records.data && records.data.records.length > 0 ? (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {records.data.records.map((record) => (
@@ -53,7 +56,7 @@ function RecordsGate() {
           ))}
         </ul>
       ) : null}
-    </div>
+    </WorkPage>
   )
 }
 

@@ -22,6 +22,7 @@ import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../featur
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
+import { ListToolbar, PageHeader, PageHeading, WorkPage } from '../../../../shared/ui/page'
 import { FormsBoundary } from './FormsBoundary'
 
 export function FormViewPage() {
@@ -140,27 +141,33 @@ function TableGate() {
     setSearch((current) => writeWorkQuery(current, { page: 1, pageSize: null, sort: null, filters: null }, saved))
     setFiltersOpen(false)
   }
+  const dirty = workDiffers(parsed.work, saved)
   return (
-    <div className="mx-auto flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden p-4 pb-20">
-      <Link className="text-sm text-primary underline-offset-4 hover:underline" to={href(routes.forms.views(formId), 'organization')}>{t('tableViews.back')}</Link>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="min-w-0 text-lg font-semibold">{saved.title}</h2>
-        {canUpdate ? (
+    <WorkPage>
+      <PageHeading>{saved.title}</PageHeading>
+      <PageHeader
+        title={saved.title}
+        description={formTitle ? `${t('tableViews.form')}: ${formTitle}` : undefined}
+        breadcrumbs={[{ label: t('tableViews.title'), to: href(routes.forms.views(formId), 'organization') }, { label: saved.title }]}
+        actions={canUpdate ? (
           <Button asChild variant="outline">
             <Link to={href(routes.forms.viewEdit(formId, viewId), 'organization')}>{t('tableViews.edit')}</Link>
           </Button>
-        ) : null}
-      </div>
-      {formTitle ? <p className="text-sm text-muted-foreground">{t('tableViews.form')}: {formTitle}</p> : null}
-      {workDiffers(parsed.work, saved) ? <p className="rounded-md border border-border bg-card p-3 text-sm" role="status">{t('tableViews.dirty')}</p> : null}
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" className="md:hidden" onClick={() => setFiltersOpen((open) => !open)}>{t('tableViews.filters')}</Button>
-        <Button type="button" variant="outline" onClick={reset}>{t('tableViews.reset')}</Button>
-      </div>
-      <div className={filtersOpen ? 'min-w-0 rounded-md border border-border p-3 md:block' : 'hidden min-w-0 rounded-md border border-border p-3 md:block'}>
-        <ViewSettings catalog={catalog.data?.columns ?? []} draft={draft} onChange={setDraft} mode="query" />
-        <Button type="button" className="mt-3" onClick={apply}>{t('tableViews.apply')}</Button>
-      </div>
+        ) : undefined}
+      />
+      {dirty ? <p className="text-sm text-foreground" role="status">{t('tableViews.dirty')}</p> : null}
+      <ListToolbar>
+        <Button type="button" variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+          {t('tableViews.filters-count', { count: effective.filters.length })}
+        </Button>
+        {dirty ? <Button type="button" variant="ghost" onClick={reset}>{t('tableViews.reset')}</Button> : null}
+      </ListToolbar>
+      {filtersOpen ? (
+        <div className="min-w-0 rounded-lg border border-border bg-card p-3">
+          <ViewSettings catalog={catalog.data?.columns ?? []} draft={draft} onChange={setDraft} mode="query" />
+          <Button type="button" className="mt-3" onClick={apply}>{t('tableViews.apply')}</Button>
+        </div>
+      ) : null}
       {rowError.code === 'incompatible_view' ? (
         <div className="space-y-2 rounded-md border border-border p-3" role="alert">
           <p className="text-sm">{t('tableViews.incompatible')}</p>
@@ -186,7 +193,9 @@ function TableGate() {
       {accepted && accepted.total > 0 ? (
         <>
           <p className="text-sm text-muted-foreground">{t('tableViews.found', { count: accepted.total })}</p>
-          <RecordTable columns={accepted.columns} rows={accepted.rows} recordHref={(recordId) => href(routes.forms.record(formId, recordId), 'organization')} />
+          <div className="max-h-[32rem] overflow-auto">
+            <RecordTable columns={accepted.columns} rows={accepted.rows} recordHref={(recordId) => href(routes.forms.record(formId, recordId), 'organization')} />
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" disabled={effective.page <= 1} onClick={() => setSearch((current) => writeWorkQuery(current, { ...parsed.work, page: effective.page - 1 }, saved))}>{t('tableViews.previous')}</Button>
             <span className="text-sm text-muted-foreground">{t('tableViews.page', { page: effective.page, pages })}</span>
@@ -194,6 +203,6 @@ function TableGate() {
           </div>
         </>
       ) : null}
-    </div>
+    </WorkPage>
   )
 }
