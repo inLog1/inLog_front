@@ -46,7 +46,7 @@ export function Sidebar({ homeTo, groups, profileTo, accountNote, onNavigate }: 
 
   return (
     <aside className="flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
-      <div className="flex items-center justify-between gap-2 border-b border-shell-line px-3 py-3">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-shell-line px-3">
         <NavLink
           to={homeTo}
           onClick={onNavigate}

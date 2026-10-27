@@ -1,0 +1,47 @@
+/* Справочный пример. Подключать только после адаптации к текущему коду.
+   Класс home-refresh ставится только на корень главной. */
+.home-refresh {
+  --home-bg: #f4f7fb;
+  --home-card: #ffffff;
+  --home-title: #14233c;
+  --home-secondary: #52647d;
+  --home-border: #dfe7f1;
+  color: var(--home-title);
+  background: var(--home-bg);
+}
+.dark .home-refresh {
+  --home-bg: #101724;
+  --home-card: #182235;
+  --home-title: #eaf0f8;
+  --home-secondary: #b6c5da;
+  --home-border: #2b3a51;
+}
+.home-refresh .home-welcome {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(110deg, #102846, #1d63cd);
+}
+.home-refresh .home-welcome::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(90deg, #102846 0%, rgba(16,40,70,.96) 30%, rgba(16,40,70,.18) 68%),
+    url('/images/home-refresh-v2/welcome-background.webp');
+  background-size: cover;
+  background-position: center right;
+}
+.home-refresh .home-surface {
+  background: var(--home-card);
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+}
+@media (max-width: 639px) {
+  .home-refresh .home-welcome::before { display: none; }
+}
+/* Не переопределять здесь button, a, table или :root глобально. */

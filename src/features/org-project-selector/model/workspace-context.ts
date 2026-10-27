@@ -93,11 +93,8 @@ export function resolveOrganization(
     if (organizations.items.length === 0) {
       return { status: 'empty', reason: 'organizations-empty', organizationId: null, autoOrgId: null, probeId: null }
     }
-    if (organizations.items.length === 1) {
-      const id = organizations.items[0].id
-      return { status: 'ready', reason: null, organizationId: id, autoOrgId: String(id), probeId: null }
-    }
-    return { status: 'choose', reason: 'choose-organization', organizationId: null, autoOrgId: null, probeId: null }
+    const id = organizations.items[0].id
+    return { status: 'ready', reason: null, organizationId: id, autoOrgId: String(id), probeId: null }
   }
 
   if (organizations.items.some((item) => item.id === parsed.id)) {

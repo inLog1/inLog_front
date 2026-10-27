@@ -32,17 +32,17 @@ describe('workspace context', () => {
     expect(parseRouteId('01').kind).toBe('invalid')
   })
 
-  it('auto-selects the only organization and asks for a choice when several exist', () => {
+  it('auto-selects the first organization when none is selected', () => {
     expect(resolveOrganization(ready([org(101)]), null, { status: 'idle' })).toMatchObject({
       status: 'ready',
       organizationId: 101,
       autoOrgId: '101',
     })
-    expect(resolveOrganization(ready([org(101), org(102)]), null, { status: 'idle' })).toMatchObject({
-      status: 'choose',
-      reason: 'choose-organization',
-      organizationId: null,
-      autoOrgId: null,
+    expect(resolveOrganization(ready([org(102), org(101)]), null, { status: 'idle' })).toMatchObject({
+      status: 'ready',
+      reason: null,
+      organizationId: 102,
+      autoOrgId: '102',
     })
   })
 

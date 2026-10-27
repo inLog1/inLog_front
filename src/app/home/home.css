@@ -1,0 +1,114 @@
+/* Local home surface. Does not retune global theme tokens. */
+.home-refresh {
+  --home-bg: #f4f7fb;
+  --home-card: #ffffff;
+  --home-title: #14233c;
+  --home-secondary: #52647d;
+  --home-border: #dfe7f1;
+  color: var(--home-title);
+  background: var(--home-bg);
+}
+
+.dark .home-refresh {
+  --home-bg: #101724;
+  --home-card: #182235;
+  --home-title: #eaf0f8;
+  --home-secondary: #b6c5da;
+  --home-border: #2b3a51;
+}
+
+.home-refresh .home-surface {
+  background: var(--home-card);
+  border: 1px solid var(--home-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgb(20 35 60 / 0.05);
+}
+
+.dark .home-refresh .home-surface {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
+}
+
+.home-refresh a.home-surface:hover {
+  border-color: color-mix(in srgb, var(--home-title) 18%, var(--home-border));
+}
+
+.home-welcome {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(110deg, #102846 0%, #1d63cd 100%);
+}
+
+.home-welcome-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(100deg, #102846 0%, rgba(16, 40, 70, 0.96) 30%, rgba(16, 40, 70, 0.55) 58%, rgba(16, 40, 70, 0.18) 100%),
+    url('/images/home-refresh-v2/welcome-background.webp');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: right center;
+}
+
+@media (max-width: 1023px) {
+  .home-welcome-art {
+    background-image:
+      linear-gradient(180deg, rgba(16, 40, 70, 0.9), rgba(16, 40, 70, 0.82)),
+      url('/images/home-refresh-v2/welcome-background.webp');
+  }
+}
+
+@media (max-width: 639px) {
+  .home-welcome-art {
+    display: none;
+  }
+}
+
+.home-refresh .home-tile {
+  display: inline-flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.home-refresh .home-tile-sm {
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+.home-refresh .home-tile-blue {
+  background: #e7f1fd;
+  color: #1677e8;
+}
+
+.home-refresh .home-tile-violet {
+  background: #f3eefe;
+  color: #6d5bd0;
+}
+
+.home-refresh .home-tile-neutral {
+  background: #eef3f8;
+  color: #3c5270;
+}
+
+.dark .home-refresh .home-tile-blue {
+  background: #1a3354;
+  color: #9fc4ee;
+}
+
+.dark .home-refresh .home-tile-violet {
+  background: #2c2444;
+  color: #d4c4f5;
+}
+
+.dark .home-refresh .home-tile-neutral {
+  background: #243044;
+  color: #d5e2f2;
+}

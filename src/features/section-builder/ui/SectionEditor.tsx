@@ -160,6 +160,12 @@ export function SectionEditor({
     }
   }, [persist, saveRef])
   const publish = async () => {
+    const checked = parseSectionConfig(draft, 'publish')
+    if (!checked.ok) {
+      setPublishOpen(false)
+      toast.error(t(`sections.issues.${checked.issues[0]?.code ?? 'invalid_link'}`, { defaultValue: t('sections.errors.invalid_section') }))
+      return
+    }
     const dirty = JSON.stringify(draft) !== baseline || known.current.id == null
     const saved = dirty ? await persist() : { id: known.current.id ?? '', revision, draftRevision }
     if (!saved?.id) return
