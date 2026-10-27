@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
@@ -87,11 +87,19 @@ export function SessionErrorScreen() {
 export function SchemaMismatchScreen() {
   const { t } = useTranslation()
   const dispatch = useDispatch<AppDispatch>()
+  const [resetError, setResetError] = useState<string | null>(null)
 
   const resetNamespace = async () => {
     if (import.meta.env.VITE_API_MODE !== 'mock') return
     if (!window.confirm(t('dev-panel.reset-confirm'))) return
-    await fetch('/mock-api/auth/dev/reset/', { method: 'POST' })
+    setResetError(null)
+    const response = await fetch('/mock-api/auth/dev/reset/', { method: 'POST' })
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null)
+      const code = body && typeof body === 'object' && 'code' in body && typeof body.code === 'string' ? body.code : null
+      setResetError(t(code === 'mock_writer_held' ? 'dev-panel.reset-blocked' : 'dev-panel.reset-failed'))
+      return
+    }
     await requestLogout({ reason: 'reset', callApi: false })
     dispatch(sessionActions.bumpEpoch())
   }
@@ -103,6 +111,7 @@ export function SchemaMismatchScreen() {
           {t('dev-panel.reset')}
         </Button>
       )}
+      {resetError && <p className="mt-3 text-sm text-[var(--auth-muted)]" role="status">{resetError}</p>}
     </Frame>
   )
 }

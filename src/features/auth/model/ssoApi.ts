@@ -1,6 +1,6 @@
 import type { LoginResponse } from '../../../shared/types/dto/auth'
 import { platformApi } from '../../../shared/api/platformApi'
-import { writeSession } from '../../../shared/api/session-storage'
+import { beginAuthAttempt, commitAccessSession } from '../../../entities/session'
 
 export type MockIdentityOption = {
   providerId: string
@@ -22,15 +22,10 @@ const ssoApi = platformApi.injectEndpoints({
         body,
       }),
       async onQueryStarted(_, { queryFulfilled }) {
+        const ticket = beginAuthAttempt()
         try {
           const { data } = await queryFulfilled
-          if (data.access_token) {
-            writeSession({
-              accessToken: data.access_token,
-              refreshToken: data.refresh_token,
-              subjectId: typeof data.user?.id === 'number' ? data.user.id : null,
-            })
-          }
+          commitAccessSession(ticket, data)
         } catch {
           // Cancelled or rejected SSO must not create a session.
         }

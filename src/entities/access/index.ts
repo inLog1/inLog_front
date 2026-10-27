@@ -7,10 +7,13 @@ export type {
   SystemCapabilityCode,
 } from './model/types'
 export {
+  assignmentDenial,
   can,
+  canDelegate,
   capabilityFromRoleDisplayName,
   effectiveGrants,
   hasCorporateSuperadmin,
+  hasInstallationCapability,
   isDelegationSubset,
 } from './model/grants'
 export {

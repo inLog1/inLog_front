@@ -6,6 +6,8 @@ export type InstallationPhase = 'uninitialized' | 'owner-assigned' | 'configurin
 export type InstallationStatus = {
   phase: InstallationPhase
   schemaVersion: number
+  /** Mock-only. True when another tab holds the writer lease. */
+  writeLocked?: boolean
 }
 
 export type AuthCapabilities = {

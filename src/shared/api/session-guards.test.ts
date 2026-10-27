@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyHttpFailure, isCredentialEndpoint, shouldLogoutOnStatus } from './endpoint-policy'
+import { classifyHttpFailure, isCredentialEndpoint, sameSessionView, shouldLogoutOnStatus } from './endpoint-policy'
 import { sanitizeReturnTo } from './return-to'
 import { readJsonString } from './session-storage'
 
@@ -21,6 +21,13 @@ describe('session guards', () => {
     expect(sanitizeReturnTo('https://evil.example/steal')).toBeNull()
     expect(sanitizeReturnTo('//evil.example')).toBeNull()
     expect(sanitizeReturnTo('/login?next=/')).toBeNull()
+  })
+
+  it('treats a repeated null token as a new session when the generation changes', () => {
+    expect(sameSessionView({ token: null, generation: 1 }, { token: null, generation: 1 })).toBe(true)
+    expect(sameSessionView({ token: null, generation: 1 }, { token: null, generation: 2 })).toBe(false)
+    expect(sameSessionView({ token: 'previous', generation: 4 }, { token: 'next', generation: 4 })).toBe(false)
+    expect(sameSessionView({ token: 'same', generation: 4 }, { token: 'same', generation: 5 })).toBe(false)
   })
 
   it('does not throw on a corrupt token payload', () => {

@@ -17,7 +17,16 @@ import {
   verifyToken,
   type FlowResult,
 } from './auth/flow'
-import { ensureMockState, resetMockNamespace, SchemaMismatchError, updateMockState } from './db/repository'
+import {
+  ensureMockState,
+  isMockWriteLocked,
+  MockWriterHeldError,
+  resetMockNamespace,
+  SchemaMismatchError,
+  StaleMockWriteError,
+  updateMockState,
+} from './db/repository'
+import { guardOutboundRequest } from './outbound-guard'
 import type { MockFault, MockState } from './db/types'
 import type { AuthMode } from '../../shared/config/runtime'
 import type { InstallationPhase } from '../../entities/access/model/accessApi'
@@ -39,6 +48,23 @@ function mismatch(foundVersion: number) {
   return json({ code: 'schema_mismatch', foundVersion }, 409)
 }
 
+function persistenceFailure(error: unknown): Response | null {
+  if (error instanceof SchemaMismatchError) return mismatch(error.foundVersion)
+  if (error instanceof MockWriterHeldError) {
+    return json({
+      code: 'mock_writer_held',
+      detail: 'Another tab is the writer for this mock namespace. This tab did not change it.',
+    }, 409)
+  }
+  if (error instanceof StaleMockWriteError) {
+    return json({
+      code: 'stale_write',
+      detail: 'The write used an older snapshot. The stored mock data was left unchanged.',
+    }, 409)
+  }
+  return null
+}
+
 function faultResponse(fault: Exclude<MockFault, null>) {
   if (fault.kind === 'network') return HttpResponse.error()
   const status = fault.kind === 'unauthorized'
@@ -56,7 +82,13 @@ async function load(path?: string): Promise<MockState | Response> {
   if (!read.ok) return mismatch(read.foundVersion)
   if (!path || read.state.fault?.path !== path) return read.state
   const fault = read.state.fault
-  await updateMockState((state) => ({ ...state, fault: null }))
+  try {
+    await updateMockState((state) => ({ ...state, fault: null }))
+  } catch (error) {
+    const failure = persistenceFailure(error)
+    if (failure) return failure
+    throw error
+  }
   return faultResponse(fault)
 }
 
@@ -75,7 +107,8 @@ async function commit(produce: (state: MockState) => FlowResult) {
       return result.state
     })
   } catch (error) {
-    if (error instanceof SchemaMismatchError) return mismatch(error.foundVersion)
+    const failure = persistenceFailure(error)
+    if (failure) return failure
     throw error
   }
   if (!box.result) return json({ code: 'empty' }, 500)
@@ -131,7 +164,11 @@ export const handlers: HttpHandler[] = [
   http.get(`${PREFIX}/installation/status/`, async () => {
     const ready = await load('installation/status/')
     if (ready instanceof Response) return ready
-    return json({ phase: ready.installationPhase, schemaVersion: ready.schemaVersion })
+    return json({
+      phase: ready.installationPhase,
+      schemaVersion: ready.schemaVersion,
+      writeLocked: await isMockWriteLocked(),
+    })
   }),
 
   http.get(`${PREFIX}/session/access/`, async ({ request }) => {
@@ -242,14 +279,21 @@ export const handlers: HttpHandler[] = [
         fault: next.fault,
       })
     } catch (error) {
-      if (error instanceof SchemaMismatchError) return mismatch(error.foundVersion)
+      const failure = persistenceFailure(error)
+      if (failure) return failure
       throw error
     }
   }),
 
   http.post(`${PREFIX}/auth/dev/reset/`, async () => {
-    const next = await resetMockNamespace()
-    return json({ namespace: next.namespace, schemaVersion: next.schemaVersion })
+    try {
+      const next = await resetMockNamespace()
+      return json({ namespace: next.namespace, schemaVersion: next.schemaVersion })
+    } catch (error) {
+      const failure = persistenceFailure(error)
+      if (failure) return failure
+      throw error
+    }
   }),
 
   http.all(`${PREFIX}/*`, () => json({
@@ -258,13 +302,8 @@ export const handlers: HttpHandler[] = [
   }, 501)),
 
   http.all('*', ({ request }) => {
-    const url = new URL(request.url)
-    if (url.pathname.startsWith(`${PREFIX}/`)) {
-      return json({
-        code: 'mock_coverage_gap',
-        detail: `No mock handler for ${request.method} ${url.pathname}`,
-      }, 501)
-    }
+    const blocked = guardOutboundRequest(request)
+    if (blocked) return blocked
     return passthrough()
   }),
 ]

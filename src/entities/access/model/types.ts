@@ -37,6 +37,11 @@ export type AccessRole = {
   id: string
   displayName: string
   grantIds: string[]
+  /**
+   * Grants this role may hand to someone else. They are not operational rights.
+   * Absent on an older snapshot means the role cannot delegate.
+   */
+  delegationGrantIds?: string[]
 }
 
 export type RoleAssignment = {
@@ -66,6 +71,11 @@ export type ProjectRef = {
   corporationId: number
 }
 
+export type OrganizationRef = {
+  id: number
+  corporationId: number
+}
+
 export type AccessSnapshot = {
   roles: AccessRole[]
   grants: RoleGrant[]
@@ -73,6 +83,7 @@ export type AccessSnapshot = {
   delegations: DelegationGrant[]
   systemCapabilities: SystemCapability[]
   projects: ProjectRef[]
+  organizations: OrganizationRef[]
 }
 
 export type AccessState = 'ready' | 'pending' | 'blocked'

@@ -1,9 +1,22 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { indexedDB } from 'fake-indexeddb'
+import { can, canDelegate } from '../../../entities/access'
 import { LIVE_ACCESS_KEY, MOCK_ACCESS_KEY, clearSession, readAccessToken, setSessionStorageBackend, writeSession, type KeyValueStorage } from '../../../shared/api/session-storage'
+import { toSnapshot } from '../auth/flow'
 import { createSeed } from './seed'
-import { ensureMockState, readMockState, replaceMockRecord, resetMockNamespace, updateMockState } from './repository'
-import { PUBLIC_FIXTURE_PASSWORD } from './constants'
+import type { MockState } from './types'
+import { MOCK_DB_VERSION, MOCK_SCHEMA_VERSION, PUBLIC_FIXTURE_PASSWORD } from './constants'
+import {
+  currentMockWriterId,
+  ensureMockState,
+  MockWriterHeldError,
+  readMockState,
+  replaceMockRecord,
+  resetMockNamespace,
+  setMockWriterId,
+  StaleMockWriteError,
+  updateMockState,
+} from './repository'
 
 class MemoryStorage implements KeyValueStorage {
   private values = new Map<string, string>()
@@ -14,9 +27,113 @@ class MemoryStorage implements KeyValueStorage {
   key(index: number) { return [...this.values.keys()][index] ?? null }
 }
 
+const corporation = { type: 'corporation' as const, corporationId: 1 }
+const laboratoryA = { type: 'organization' as const, organizationId: 101, corporationId: 1 }
+const laboratoryB = { type: 'organization' as const, organizationId: 102, corporationId: 1 }
+
+function legacySnapshot(namespace: string): MockState {
+  const seed = createSeed()
+  const snapshot: MockState = {
+    ...seed,
+    schemaVersion: 1,
+    namespace,
+    accessVersion: 7,
+    authMode: 'local',
+    users: [
+      ...seed.users,
+      {
+        id: 9,
+        email: 'kept@example.test',
+        name: 'Кедр',
+        patronymic: 'Тестович',
+        surname: 'Сохранённый',
+        position: 'Архив',
+        legacyRole: 'member',
+        status: 'active',
+      },
+    ],
+    grants: seed.grants.filter((grant) => grant.id !== 'g-delegate'),
+    roles: seed.roles.map((role) => {
+      if (role.id === 'role-owner') {
+        const next = { ...role, grantIds: ['g-projects'] }
+        delete next.delegationGrantIds
+        return next
+      }
+      if (role.id === 'role-lab-admin') return { ...role, delegationGrantIds: ['g-members-read'] }
+      const next = { ...role }
+      delete next.delegationGrantIds
+      return next
+    }),
+    assignments: seed.assignments.map((item) => item.id === 'asg-employee-a' ? { ...item, roleId: 'role-lab-admin' } : item),
+    delegations: [{
+      id: 'dlg-kept',
+      fromUserId: 2,
+      toUserId: 3,
+      grant: {
+        id: 'g-members-read-delegated',
+        resource: 'members',
+        action: 'read',
+        scope: laboratoryA,
+      },
+    }],
+  }
+  delete snapshot.recordRevision
+  return snapshot
+}
+
+function openDb(namespace: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(namespace)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error ?? new Error('open failed'))
+  })
+}
+
+function readRoot(db: IDBDatabase): Promise<MockState> {
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('state', 'readonly').objectStore('state').get('root')
+    request.onsuccess = () => resolve(request.result as MockState)
+    request.onerror = () => reject(request.error ?? new Error('read failed'))
+  })
+}
+
+async function rawRoot(namespace: string): Promise<MockState> {
+  const db = await openDb(namespace)
+  try {
+    return await readRoot(db)
+  } finally {
+    db.close()
+  }
+}
+
+async function plantWriter(namespace: string, lease: { ownerId: string; until: number }) {
+  const db = await openDb(namespace)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('state', 'readwrite')
+      tx.objectStore('state').put(lease, 'writer')
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error ?? new Error('plant aborted'))
+      tx.onerror = () => reject(tx.error ?? new Error('plant failed'))
+    })
+  } finally {
+    db.close()
+  }
+}
+
+function flushTasks() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function storePrototype(db: IDBDatabase): IDBObjectStore {
+  const store = db.transaction('state', 'readonly').objectStore('state')
+  return Object.getPrototypeOf(store) as IDBObjectStore
+}
+
 describe('mock repository', () => {
   beforeEach(() => {
     globalThis.indexedDB = indexedDB
+    setMockWriterId(`tab-${crypto.randomUUID()}`)
   })
 
   it('keeps an assignment after the database is reopened and does not reseed it', async () => {
@@ -49,11 +166,158 @@ describe('mock repository', () => {
     if (!mismatch.ok && mismatch.reason === 'schema-mismatch') {
       expect(mismatch.foundVersion).toBe(99)
     }
+    const stillMismatch = await ensureMockState(target)
+    expect(stillMismatch.ok).toBe(false)
     await resetMockNamespace(target)
     const reset = await readMockState(target)
     const untouched = await readMockState(kept)
-    expect(reset.ok && reset.state.schemaVersion).toBe(1)
+    expect(reset.ok && reset.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
     expect(untouched.ok && untouched.state.accessVersion).toBe(7)
+  })
+
+  it('migrates a changed version-1 snapshot without granting delegation or dropping data', async () => {
+    const namespace = `inlog:mock:test-migrate-${crypto.randomUUID()}`
+    await replaceMockRecord(namespace, legacySnapshot(namespace))
+    const migrated = await ensureMockState(namespace)
+    expect(migrated.ok).toBe(true)
+    if (!migrated.ok) return
+    expect(migrated.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+    expect(migrated.state.recordRevision).toBe(0)
+    expect(migrated.state.accessVersion).toBe(7)
+    expect(migrated.state.authMode).toBe('local')
+    expect(migrated.state.namespace).toBe(namespace)
+    expect(migrated.state.users.map((user) => user.id)).toContain(9)
+    expect(migrated.state.assignments.find((item) => item.id === 'asg-employee-a')?.roleId).toBe('role-lab-admin')
+    expect(migrated.state.delegations.map((item) => item.id)).toEqual(['dlg-kept'])
+    expect(migrated.state.grants.map((grant) => grant.id)).not.toContain('g-delegate')
+    const owner = migrated.state.roles.find((role) => role.id === 'role-owner')
+    const admin = migrated.state.roles.find((role) => role.id === 'role-lab-admin')
+    const employee = migrated.state.roles.find((role) => role.id === 'role-employee')
+    expect(owner?.grantIds).toEqual(['g-projects'])
+    expect(owner?.delegationGrantIds).toEqual([])
+    expect(admin?.delegationGrantIds).toEqual(['g-members-read'])
+    expect(employee?.grantIds).toEqual(['g-tasks', 'g-projects'])
+    const snapshot = toSnapshot(migrated.state)
+    expect(can(snapshot, 1, 'projects', 'read', corporation)).toBe(true)
+    expect(can(snapshot, 1, 'assignments', 'update', corporation)).toBe(false)
+    expect(canDelegate(snapshot, 1, 'delegations', 'delegate', corporation)).toBe(false)
+    expect(canDelegate(snapshot, 2, 'members', 'read', laboratoryA)).toBe(true)
+    expect(canDelegate(snapshot, 2, 'delegations', 'delegate', laboratoryA)).toBe(false)
+    expect(can(snapshot, 4, 'tasks', 'read', laboratoryB)).toBe(true)
+    const database = await openDb(namespace)
+    expect(database.version).toBe(MOCK_DB_VERSION)
+    const prototype = storePrototype(database)
+    database.close()
+
+    const rootPuts: unknown[] = []
+    const original = prototype.put
+    prototype.put = function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+      if (key === 'root') rootPuts.push(value)
+      return original.call(this, value, key)
+    }
+    try {
+      const again = await ensureMockState(namespace)
+      expect(again.ok && again.state).toEqual(migrated.state)
+      expect(rootPuts).toEqual([])
+    } finally {
+      prototype.put = original
+    }
+  })
+
+  it('does not persist a migration while another tab holds the writer lease', async () => {
+    const namespace = `inlog:mock:test-lease-${crypto.randomUUID()}`
+    await replaceMockRecord(namespace, legacySnapshot(namespace))
+    await plantWriter(namespace, { ownerId: 'other-tab', until: Date.now() + 60_000 })
+    const opened = await ensureMockState(namespace)
+    expect(opened.ok && opened.writeLocked).toBe(true)
+    if (!opened.ok) return
+    expect(opened.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+    expect(opened.state.users.map((user) => user.id)).toContain(9)
+    expect(opened.state.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toEqual([])
+    const disk = await rawRoot(namespace)
+    expect(disk.schemaVersion).toBe(1)
+    expect(disk.accessVersion).toBe(7)
+    expect(disk.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toBeUndefined()
+    await expect(updateMockState((state) => ({ ...state, accessVersion: 1 }), namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+    await expect(resetMockNamespace(namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+    expect((await rawRoot(namespace)).accessVersion).toBe(7)
+    await plantWriter(namespace, { ownerId: 'other-tab', until: Date.now() - 1 })
+    const persisted = await ensureMockState(namespace)
+    expect(persisted.ok && persisted.writeLocked).toBe(false)
+    const stored = await rawRoot(namespace)
+    expect(stored.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+    expect(stored.accessVersion).toBe(7)
+    expect(stored.users.map((user) => user.id)).toContain(9)
+    expect(stored.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toEqual([])
+  })
+
+  it('keeps the previous record when reset aborts and does not delete the database later', async () => {
+    const namespace = `inlog:mock:test-reset-abort-${crypto.randomUUID()}`
+    const deleteDatabase = vi.spyOn(indexedDB, 'deleteDatabase')
+    await ensureMockState(namespace)
+    await updateMockState((state) => ({ ...state, accessVersion: 7 }), namespace)
+    const probe = await openDb(namespace)
+    const prototype = storePrototype(probe)
+    probe.close()
+    const original = prototype.put
+    let armed = true
+    prototype.put = function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+      const request = original.call(this, value, key)
+      if (armed && key === 'root' && value && typeof value === 'object' && (value as MockState).namespace === namespace && (value as MockState).accessVersion === 1) {
+        armed = false
+        this.transaction.abort()
+      }
+      return request
+    }
+    try {
+      await expect(resetMockNamespace(namespace)).rejects.toThrow()
+    } finally {
+      prototype.put = original
+    }
+    expect((await rawRoot(namespace)).accessVersion).toBe(7)
+    await flushTasks()
+    expect((await rawRoot(namespace)).accessVersion).toBe(7)
+    expect(deleteDatabase).not.toHaveBeenCalled()
+    deleteDatabase.mockRestore()
+  })
+
+  it('replaces namespace contents without deleteDatabase while another connection stays open', async () => {
+    const namespace = `inlog:mock:test-open-connection-${crypto.randomUUID()}`
+    const deleteDatabase = vi.spyOn(indexedDB, 'deleteDatabase')
+    await ensureMockState(namespace)
+    await updateMockState((state) => ({ ...state, accessVersion: 7 }), namespace)
+    const db = await openDb(namespace)
+    db.onversionchange = () => undefined
+    try {
+      const reset = await resetMockNamespace(namespace)
+      expect(reset.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+      expect(reset.accessVersion).toBe(1)
+      expect((await readRoot(db)).accessVersion).toBe(1)
+    } finally {
+      db.close()
+    }
+    await flushTasks()
+    const after = await readMockState(namespace)
+    expect(after.ok && after.state.accessVersion).toBe(1)
+    expect(after.ok && after.state.users).toHaveLength(6)
+    expect(deleteDatabase).not.toHaveBeenCalled()
+    deleteDatabase.mockRestore()
+  })
+
+  it('refuses a stale snapshot after a newer write from this tab', async () => {
+    const namespace = `inlog:mock:test-stale-${crypto.randomUUID()}`
+    await ensureMockState(namespace)
+    await updateMockState((state) => ({ ...state, accessVersion: 4, authMode: 'local' }), namespace)
+    const snap = await readMockState(namespace)
+    if (!snap.ok) throw new Error('missing snapshot')
+    const newer = updateMockState((state) => ({ ...state, accessVersion: state.accessVersion + 1 }), namespace)
+    const stale = updateMockState(() => snap.state, namespace)
+    await expect(stale).rejects.toBeInstanceOf(StaleMockWriteError)
+    await newer
+    const after = await readMockState(namespace)
+    expect(after.ok && after.state.accessVersion).toBe(5)
+    expect(after.ok && after.state.authMode).toBe('local')
+    expect(currentMockWriterId()).toContain('tab-')
   })
 
   it('does not store the fixture password and logout does not reset the database', async () => {

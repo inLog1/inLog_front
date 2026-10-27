@@ -11,6 +11,7 @@ const org = (organizationId: number) => ({
 export function createSeed(): MockState {
   return {
     schemaVersion: MOCK_SCHEMA_VERSION,
+    recordRevision: 1,
     namespace: MOCK_NAMESPACE,
     installationPhase: 'ready',
     authMode: 'mixed',
@@ -57,16 +58,32 @@ export function createSeed(): MockState {
       { id: 'g-projects', resource: 'projects', action: 'read' },
       { id: 'g-test', resource: 'test-resource', action: 'read' },
       { id: 'g-members-manage', resource: 'members', action: 'manage' },
+      { id: 'g-members-read', resource: 'members', action: 'read' },
       { id: 'g-tasks', resource: 'tasks', action: 'read' },
       { id: 'g-requests-read', resource: 'requests', action: 'read' },
       { id: 'g-requests-create', resource: 'requests', action: 'create' },
+      { id: 'g-delegate', resource: 'delegations', action: 'delegate' },
     ],
     roles: [
-      { id: 'role-owner', displayName: 'Координатор', grantIds: ['g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage'] },
-      { id: 'role-lab-admin', displayName: 'Администратор лаборатории', grantIds: ['g-members-manage', 'g-assign', 'g-projects', 'g-test'] },
-      { id: 'role-employee', displayName: 'Сотрудник', grantIds: ['g-tasks', 'g-projects'] },
-      { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'] },
-      { id: 'role-decoy', displayName: 'corporate_superadmin', grantIds: [] },
+      {
+        id: 'role-owner',
+        displayName: 'Координатор',
+        grantIds: ['g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage'],
+        delegationGrantIds: [
+          'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage',
+          'g-members-read', 'g-tasks', 'g-requests-read', 'g-requests-create', 'g-delegate',
+        ],
+      },
+      {
+        id: 'role-lab-admin',
+        displayName: 'Администратор лаборатории',
+        grantIds: ['g-members-manage', 'g-assign', 'g-projects', 'g-test'],
+        delegationGrantIds: ['g-members-read'],
+      },
+      { id: 'role-employee', displayName: 'Сотрудник', grantIds: ['g-tasks', 'g-projects'], delegationGrantIds: [] },
+      { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'], delegationGrantIds: [] },
+      { id: 'role-decoy', displayName: 'corporate_superadmin', grantIds: [], delegationGrantIds: [] },
+      { id: 'role-members-reader', displayName: 'Чтение состава', grantIds: ['g-members-read'], delegationGrantIds: [] },
     ],
     assignments: [
       { id: 'asg-owner', userId: 1, roleId: 'role-owner', scope: corporation },

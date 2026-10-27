@@ -8,7 +8,7 @@ import type {
   PasswordResetConfirmResponse,
   ConfirmEmailChangeRequest,
 } from '../../../shared/types/dto/auth'
-import { writeSession } from '../../../shared/api/session-storage'
+import { beginAuthAttempt, commitAccessSession } from '../../../entities/session'
 import { baseQuery } from '../../../shared/api/clientApi'
 
 export const authApi = createApi({
@@ -30,15 +30,10 @@ export const authApi = createApi({
         body: data,
       }),
       async onQueryStarted(_, { queryFulfilled }) {
+        const ticket = beginAuthAttempt()
         try {
           const { data } = await queryFulfilled
-          if (data?.access_token) {
-            writeSession({
-              accessToken: data.access_token,
-              refreshToken: data.refresh_token,
-              subjectId: typeof data.user?.id === 'number' ? data.user.id : null,
-            })
-          }
+          commitAccessSession(ticket, data)
         } catch {
           // The form renders the credential error. Storage stays unchanged.
         }

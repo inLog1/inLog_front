@@ -10,4 +10,5 @@ export type SessionState = {
   generation: number
   error: 'network' | 'server' | null
   schemaMismatch: boolean
+  mockWriteLocked: boolean
 }

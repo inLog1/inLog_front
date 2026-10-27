@@ -3,6 +3,7 @@ import { baseQuery } from "../../../shared/api/clientApi";
 import type { TagsResponse, TaskCreate, TaskUpdate } from "../../../shared/types/dto/task";
 import type { Status, Task, TasksFilterParams } from "./types";
 import { errorsHandler } from "../../../shared/lib/errors-handler";
+import { taskListQueryMatchesProject } from "./task-cache";
 
 export const taskApi = createApi({
     reducerPath: 'taskApi',
@@ -91,7 +92,7 @@ export const taskApi = createApi({
                 method: 'PATCH',
                 body: data,
             }),
-            async onQueryStarted({ taskSlug }, { dispatch, queryFulfilled, getState }) {
+            async onQueryStarted({ projectId, taskSlug }, { dispatch, queryFulfilled, getState }) {
                 try {
                     const { data: updatedTask } = await queryFulfilled;
 
@@ -100,6 +101,7 @@ export const taskApi = createApi({
 
                     const getTasksQueries = allQueries.filter(
                         (query: any) => query?.endpointName === 'getTasks'
+                            && taskListQueryMatchesProject(query?.originalArgs, projectId)
                     );
 
                     getTasksQueries.forEach((query: any) => {
@@ -229,9 +231,6 @@ export const taskApi = createApi({
                     url: `projects/${projectId}/tasks/task/${taskSlug}/file/`,
                     method: 'POST',
                     body: formData,
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
                 }
             },
 

@@ -64,6 +64,11 @@ export type MockFault = {
 
 export type MockState = {
   schemaVersion: number
+  /**
+   * Concurrency token for this document. It is not an access right.
+   * A write that carries an older token is refused so it cannot cover a newer record.
+   */
+  recordRevision?: number
   namespace: string
   installationPhase: InstallationPhase
   authMode: AuthMode

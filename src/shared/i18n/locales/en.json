@@ -98,6 +98,8 @@
         "unblock": "Unblock",
         "reset": "Reset test data",
         "reset-confirm": "Reset only the test-data namespace? The current session will end. Theme, whiteboard and live keys are kept.",
+        "reset-blocked": "Another tab is already writing this test data. You can look at it here, but this tab will not change or reset it, and the database is not deleted. Close the other inLog tab and retry.",
+        "reset-failed": "Reset did not finish. The previous test data is still there.",
         "preset-confirm": "Change the installation preset and end the current session?",
         "fault-armed": "The error is armed only for {{path}}",
         "switch-failed": "The switch did not create a session"

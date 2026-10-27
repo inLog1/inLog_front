@@ -10,7 +10,7 @@ import {
   resolveIdentity,
   toSnapshot,
 } from '../auth/flow'
-import { capabilityFromRoleDisplayName, hasCorporateSuperadmin, isDelegationSubset } from '../../../entities/access/model/grants'
+import { actionCovered, can, canDelegate, capabilityFromRoleDisplayName, hasCorporateSuperadmin, isDelegationSubset } from '../../../entities/access/model/grants'
 
 describe('mock auth flow', () => {
   it('rejects a wrong password without creating a session', () => {
@@ -77,22 +77,36 @@ describe('mock auth flow', () => {
     expect(hasCorporateSuperadmin(toSnapshot(state), 1)).toBe(true)
   })
 
-  it('accepts a delegation only inside the parent scope', () => {
+  it('treats delegation as a separate authority and does not let manage imply read', () => {
     const state = createSeed()
     const snapshot = toSnapshot(state)
-    const parent = snapshot.assignments
-      .filter((item) => item.userId === 2)
-      .flatMap((assignment) => {
-        const role = state.roles.find((item) => item.id === assignment.roleId)
-        return (role?.grantIds ?? []).flatMap((grantId) => {
-          const grant = state.grants.find((item) => item.id === grantId)
-          return grant ? [{ ...grant, scope: assignment.scope }] : []
-        })
-      })
-    expect(isDelegationSubset(parent, state.delegations[0].grant, snapshot.projects)).toBe(true)
-    expect(isDelegationSubset(parent, {
-      ...state.delegations[0].grant,
-      scope: { type: 'organization', organizationId: 102, corporationId: 1 },
-    }, snapshot.projects)).toBe(false)
+    const org = { type: 'organization' as const, organizationId: 101, corporationId: 1 }
+    expect(can(snapshot, 3, 'members', 'read', org)).toBe(false)
+    expect(canDelegate(snapshot, 3, 'members', 'read', org)).toBe(true)
+    expect(actionCovered('manage', 'read')).toBe(false)
+    expect(actionCovered('create', 'read')).toBe(false)
+    expect(actionCovered('update', 'read')).toBe(false)
+    expect(actionCovered('manage', 'delete')).toBe(false)
+    expect(isDelegationSubset(
+      [{ id: 'g-members-manage', resource: 'members', action: 'manage', scope: org }],
+      state.delegations[0].grant,
+      snapshot.projects,
+      snapshot.organizations,
+    )).toBe(false)
+    expect(isDelegationSubset(
+      [{ id: 'g-members-read', resource: 'members', action: 'read', scope: org }],
+      state.delegations[0].grant,
+      snapshot.projects,
+      snapshot.organizations,
+    )).toBe(true)
+    expect(isDelegationSubset(
+      [{ id: 'g-members-read', resource: 'members', action: 'read', scope: org }],
+      {
+        ...state.delegations[0].grant,
+        scope: { type: 'organization', organizationId: 102, corporationId: 1 },
+      },
+      snapshot.projects,
+      snapshot.organizations,
+    )).toBe(false)
   })
 })

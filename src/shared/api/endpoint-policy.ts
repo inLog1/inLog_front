@@ -41,6 +41,13 @@ export function shouldLogoutOnStatus(url: string, status: number): boolean {
   return status === 401 && !isCredentialEndpoint(url)
 }
 
+export function sameSessionView(
+  before: { token: string | null; generation: number },
+  after: { token: string | null; generation: number },
+): boolean {
+  return before.token === after.token && before.generation === after.generation
+}
+
 export function requestUrl(args: unknown): string {
   if (typeof args === 'string') return args
   if (args && typeof args === 'object' && 'url' in args) {

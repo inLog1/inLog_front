@@ -1,0 +1,97 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v3.2.7 <project>
+
+ ❯ src/app/mocks/auth/review-boundaries.test.ts (4 tests | 4 failed) 16ms
+   × independent review: agreed access boundaries > delegation permission is not an operational permission 12ms
+     → expected true to be false // Object.is equality
+   × independent review: agreed access boundaries > rejects a forged project/organization pair against the project registry 1ms
+     → expected true to be false // Object.is equality
+   × independent review: agreed access boundaries > does not let an org admin assign a stronger role without delegation authority 1ms
+     → expected 200 to be 403 // Object.is equality
+   × independent review: agreed access boundaries > blocks private resource access after an already signed-in account is blocked 1ms
+     → expected 200 to be 403 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/app/mocks/auth/review-boundaries.test.ts > independent review: agreed access boundaries > delegation permission is not an operational permission
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/app/mocks/auth/review-boundaries.test.ts:12:9
+     10|     expect(can(snapshot, 3, 'members', 'read', {
+     11|       type: 'organization', organizationId: 101, corporationId: 1,
+     12|     })).toBe(false)
+       |         ^
+     13|   })
+     14| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/app/mocks/auth/review-boundaries.test.ts > independent review: agreed access boundaries > rejects a forged project/organization pair against the project registry
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/app/mocks/auth/review-boundaries.test.ts:21:8
+     19|       { type: 'project', projectId: 1002, organizationId: 101, corpora…
+     20|       snapshot.projects,
+     21|     )).toBe(false)
+       |        ^
+     22|   })
+     23| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/app/mocks/auth/review-boundaries.test.ts > independent review: agreed access boundaries > does not let an org admin assign a stronger role without delegation authority
+AssertionError: expected 200 to be 403 // Object.is equality
+
+- Expected
++ Received
+
+- 403
++ 200
+
+ ❯ src/app/mocks/auth/review-boundaries.test.ts:27:84
+     25|     const login = loginWithPassword(createSeed(), 'admin.a@example.tes…
+     26|     const token = login.state.sessions[0].accessToken
+     27|     expect(mutateAssignment(login.state, token, 'asg-admin', 'role-own…
+       |                                                                                    ^
+     28|   })
+     29| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/app/mocks/auth/review-boundaries.test.ts > independent review: agreed access boundaries > blocks private resource access after an already signed-in account is blocked
+AssertionError: expected 200 to be 403 // Object.is equality
+
+- Expected
++ Received
+
+- 403
++ 200
+
+ ❯ src/app/mocks/auth/review-boundaries.test.ts:35:58
+     33|     const blocked = { ...login.state, users: login.state.users.map(use…
+     34|       user.id === 2 ? { ...user, status: 'blocked' as const } : user) }
+     35|     expect(readTestResource(blocked, token, 101).status).toBe(403)
+       |                                                          ^
+     36|   })
+     37| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+   Start at  16:56:46
+   Duration  343ms (transform 71ms, setup 0ms, collect 81ms, tests 16ms, environment 0ms, prepare 63ms)

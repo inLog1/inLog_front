@@ -10,6 +10,7 @@ const initialState: SessionState = {
   generation: 0,
   error: null,
   schemaMismatch: false,
+  mockWriteLocked: false,
 }
 
 const sessionSlice = createSlice({
@@ -20,6 +21,7 @@ const sessionSlice = createSlice({
       state.phase = 'loading'
       state.subjectId = null
       state.error = null
+      state.mockWriteLocked = false
     },
     advanceGeneration(state) {
       state.generation += 1
@@ -45,6 +47,9 @@ const sessionSlice = createSlice({
     },
     setSchemaMismatch(state, action: PayloadAction<boolean>) {
       state.schemaMismatch = action.payload
+    },
+    setMockWriteLocked(state, action: PayloadAction<boolean>) {
+      state.mockWriteLocked = action.payload
     },
     bumpEpoch(state) {
       state.epoch += 1

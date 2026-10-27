@@ -1,5 +1,6 @@
 import type { LoginResponse } from '../../../shared/types/dto/auth'
 import { platformApi } from '../../../shared/api/platformApi'
+import { invalidateAuthAttempts } from '../../../entities/session'
 import { writeSession } from '../../../shared/api/session-storage'
 import type { AuthMode } from '../../../shared/config/runtime'
 import { devSwitchTicket, isCurrentDevSwitch } from './dev-switch'
@@ -34,6 +35,7 @@ const devApi = platformApi.injectEndpoints({
       query: (body) => ({ url: 'auth/dev/switch/', method: 'POST', body }),
       async onQueryStarted(_, { queryFulfilled }) {
         const ticket = devSwitchTicket()
+        invalidateAuthAttempts()
         try {
           const { data } = await queryFulfilled
           if (!isCurrentDevSwitch(ticket) || !data.access_token) return

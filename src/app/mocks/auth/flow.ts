@@ -1,10 +1,13 @@
 import {
+  assignmentDenial,
   can,
   effectiveGrants,
   hasCorporateSuperadmin,
+  hasInstallationCapability,
   delegationGrantsFor,
+  installationCorporationId,
 } from '../../../entities/access/model/grants'
-import type { AccessSnapshot, SessionAccess } from '../../../entities/access/model/types'
+import type { AccessRole, AccessSnapshot, SessionAccess } from '../../../entities/access/model/types'
 import type { User, UserSettings } from '../../../entities/user/model/types'
 import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import type { MockIdentity, MockState, MockUser } from '../db/types'
@@ -37,6 +40,10 @@ export function toSnapshot(state: MockState): AccessSnapshot {
       id: project.id,
       organizationId: project.organizationId,
       corporationId: project.corporationId,
+    })),
+    organizations: state.organizations.map((organization) => ({
+      id: organization.id,
+      corporationId: organization.corporationId,
     })),
   }
 }
@@ -172,7 +179,29 @@ export function currentUser(state: MockState, token: string | null): FlowResult 
 export function sessionAccess(state: MockState, token: string | null): FlowResult {
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
-  return { state, status: 200, body: accessFor(state, user) }
+  const access = accessFor(state, user)
+  if (access.accessState === 'ready') return { state, status: 200, body: access }
+  return {
+    state,
+    status: 200,
+    body: {
+      identityId: access.identityId,
+      memberships: [],
+      effectiveGrants: [],
+      delegationGrants: [],
+      accessVersion: access.accessVersion,
+      systemCapabilities: [],
+      accessState: access.accessState,
+    },
+  }
+}
+
+function denyInactive(state: MockState, token: string | null): FlowResult | null {
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  if (user.status === 'blocked') return fail(state, 403, 'blocked')
+  if (accessFor(state, user).accessState === 'pending') return fail(state, 403, 'pending')
+  return null
 }
 
 function organizationScope(organizationId: number) {
@@ -188,6 +217,8 @@ export function canReadOrganization(state: MockState, userId: number, organizati
 }
 
 export function listOrganizations(state: MockState, token: string | null): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
   const rows = state.organizations
@@ -203,6 +234,8 @@ export function listOrganizations(state: MockState, token: string | null): FlowR
 }
 
 export function listProjects(state: MockState, token: string | null, organizationId: number | null): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
   const snapshot = toSnapshot(state)
@@ -227,6 +260,8 @@ export function listProjects(state: MockState, token: string | null, organizatio
 }
 
 export function readTestResource(state: MockState, token: string | null, organizationId: number): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
   const allowed = can(toSnapshot(state), user.id, 'test-resource', 'read', organizationScope(organizationId))
@@ -234,15 +269,21 @@ export function readTestResource(state: MockState, token: string | null, organiz
   return { state, status: 200, body: { ok: true, organizationId, code: 'mock_test_resource' } }
 }
 
+function roleAfterRevision(role: AccessRole, grantIds: string[], delegationGrantIds: string[]): AccessRole {
+  return { ...role, grantIds, delegationGrantIds }
+}
+
 export function mutateAssignment(state: MockState, token: string | null, assignmentId: string, roleId: string): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
   const assignment = state.assignments.find((item) => item.id === assignmentId)
   if (!assignment) return fail(state, 404, 'not_found')
   const role = state.roles.find((item) => item.id === roleId)
   if (!role) return fail(state, 404, 'not_found')
-  const allowed = can(toSnapshot(state), user.id, 'assignments', 'update', assignment.scope)
-  if (!allowed) return fail(state, 403, 'forbidden')
+  const denial = assignmentDenial(toSnapshot(state), user.id, role, assignment.scope, assignment.userId)
+  if (denial) return fail(state, 403, denial)
   const next: MockState = {
     ...state,
     accessVersion: state.accessVersion + 1,
@@ -257,6 +298,48 @@ export function mutateAssignment(state: MockState, token: string | null, assignm
       roleDisplayName: role.displayName,
     },
   }
+}
+
+export function reviseRoleGrants(
+  state: MockState,
+  token: string | null,
+  roleId: string,
+  grantIds: string[],
+  delegationGrantIds: string[] = [],
+): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const role = state.roles.find((item) => item.id === roleId)
+  if (!role) return fail(state, 404, 'not_found')
+  const snapshot = toSnapshot(state)
+  const nextRole = roleAfterRevision(role, grantIds, delegationGrantIds)
+  const affected = state.assignments.filter((item) => item.roleId === roleId)
+  if (affected.length === 0) {
+    const corporationId = installationCorporationId(snapshot)
+    if (corporationId == null || !hasInstallationCapability(snapshot, user.id, corporationId)) {
+      return fail(state, 403, 'forbidden')
+    }
+    const denial = assignmentDenial(
+      snapshot,
+      user.id,
+      nextRole,
+      { type: 'corporation', corporationId },
+      -1,
+    )
+    if (denial) return fail(state, 403, denial === 'invalid_scope' ? denial : 'forbidden')
+  }
+  for (const assignment of affected) {
+    const denial = assignmentDenial(snapshot, user.id, nextRole, assignment.scope, assignment.userId)
+    if (denial) return fail(state, 403, denial === 'invalid_scope' ? denial : 'forbidden')
+  }
+  const next: MockState = {
+    ...state,
+    accessVersion: state.accessVersion + 1,
+    roles: state.roles.map((item) => item.id === roleId ? nextRole : item),
+  }
+  return { state: next, status: 200, body: { role: nextRole } }
 }
 
 export function switchUser(state: MockState, userId: number): FlowResult {

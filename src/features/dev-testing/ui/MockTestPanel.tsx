@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { sessionActions } from '../../../entities/session'
+import { selectSession, sessionActions } from '../../../entities/session'
 import { requestLogout } from '../../../shared/api/session-events'
 import { readAccessToken } from '../../../shared/api/session-storage'
 import { routes } from '../../../shared/lib/routes'
@@ -18,6 +18,7 @@ import { beginDevSwitch, isCurrentDevSwitch } from '../model/dev-switch'
 export function MockTestPanel() {
   const { t } = useTranslation()
   const dispatch = useDispatch()
+  const writeLocked = useSelector(selectSession).mockWriteLocked
   const navigate = useNavigate()
   const location = useLocation()
   const accounts = useGetDevAccountsQuery()
@@ -80,7 +81,14 @@ export function MockTestPanel() {
 
   const reset = async () => {
     if (!window.confirm(t('dev-panel.reset-confirm'))) return
-    await resetFixtures().unwrap()
+    try {
+      await resetFixtures().unwrap()
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'data' in error
+        && (error as { data?: { code?: unknown } }).data?.code
+      setMessage(t(code === 'mock_writer_held' ? 'dev-panel.reset-blocked' : 'dev-panel.reset-failed'))
+      return
+    }
     await requestLogout({ reason: 'reset', callApi: false })
     dispatch(sessionActions.bumpEpoch())
     navigate(routes.login())
@@ -88,13 +96,16 @@ export function MockTestPanel() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        className="fixed bottom-4 right-4 z-50 rounded-full border border-border bg-card px-3 py-2 text-xs text-card-foreground shadow"
-        onClick={() => setOpen(true)}
-      >
-        {t('dev-panel.title')}
-      </button>
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-xs flex-col items-end gap-2">
+        {writeLocked && <p className="rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg" role="status">{t('dev-panel.reset-blocked')}</p>}
+        <button
+          type="button"
+          className="rounded-full border border-border bg-card px-3 py-2 text-xs text-card-foreground shadow"
+          onClick={() => setOpen(true)}
+        >
+          {t('dev-panel.title')}
+        </button>
+      </div>
     )
   }
 
@@ -105,6 +116,7 @@ export function MockTestPanel() {
         <button type="button" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</button>
       </div>
       <p className="mb-2 text-muted-foreground">{t('dev-panel.caption')}</p>
+      {writeLocked && <p className="mb-2" role="status">{t('dev-panel.reset-blocked')}</p>}
       <div className="space-y-1">
         {accounts.data?.map((account) => (
           <button

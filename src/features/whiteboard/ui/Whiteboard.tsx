@@ -12,7 +12,7 @@ const WhiteboardCanvas = lazy(() =>
 
 export const Whiteboard = ({ storageKey, height = 500, className }: WhiteboardProps) => {
   const { t } = useTranslation()
-  const { initialData, setApi, scheduleSave } = useWhiteboardStorage(storageKey)
+  const { initialData, setApi, scheduleSave, contextKey } = useWhiteboardStorage(storageKey)
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -31,6 +31,7 @@ export const Whiteboard = ({ storageKey, height = 500, className }: WhiteboardPr
         }
       >
         <WhiteboardCanvas
+          key={contextKey}
           initialData={initialData}
           onApiReady={setApi}
           onChange={scheduleSave}
