@@ -143,6 +143,13 @@ export function useConstructorAccess(organizationId: number | null): Constructor
     return visibleConstructorAccess(access.data.effectiveGrants, organizationId, true)
 }
 
+export function useOrganizationAccessReady(organizationId: number | null): boolean {
+    const access = useGetSessionAccessQuery(undefined, { skip: !mockMode || organizationId == null })
+    if (!mockMode) return organizationId != null
+    if (organizationId == null) return false
+    return !access.isLoading && !access.isUninitialized && access.data?.accessState === 'ready'
+}
+
 export function useHasOrganizationGrant(resource: string, action: string, organizationId: number | null): boolean {
     const access = useGetSessionAccessQuery(undefined, { skip: !mockMode || organizationId == null })
     if (!mockMode) return organizationId != null

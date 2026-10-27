@@ -6,6 +6,7 @@ import { selectUser } from '../../entities/user/model/selectors'
 import { useEnsureOrgProjectParams } from '../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { workspaceHref, type WorkspaceLinkScope } from '../../features/org-project-selector/model/workspace-context'
 import { requestCreateTask } from '../../features/tasks/model/compose-task'
+import { sectionPath } from '../../entities/section'
 import { routes } from '../../shared/lib/routes'
 import { Button } from '../../shared/ui/button'
 import {
@@ -17,6 +18,7 @@ import {
   type NavigationInput,
   type QuickActionId,
 } from '../navigation/catalog'
+import { useOrganizationSectionLinks } from '../navigation/use-section-navigation'
 import { HomeProjectTasks } from './HomeProjectTasks'
 
 const mockMode = import.meta.env.VITE_API_MODE === 'mock'
@@ -53,6 +55,7 @@ export function HomePage() {
   const name = user?.name?.trim()
   const actions = visibleQuickActions(navigation)
   const cards = homeCards(navigation)
+  const organizationSections = useOrganizationSectionLinks(navigation.organizationId, navigation.grants, navigation.enforceGrants)
   const loadTasks = shouldLoadProjectTasks(navigation)
 
   return (
@@ -100,7 +103,7 @@ export function HomePage() {
 
       <section className="space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground">{t('home.sections')}</h3>
-        {cards.length === 0 ? (
+        {cards.length === 0 && organizationSections.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('home.no-sections')}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -112,6 +115,16 @@ export function HomePage() {
               >
                 <div className="font-medium">{t(section.labelKey)}</div>
                 <p className="mt-1 text-sm text-muted-foreground">{t(section.descriptionKey)}</p>
+              </Link>
+            ))}
+            {organizationSections.map((section) => (
+              <Link
+                key={section.id}
+                to={href(sectionPath(section.id), 'organization')}
+                className="rounded-xl border border-border bg-card p-4 transition-colors hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="font-medium break-words">{section.title}</div>
+                {section.description ? <p className="mt-1 text-sm text-muted-foreground">{section.description}</p> : null}
               </Link>
             ))}
           </div>

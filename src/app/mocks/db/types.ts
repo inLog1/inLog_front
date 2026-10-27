@@ -7,6 +7,7 @@ import type {
   SystemCapability,
 } from '../../../entities/access/model/types'
 import type { FormAnswers, FormSchema } from '../../../entities/form/model/types'
+import type { ViewFilter, ViewSort } from '../../../entities/table-view/model/types'
 import type { AuthMode } from '../../../shared/config/runtime'
 import type { InstallationPhase } from '../../../entities/access/model/accessApi'
 
@@ -205,6 +206,66 @@ export type MockFormRecord = {
   createdAt: string
 }
 
+/** Settings and links. The form, the view and the records stay in their own collections. */
+export type MockSection = {
+  id: string
+  organizationId: number
+  publishedVersionId: string | null
+  revision: number
+  active: boolean
+}
+
+export type MockSectionDraft = {
+  sectionId: string
+  schemaVersion: number
+  title: string
+  description: string
+  iconKey: string
+  formId: string
+  tableViewId: string
+  showCreate: boolean
+  createLabel: string
+  order: number
+  revision: number
+}
+
+export type MockSectionVersion = {
+  id: string
+  sectionId: string
+  organizationId: number
+  number: number
+  schemaVersion: number
+  title: string
+  description: string
+  iconKey: string
+  formId: string
+  tableViewId: string
+  showCreate: boolean
+  createLabel: string
+  order: number
+  publishedAt: string
+  publishedBy: number
+  sourceDraftRevision: number
+}
+
+/** Display settings only. Rows stay in formRecords. */
+export type MockTableView = {
+  id: string
+  organizationId: number
+  formId: string
+  title: string
+  description: string
+  columns: string[]
+  filters: ViewFilter[]
+  sort: ViewSort
+  pageSize: number
+  schemaVersion: number
+  revision: number
+  createdBy: number
+  updatedBy: number
+  updatedAt: string
+}
+
 export type MockNotificationRecord = {
   id: number
   userId: number
@@ -258,6 +319,12 @@ export type MockState = {
   formDrafts: MockFormDraft[]
   formVersions: MockFormVersion[]
   formRecords: MockFormRecord[]
+  /** Empty until a view is saved. Migration does not copy form records into it. */
+  tableViews: MockTableView[]
+  /** Links and settings. Migration does not copy forms, views or records into these. */
+  sections: MockSection[]
+  sectionDrafts: MockSectionDraft[]
+  sectionVersions: MockSectionVersion[]
   notifications: MockNotificationRecord[]
   fault: MockFault
 }

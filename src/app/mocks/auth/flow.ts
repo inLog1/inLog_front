@@ -10,7 +10,7 @@ import {
 } from '../../../entities/access/model/grants'
 import type { AccessRole, AccessSnapshot, EffectiveGrant, SessionAccess } from '../../../entities/access/model/types'
 import type { User, UserSettings } from '../../../entities/user/model/types'
-import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import { MOCK_PROVIDER_ID, PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import type { MockIdentity, MockState, MockUser } from '../db/types'
 
 export type FlowResult = {
@@ -471,6 +471,42 @@ export function describeAccounts(state: MockState) {
       systemCapabilities: access.systemCapabilities,
     }
   })
+}
+
+export const FORMS_SWITCH_AUTHOR_EMAIL = 'forms.switch@example.test'
+
+/**
+ * Adds one member of laboratories A and B when that person is absent.
+ * Existing users, roles, assignments, forms and grants stay as they are.
+ * The new user receives no operational form rights.
+ */
+export function ensureFormsSwitchAuthor(state: MockState): MockState {
+  if (state.users.some((user) => user.id === 9 || user.email === FORMS_SWITCH_AUTHOR_EMAIL)) return state
+  return {
+    ...state,
+    users: [...state.users, {
+      id: 9,
+      email: FORMS_SWITCH_AUTHOR_EMAIL,
+      name: 'Ирина',
+      patronymic: 'Павловна',
+      surname: 'Седова',
+      position: 'Автор форм двух лабораторий',
+      legacyRole: 'member',
+      status: 'active',
+    }],
+    identities: [...state.identities, {
+      id: 'idn-forms-switch',
+      providerId: MOCK_PROVIDER_ID,
+      externalSubject: 'sub-forms-switch',
+      email: FORMS_SWITCH_AUTHOR_EMAIL,
+      userId: 9,
+    }],
+    memberships: [
+      ...state.memberships,
+      { id: 'mem-9-101', userId: 9, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-9-102', userId: 9, organizationId: 102, kind: 'laboratory' },
+    ],
+  }
 }
 
 export function listProviderIdentities(state: MockState) {

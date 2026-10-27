@@ -159,6 +159,27 @@ describe('access management service', () => {
     expect(self.state.assignments).toEqual(owned.state.assignments)
     expect(self.state.accessAudit).toEqual(owned.state.accessAudit)
 
+    const formsRead = grantId(owned.state, 'forms', 'read')
+    const formsUpdate = grantId(owned.state, 'forms', 'update')
+    const owner = ownerSession()
+    const formRole = createRole(owner.state, owner.token, {
+      displayName: 'Проверка форм',
+      description: '',
+      grantIds: [formsRead, formsUpdate],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+    })
+    expect(formRole.status).toBe(201)
+    const formRoleId = formRole.state.roles.find((item) => item.displayName === 'Проверка форм')?.id ?? ''
+    const elevated = createAssignment(formRole.state, owner.token, { userId: 1, roleId: formRoleId, scope: org(101) })
+    expect(elevated.status).toBe(403)
+    expect(elevated.body).toEqual({ code: 'self_elevation' })
+    expect(elevated.state.assignments).toEqual(formRole.state.assignments)
+    const switchAuthor = createAssignment(formRole.state, owner.token, { userId: 9, roleId: formRoleId, scope: org(101) })
+    expect(switchAuthor.status).toBe(201)
+    expect(can(toSnapshot(switchAuthor.state), 9, 'forms', 'update', org(101))).toBe(true)
+    expect(can(toSnapshot(switchAuthor.state), 9, 'forms', 'update', org(102))).toBe(false)
+
     const given = createAssignment(owned.state, admin.token, { userId: 3, roleId: role?.id ?? '', scope: org(101) })
     expect(given.status).toBe(201)
     const strengthened = updateRole(given.state, admin.token, role?.id ?? '', {

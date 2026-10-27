@@ -30,6 +30,7 @@ function FormsList() {
   const canCreate = useHasOrganizationGrant('forms', 'create', organizationId)
   const canUpdate = useHasOrganizationGrant('forms', 'update', organizationId)
   const canRecords = useHasOrganizationGrant('form-records', 'read', organizationId)
+  const canViews = useHasOrganizationGrant('table-views', 'read', organizationId)
   const href = useWorkspaceHref()
   const navigate = useNavigate()
   const organizations = useGetOrganizationsQuery(undefined, { skip: organizationId == null })
@@ -93,6 +94,7 @@ function FormsList() {
                       {canUpdate ? <Link className="text-primary underline-offset-4 hover:underline" to={href(routes.forms.editor(form.id), 'organization')}>{t('forms.edit')}</Link> : null}
                       {form.publishedVersionId ? <Link className="text-primary underline-offset-4 hover:underline" to={href(routes.forms.fill(form.id), 'organization')}>{t('forms.fill')}</Link> : null}
                       {canRecords ? <Link className="text-primary underline-offset-4 hover:underline" to={href(routes.forms.records(form.id), 'organization')}>{t('forms.records')}</Link> : null}
+                      {canViews ? <Link className="text-primary underline-offset-4 hover:underline" to={href(routes.forms.views(form.id), 'organization')}>{t('tableViews.link')}</Link> : null}
                     </div>
                   </td>
                 </tr>

@@ -14,6 +14,7 @@ import {
   useUpdateDevSettingsMutation,
 } from '../model/devApi'
 import { beginDevSwitch, isCurrentDevSwitch } from '../model/dev-switch'
+import { MOCK_TEST_PANEL_LAUNCHER, MOCK_TEST_PANEL_OPEN } from '../model/panel-position'
 
 export function MockTestPanel() {
   const { t } = useTranslation()
@@ -95,9 +96,14 @@ export function MockTestPanel() {
     navigate(routes.login())
   }
 
+  const addSwitchAuthor = async () => {
+    await updateSettings({ ensureFormsSwitchAuthor: true }).unwrap()
+    setMessage(t('dev-panel.switch-author-ready'))
+  }
+
   if (!open) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex max-w-xs flex-col items-end gap-2">
+      <div className={MOCK_TEST_PANEL_LAUNCHER}>
         {writesUnavailable && <p className="rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg" role="status">{t('dev-panel.writes-unavailable')}</p>}
         {writeLocked && <p className="rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg" role="status">{t('dev-panel.reset-blocked')}</p>}
         <button
@@ -112,7 +118,7 @@ export function MockTestPanel() {
   }
 
   return (
-    <aside className="fixed bottom-4 right-4 z-50 max-h-[70vh] w-[320px] overflow-auto rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg">
+    <aside className={MOCK_TEST_PANEL_OPEN}>
       <div className="mb-2 flex items-center justify-between">
         <strong>{t('dev-panel.title')}</strong>
         <button type="button" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</button>
@@ -166,6 +172,9 @@ export function MockTestPanel() {
           </Button>
         ))}
       </div>
+      <Button type="button" size="sm" className="mt-3" variant="outline" onClick={() => void addSwitchAuthor()}>
+        {t('dev-panel.switch-author')}
+      </Button>
       <Button type="button" size="sm" className="mt-3" variant="destructive" onClick={() => void reset()}>
         {t('dev-panel.reset')}
       </Button>

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormEditor } from '../../../../features/form-builder/ui/FormEditor'
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../../../shared/ui/alert-dialog'
+import { settleSavedLeave } from '../model/leave-guard'
 import { useLeaveGuard } from '../model/use-leave-guard'
 import { FormsBoundary } from './FormsBoundary'
 
@@ -36,7 +37,14 @@ function EditorGate() {
   const readyOrg = section.kind === 'ready' ? section.organizationId : null
   const [lockedOrg, setLockedOrg] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
   const saveRef = useRef<(() => Promise<boolean>) | null>(null)
+  const attempt = useRef(0)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   const grantOrg = lockedOrg ?? readyOrg
   const canPublish = useHasOrganizationGrant('forms', 'publish', grantOrg)
   const canRecords = useHasOrganizationGrant('form-records', 'read', grantOrg)
@@ -47,7 +55,7 @@ function EditorGate() {
   }
   const switched = lockedOrg != null && Number.isInteger(urlOrg) && urlOrg > 0 && urlOrg !== lockedOrg
   if (switched && !dirty) setLockedOrg(urlOrg)
-  const leave = useLeaveGuard(dirty && !switched)
+  const leave = useLeaveGuard(dirty)
   if (lockedOrg == null) {
     return (
       <WorkspaceStatus
@@ -73,6 +81,18 @@ function EditorGate() {
       return next
     }, { replace: true })
   }
+  const cancelLeave = () => { attempt.current += 1 }
+  const saveThen = async (after: () => void) => {
+    if (saving) return
+    const ticket = ++attempt.current
+    setSaving(true)
+    const saved = await saveRef.current?.() ?? false
+    if (!mounted.current) return
+    setSaving(false)
+    if (settleSavedLeave({ ticket, currentTicket: attempt.current, mounted: true, saved }) !== 'navigate') return
+    setDirty(false)
+    after()
+  }
   return (
     <>
       <FormEditor
@@ -92,34 +112,32 @@ function EditorGate() {
             <AlertDialogDescription>{t('forms.leave-body')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button type="button" variant="outline" onClick={leave.dismiss}>{t('forms.leave-stay')}</Button>
-            <Button type="button" variant="outline" onClick={() => { setDirty(false); if (leave.nextUrl) navigate(leave.nextUrl) }}>{t('forms.leave-discard')}</Button>
-            <Button type="button" onClick={() => void (async () => {
-              const saved = await saveRef.current?.()
-              if (saved && leave.nextUrl) {
-                setDirty(false)
-                navigate(leave.nextUrl)
-              }
-            })()}>{t('forms.leave-save')}</Button>
+            <Button type="button" variant="outline" onClick={() => { cancelLeave(); leave.dismiss() }}>{t('forms.leave-stay')}</Button>
+            <Button type="button" variant="outline" onClick={() => {
+              const next = leave.nextUrl
+              cancelLeave()
+              setDirty(false)
+              leave.dismiss()
+              if (next) navigate(next)
+            }}>{t('forms.leave-discard')}</Button>
+            <Button type="button" disabled={saving} onClick={() => void saveThen(() => {
+              const next = leave.nextUrl
+              leave.dismiss()
+              if (next) navigate(next)
+            })}>{t('forms.leave-save')}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={switched && dirty}>
+      <AlertDialog open={switched && dirty && leave.nextUrl == null}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('forms.org-title')}</AlertDialogTitle>
             <AlertDialogDescription>{t('forms.org-body')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button type="button" variant="outline" onClick={restore}>{t('forms.org-stay')}</Button>
-            <Button type="button" variant="outline" onClick={() => { setDirty(false); setLockedOrg(urlOrg) }}>{t('forms.org-discard')}</Button>
-            <Button type="button" onClick={() => void (async () => {
-              const saved = await saveRef.current?.()
-              if (saved) {
-                setDirty(false)
-                setLockedOrg(urlOrg)
-              }
-            })()}>{t('forms.org-save')}</Button>
+            <Button type="button" variant="outline" onClick={() => { cancelLeave(); restore() }}>{t('forms.org-stay')}</Button>
+            <Button type="button" variant="outline" onClick={() => { cancelLeave(); setDirty(false); setLockedOrg(urlOrg) }}>{t('forms.org-discard')}</Button>
+            <Button type="button" disabled={saving} onClick={() => void saveThen(() => setLockedOrg(urlOrg))}>{t('forms.org-save')}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

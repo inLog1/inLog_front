@@ -1,5 +1,7 @@
 import { taskFixtures } from '../tasks/fixtures'
 import { FORM_DELEGATION_IDS, FORM_GRANT_DEFINITIONS } from './form-grants'
+import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-grants'
+import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
 import type { MockState } from './types'
 
@@ -29,6 +31,8 @@ export function createSeed(): MockState {
       { id: 7, email: 'project.only@example.test', name: 'Марк', patronymic: 'Викторович', surname: 'Белов', position: 'Сотрудник одного проекта', legacyRole: 'member', status: 'active' },
       // Fresh seed only. Reads constructor schema and records in laboratory A and cannot create, update, or delete them.
       { id: 8, email: 'constructor.reader@example.test', name: 'Вера', patronymic: 'Игоревна', surname: 'Крылова', position: 'Чтение записей конструктора', legacyRole: 'member', status: 'active' },
+      // Member of laboratories A and B. Fresh seed only; no form grants until an administrator assigns them.
+      { id: 9, email: 'forms.switch@example.test', name: 'Ирина', patronymic: 'Павловна', surname: 'Седова', position: 'Автор форм двух лабораторий', legacyRole: 'member', status: 'active' },
     ],
     identities: [
       { id: 'idn-owner', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner', email: 'owner@example.test', userId: 1 },
@@ -39,6 +43,7 @@ export function createSeed(): MockState {
       { id: 'idn-pending', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-pending', email: 'pending@example.test', userId: 6 },
       { id: 'idn-project-only', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-project-only', email: 'project.only@example.test', userId: 7 },
       { id: 'idn-constructor-reader', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-constructor-reader', email: 'constructor.reader@example.test', userId: 8 },
+      { id: 'idn-forms-switch', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-forms-switch', email: 'forms.switch@example.test', userId: 9 },
       { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
     ],
     organizations: [
@@ -60,6 +65,8 @@ export function createSeed(): MockState {
       { id: 'mem-4-102', userId: 4, organizationId: 102, kind: 'laboratory' },
       { id: 'mem-5-201', userId: 5, organizationId: 201, kind: 'customer' },
       { id: 'mem-7-101', userId: 7, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-9-101', userId: 9, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-9-102', userId: 9, organizationId: 102, kind: 'laboratory' },
     ],
     grants: [
       { id: 'g-org-manage', resource: 'organizations', action: 'manage' },
@@ -89,6 +96,8 @@ export function createSeed(): MockState {
       { id: 'g-constructor-records-create', resource: 'constructor.records', action: 'create' },
       { id: 'g-constructor-records-delete', resource: 'constructor.records', action: 'delete' },
       ...FORM_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...TABLE_VIEW_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {
@@ -109,6 +118,8 @@ export function createSeed(): MockState {
           'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
           'g-reports-read', 'g-reports-generate',
           ...FORM_DELEGATION_IDS,
+          ...TABLE_VIEW_DELEGATION_IDS,
+          ...SECTION_DELEGATION_IDS,
         ],
       },
       {
@@ -177,6 +188,10 @@ export function createSeed(): MockState {
     formDrafts: [],
     formVersions: [],
     formRecords: [],
+    tableViews: [],
+    sections: [],
+    sectionDrafts: [],
+    sectionVersions: [],
     notifications: [],
     fault: null,
   }

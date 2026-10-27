@@ -3,6 +3,8 @@ import { accessHandlers } from './access/handlers'
 import { authHandlers } from './auth/handlers'
 import { constructorHandlers } from './constructor/handlers'
 import { formHandlers } from './forms/handlers'
+import { sectionHandlers } from './sections/handlers'
+import { tableViewHandlers } from './table-views/handlers'
 import { guardOutboundRequest } from './outbound-guard'
 import { json, MOCK_PREFIX } from './http'
 import { notificationHandlers } from './notifications/handlers'
@@ -15,6 +17,8 @@ export const handlers: HttpHandler[] = [
   ...taskHandlers,
   ...constructorHandlers,
   ...formHandlers,
+  ...tableViewHandlers,
+  ...sectionHandlers,
   ...reportHandlers,
   ...notificationHandlers,
   http.all(`${MOCK_PREFIX}/*`, () => json({

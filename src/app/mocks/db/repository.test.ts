@@ -337,7 +337,7 @@ describe('mock repository', () => {
     await flushTasks()
     const after = await readMockState(namespace)
     expect(after.ok && after.state.accessVersion).toBe(1)
-    expect(after.ok && after.state.users).toHaveLength(8)
+    expect(after.ok && after.state.users).toHaveLength(9)
     expect(after.ok && after.state.users.some((user) => user.email === 'project.only@example.test')).toBe(true)
     expect(deleteDatabase).not.toHaveBeenCalled()
     deleteDatabase.mockRestore()

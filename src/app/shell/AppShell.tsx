@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, FileText, LayoutDashboard, ListTodo, PieChart, Shield, UserRound, Wrench } from 'lucide-react'
+import { Bell, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, UserRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useLocation } from 'react-router-dom'
+import { matchPath, Outlet, useLocation } from 'react-router-dom'
+import { sectionPath } from '../../entities/section'
+import { sectionIcon } from '../../features/section-builder/ui/icons'
+import { useOrganizationSectionLinks } from '../navigation/use-section-navigation'
 import {
   sectionByPath,
   showsProjectSelector,
@@ -26,6 +29,7 @@ const ICONS: Record<string, LucideIcon> = {
   profile: UserRound,
   notifications: Bell,
   access: Shield,
+  sections: PanelsTopLeft,
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
@@ -52,6 +56,7 @@ export function AppShell() {
   }, [shell])
 
   const sections = visibleNavigation(navigation)
+  const organizationSections = useOrganizationSectionLinks(navigation.organizationId, navigation.grants, navigation.enforceGrants)
 
   const groups = useMemo<SidebarGroupModel[]>(() => {
     const toLink = (section: AppSection): SidebarLinkModel => ({
@@ -64,17 +69,25 @@ export function AppShell() {
     const primary = sections.filter((section) => section.group === 'primary')
     const work = sections.filter((section) => section.group === 'work')
     const settings = sections.filter((section) => section.group === 'settings')
+    const custom = organizationSections.map((item) => ({
+      id: item.id,
+      label: item.title,
+      to: href(sectionPath(item.id), 'organization'),
+      icon: sectionIcon(item.iconKey),
+    }))
     return [
       { id: 'primary', label: t('home.title'), items: primary.map(toLink) },
       { id: 'work', label: t('shell.work'), items: work.map(toLink) },
+      { id: 'organization-sections', label: t('shell.organization-sections'), items: custom },
       { id: 'settings', label: t('shell.settings'), items: settings.map(toLink) },
     ].filter((group) => group.items.length > 0)
-  }, [href, sections, t])
+  }, [href, organizationSections, sections, t])
 
   const profile = sections.find((section) => section.id === 'profile')
   const home = sections.find((section) => section.id === 'home')
   const current = sectionByPath(location.pathname)
-  const title = current ? t(current.labelKey) : t('home.title')
+  const onWorkSection = matchPath({ path: '/workspace/sections/:sectionId', end: true }, location.pathname)
+  const title = onWorkSection ? t('nav.section-page') : current ? t(current.labelKey) : t('home.title')
   const profileTo = profile ? href(profile.path, 'app') : '/settings/profile'
   const homeTo = home ? href(home.path, 'app') : '/'
 
@@ -93,7 +106,7 @@ export function AppShell() {
           menuOpen={menuOpen}
           onOpenMenu={openMenu}
         />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted pb-16">
           <Outlet />
         </main>
       </div>

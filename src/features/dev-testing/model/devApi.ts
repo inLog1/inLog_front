@@ -23,6 +23,7 @@ export type DevSettingsBody = {
   fault?: { path: string; kind: 'unauthorized' | 'forbidden' | 'network' | 'server' | 'cancel' } | null
   blockedUserId?: number
   clearBlockedUserId?: number
+  ensureFormsSwitchAuthor?: boolean
 }
 
 const devApi = platformApi.injectEndpoints({

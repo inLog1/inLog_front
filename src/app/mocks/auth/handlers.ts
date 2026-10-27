@@ -20,6 +20,7 @@ import {
   readProject,
   readTestResource,
   sessionAccess,
+  ensureFormsSwitchAuthor,
   switchUser,
   verifyToken,
 } from './flow'
@@ -172,8 +173,9 @@ export const authHandlers: HttpHandler[] = [
         const fault = body.fault
         const blockedUserId = body.blockedUserId
         const clearBlockedUserId = body.clearBlockedUserId
+        const withAuthor = body.ensureFormsSwitchAuthor === true ? ensureFormsSwitchAuthor(state) : state
         return {
-          ...state,
+          ...withAuthor,
           authMode: authMode === 'local' || authMode === 'sso' || authMode === 'mixed' ? authMode as AuthMode : state.authMode,
           installationPhase: installationPhase === 'uninitialized' || installationPhase === 'ready'
             ? installationPhase as InstallationPhase
@@ -183,7 +185,7 @@ export const authHandlers: HttpHandler[] = [
             : fault && typeof fault === 'object'
               ? fault as MockFault
               : state.fault,
-          users: state.users.map((user) => {
+          users: withAuthor.users.map((user) => {
             if (typeof blockedUserId === 'number' && user.id === blockedUserId) return { ...user, status: 'blocked' }
             if (typeof clearBlockedUserId === 'number' && user.id === clearBlockedUserId) return { ...user, status: 'active' }
             return user

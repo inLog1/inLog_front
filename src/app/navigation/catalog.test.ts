@@ -4,6 +4,7 @@ import type { EffectiveGrant } from '../../entities/access/model/types'
 import { createSeed } from '../mocks/db/seed'
 import { toSnapshot } from '../mocks/auth/flow'
 import {
+  APP_SECTIONS,
   homeCards,
   sectionAccess,
   shouldLoadProjectTasks,
@@ -143,7 +144,7 @@ describe('navigation catalog', () => {
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'constructor', 'forms', 'reports', 'profile', 'notifications', 'access',
+      'home', 'tasks', 'constructor', 'forms', 'reports', 'profile', 'notifications', 'access', 'sections',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)
@@ -183,5 +184,22 @@ describe('navigation catalog', () => {
     expect(can(snapshot, 8, 'constructor.schema', 'delete', laboratory)).toBe(false)
     expect(can(snapshot, 3, 'constructor.records', 'read', laboratory)).toBe(false)
     expect(createSeed().users.some((user) => user.email === 'constructor.reader@example.test')).toBe(true)
+  })
+
+  it('opens the section desk from create or update and not from read or the superadmin capability', () => {
+    const desk = {
+      id: 'sections',
+      labelKey: 'nav.sections',
+      descriptionKey: 'nav.sections-description',
+      path: '/settings/sections',
+      group: 'settings' as const,
+      context: 'organization' as const,
+      surface: 'navigation' as const,
+    }
+    expect(visibleNavigation(input({ grants: [grant('sections', 'update')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('sections', 'create')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('sections', 'read')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(false)
+    expect(sectionAccess(desk, input({ systemCapabilities: ['corporate_superadmin'], organizationId: 101 }))).toBe('unavailable')
+    expect(APP_SECTIONS.filter((item) => item.path.startsWith('/workspace/sections'))).toEqual([])
   })
 })

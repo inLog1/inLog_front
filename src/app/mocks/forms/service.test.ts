@@ -367,12 +367,15 @@ describe('form mock service', () => {
     delete (snapshot as { formVersions?: unknown }).formVersions
     delete (snapshot as { formRecords?: unknown }).formRecords
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(6)
+    expect(migrated?.state.schemaVersion).toBe(8)
     expect(migrated?.state.forms).toEqual([])
     expect(migrated?.state.formRecords).toEqual([])
+    expect(migrated?.state.tableViews).toEqual([])
+    expect(migrated?.state.sections).toEqual([])
     expect(migrated?.state.constructorNodes[0]?.nameRu).toBe('Сохранён')
     expect(migrated?.state.tasks.length).toBe(seed.tasks.length)
     expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.grantIds).not.toContain('g-forms-read')
+    expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.grantIds).not.toContain('g-sections-read')
     expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).not.toContain('g-forms-publish')
     expect(migrated?.state.grants.some((grant) => grant.id === 'g-forms-read')).toBe(true)
     expect(can(toSnapshot(migrated!.state), 1, 'forms', 'read', laboratory)).toBe(false)

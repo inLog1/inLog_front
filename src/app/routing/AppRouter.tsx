@@ -12,7 +12,8 @@ import RecoveryMessagePage from '../../pages/auth/recovery-message'
 import RegisterPage from '../../pages/auth/register'
 import { HomePage } from '../home/HomePage'
 import { AccessPage, RoleEditorPage } from '../../pages/app/access'
-import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormsPage } from '../../pages/app/forms'
+import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormViewCreatePage, FormViewEditPage, FormViewPage, FormViewsPage, FormsPage } from '../../pages/app/forms'
+import { SectionCreatePage, SectionEditorPage, SectionListPage, SectionPreviewPage, SectionWorkPage } from '../../pages/app/sections'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
 import SchedulerPage from '../../pages/dashboard/scheduler'
 import TasksPage from '../../pages/dashboard/scheduler/tasks'
@@ -86,6 +87,15 @@ export function AppRouter() {
                   <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
                 </Route>
               </Route>
+              <Route path="/workspace/sections/:sectionId" element={<SectionWorkPage />} />
+              <Route path="/settings/sections/new" element={<SectionCreatePage />} />
+              <Route path="/settings/sections/:sectionId/preview" element={<SectionPreviewPage />} />
+              <Route path="/settings/sections/:sectionId" element={<SectionEditorPage />} />
+              <Route path={routes.settings.sections()} element={<SectionListPage />} />
+              <Route path="/forms/:formId/views/new" element={<FormViewCreatePage />} />
+              <Route path="/forms/:formId/views/:viewId/edit" element={<FormViewEditPage />} />
+              <Route path="/forms/:formId/views/:viewId" element={<FormViewPage />} />
+              <Route path="/forms/:formId/views" element={<FormViewsPage />} />
               <Route path="/forms/:formId/records/:recordId" element={<FormRecordPage />} />
               <Route path="/forms/:formId/records" element={<FormRecordsPage />} />
               <Route path="/forms/:formId/fill" element={<FormFillPage />} />

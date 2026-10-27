@@ -10,6 +10,8 @@ export type PermissionGroupId =
   | 'constructor-records'
   | 'reports'
   | 'forms'
+  | 'table-views'
+  | 'sections'
   | 'access'
 
 export type CatalogPermission = {
@@ -41,6 +43,14 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'forms', resource: 'forms', action: 'publish', labelKey: 'access.perm.forms.publish' },
   { group: 'forms', resource: 'form-records', action: 'create', labelKey: 'access.perm.forms.record-create' },
   { group: 'forms', resource: 'form-records', action: 'read', labelKey: 'access.perm.forms.record-read' },
+  { group: 'table-views', resource: 'table-views', action: 'read', labelKey: 'access.perm.table-views.read' },
+  { group: 'table-views', resource: 'table-views', action: 'create', labelKey: 'access.perm.table-views.create' },
+  { group: 'table-views', resource: 'table-views', action: 'update', labelKey: 'access.perm.table-views.update' },
+  { group: 'table-views', resource: 'table-views', action: 'delete', labelKey: 'access.perm.table-views.delete' },
+  { group: 'sections', resource: 'sections', action: 'read', labelKey: 'access.perm.sections.read' },
+  { group: 'sections', resource: 'sections', action: 'create', labelKey: 'access.perm.sections.create' },
+  { group: 'sections', resource: 'sections', action: 'update', labelKey: 'access.perm.sections.update' },
+  { group: 'sections', resource: 'sections', action: 'publish', labelKey: 'access.perm.sections.publish' },
   { group: 'access', resource: 'assignments', action: 'update', labelKey: 'access.perm.access.assignments' },
   { group: 'access', resource: 'delegations', action: 'delegate', labelKey: 'access.perm.access.delegate' },
 ]

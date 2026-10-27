@@ -5,11 +5,13 @@ import {
   accessFor,
   cancelMockSso,
   completeMockSso,
+  ensureFormsSwitchAuthor,
   loginWithPassword,
   mutateAssignment,
   resolveIdentity,
   toSnapshot,
 } from '../auth/flow'
+import { migrateMockDocument } from '../db/migrate'
 import { actionCovered, can, canDelegate, capabilityFromRoleDisplayName, hasCorporateSuperadmin, isDelegationSubset } from '../../../entities/access/model/grants'
 
 describe('mock auth flow', () => {
@@ -108,5 +110,31 @@ describe('mock auth flow', () => {
       snapshot.projects,
       snapshot.organizations,
     )).toBe(false)
+  })
+
+  it('adds the two-laboratory author only on request and never through migration', () => {
+    const seed = createSeed()
+    expect(ensureFormsSwitchAuthor(seed)).toBe(seed)
+    expect(seed.memberships.filter((item) => item.userId === 9).map((item) => item.organizationId).sort()).toEqual([101, 102])
+    expect(seed.assignments.some((item) => item.userId === 9)).toBe(false)
+    expect(can(toSnapshot(seed), 9, 'forms', 'update', { type: 'organization', organizationId: 101, corporationId: 1 })).toBe(false)
+    const saved = {
+      ...seed,
+      users: seed.users.filter((user) => user.id !== 9),
+      identities: seed.identities.filter((item) => item.userId !== 9),
+      memberships: seed.memberships.filter((item) => item.userId !== 9),
+    }
+    const migrated = migrateMockDocument(saved)
+    const stored = migrated?.state ?? saved
+    expect(stored.users.some((user) => user.email === 'forms.switch@example.test')).toBe(false)
+    expect(stored.forms).toEqual(saved.forms)
+    expect(stored.assignments).toEqual(saved.assignments)
+    const added = ensureFormsSwitchAuthor(saved)
+    expect(added).not.toBe(saved)
+    expect(added.forms).toEqual(saved.forms)
+    expect(added.roles).toEqual(saved.roles)
+    expect(added.assignments).toEqual(saved.assignments)
+    expect(added.memberships.filter((item) => item.userId === 9).map((item) => item.organizationId).sort()).toEqual([101, 102])
+    expect(ensureFormsSwitchAuthor(added)).toBe(added)
   })
 })

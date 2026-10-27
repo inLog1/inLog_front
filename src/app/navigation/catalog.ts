@@ -125,6 +125,15 @@ export const APP_SECTIONS: readonly AppSection[] = [
     surface: 'navigation',
   },
   {
+    id: 'sections',
+    labelKey: 'nav.sections',
+    descriptionKey: 'nav.sections-description',
+    path: routes.settings.sections(),
+    group: 'settings',
+    context: 'organization',
+    surface: 'navigation',
+  },
+  {
     id: 'templates',
     labelKey: 'nav.templates',
     descriptionKey: 'nav.templates-description',
@@ -231,6 +240,17 @@ function permissionAccess(
   }) ? 'allowed' : 'denied-here'
 }
 
+function sectionsDesk(input: NavigationInput): SectionAccess {
+  const create = permissionAccess(input, { resource: 'sections', action: 'create' }, 'organization')
+  const update = permissionAccess(input, { resource: 'sections', action: 'update' }, 'organization')
+  const states = [create, update]
+  if (states.includes('allowed')) return 'allowed'
+  if (states.includes('not-enforced')) return 'not-enforced'
+  if (states.includes('needs-context')) return 'needs-context'
+  if (states.includes('denied-here')) return 'denied-here'
+  return 'unavailable'
+}
+
 function accessSection(input: NavigationInput): SectionAccess {
   if (!input.enforceGrants) return 'not-enforced'
   if (input.grantsPending) return 'unavailable'
@@ -246,6 +266,7 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.surface === 'preserved') return 'unavailable'
   if (section.id === 'home' || section.id === 'profile' || section.id === 'notifications') return 'allowed'
   if (section.id === 'access') return accessSection(input)
+  if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
   if (section.id === 'forms') return permissionAccess(input, FORMS_READ, 'organization')

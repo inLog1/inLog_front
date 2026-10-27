@@ -76,7 +76,10 @@ export const formApi = platformApi.injectEndpoints({
     }),
     createFormRecord: build.mutation<{ id: string; formVersionId: string; createdAt: string }, CreateRecordBody>({
       query: ({ formId, ...body }) => ({ url: `forms/${formId}/records/`, method: 'POST', body }),
-      invalidatesTags: (_result, _error, arg) => [{ type: 'Forms', id: `records-${arg.formId}` }],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'Forms', id: `records-${arg.formId}` },
+        { type: 'TableViews', id: `rows-${arg.formId}` },
+      ],
     }),
     getFormRecord: build.query<FormRecordResponse, { organizationId: number; formId: string; recordId: string }>({
       query: ({ organizationId, formId, recordId }) => `forms/${formId}/records/${recordId}/?organization=${organizationId}`,

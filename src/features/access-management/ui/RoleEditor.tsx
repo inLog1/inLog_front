@@ -183,6 +183,7 @@ function RoleForm({
         <li>{t('access.dependencies.task')}</li>
         <li>{t('access.dependencies.delegate')}</li>
         <li>{t('access.dependencies.forms')}</li>
+        <li>{t('access.dependencies.table-views')}</li>
       </ul>
       <label className="grid min-w-0 gap-1 text-sm">
         {t('access.name')}
