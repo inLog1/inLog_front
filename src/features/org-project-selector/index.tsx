@@ -1,4 +1,2 @@
-import OrgProjectSelector from './ui/OrgProjectSelector'
-
-export { OrgProjectSelector }
-export { useEnsureOrgProjectParams } from './model/useEnsureOrgProjectParams'
+export { default as OrgProjectSelector } from './ui/OrgProjectSelector'
+export { WorkspaceStatus } from './ui/WorkspaceStatus'

@@ -1,99 +1,59 @@
 import { Link, useLocation } from "react-router-dom"
+import type { ReactNode } from "react"
 import { cn } from "../../shared/lib/utils"
-import { OrgProjectSelector } from "../../features/org-project-selector"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "../../shared/ui/resizable"
-import { routes } from "../../shared/lib/routes"
 
 interface NavItem {
   label: string
-  icon?: React.ReactNode
+  icon?: ReactNode
   href?: string
   onClick?: () => void
 }
 
 interface RootPageLayoutProps {
-  children: React.ReactNode
+  children: ReactNode
   navItems: NavItem[]
 }
 
-const RootPageLayout = ({ 
-  children, 
+const RootPageLayout = ({
+  children,
   navItems,
 }: RootPageLayoutProps) => {
+  const location = useLocation()
 
-    const location = useLocation()
+  const isActive = (href: string) => {
+    const path = href.split('?')[0]
+    return location.pathname === path || location.pathname.startsWith(`${path}/`)
+  }
 
-    const isActive = (href: string) => {
-        return location.pathname.includes(href)
-    }
-
-    const showOrgSelector =
-      location.pathname.includes(routes.scheduler.list()) ||
-      location.pathname.includes(routes.admin.constructor()) ||
-      location.pathname.includes(routes.admin.reports())
-
-    if (navItems.length === 0 && !showOrgSelector) {
-      return (
-        <div className="h-[calc(100vh-64px-8px)] w-full min-w-0 p-4">
-          {children}
-        </div>
-      )
-    }
+  if (navItems.length === 0) {
+    return (
+      <div className="h-full min-h-0 w-full min-w-0 overflow-auto p-4">
+        {children}
+      </div>
+    )
+  }
 
   return (
-    <div className="h-[calc(100vh-64px-8px)] w-full">
-      <ResizablePanelGroup orientation="horizontal" className="h-full">
-        <ResizablePanel
-          defaultSize="28%"
-          minSize="300px"
-          maxSize="40%"
-        >
-          <nav className="h-full p-4 border-r border-border ">
-            {
-              location.pathname.includes(routes.scheduler.list()) && (
-                <div className="mb-4">
-                  <OrgProjectSelector type="all" />
-                </div>
-              )
-            }
-            {
-              (location.pathname.includes(routes.admin.constructor()) ||
-                location.pathname.includes(routes.admin.reports())) && (
-                <div className="mb-4">
-                  <OrgProjectSelector type="organization" />
-                </div>
-              )
-            }
-            
-            <div className="space-y-1">
-              {navItems.map((item) => (
-                <Link 
-                  key={item.label} 
-                  to={item.href ?? ''} 
-                  onClick={item.onClick} 
-                  className={cn(
-                    "flex cursor-pointer items-center gap-2 p-2 rounded-lg w-full transition-all duration-300 hover:bg-accent/50",
-                    isActive(item.href ?? '') && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  {item.icon && <span className="w-4 h-4">{item.icon}</span>}
-                  <span className="text-sm truncate">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </nav>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle />
-
-        <ResizablePanel defaultSize="72%" minSize="60%" className="min-w-0">
-          <div className="h-full p-4 pr-0 pl-1 min-w-0">
-            <div className="h-[calc(100vh-64px-16px-8px)] pr-0 mr-4 min-w-0">
-              {children}
-            </div>
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col lg:flex-row">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 lg:w-56 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        {navItems.map((item) => (
+          <Link
+            key={item.label}
+            to={item.href ?? ''}
+            onClick={item.onClick}
+            className={cn(
+              "flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:shrink",
+              item.href && isActive(item.href) && 'bg-accent text-accent-foreground',
+            )}
+          >
+            {item.icon && <span className="h-4 w-4">{item.icon}</span>}
+            <span className="truncate">{item.label}</span>
+          </Link>
+        ))}
+      </nav>
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-2">
+        {children}
+      </div>
     </div>
   )
 }

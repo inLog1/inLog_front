@@ -87,17 +87,29 @@ const TaskComment = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editText, setEditText] = useState(comment.text)
 
-  const isAuthor = currentUser?.id === comment.author.id
+  const isAuthor = currentUser != null && Number(currentUser.id) === Number(comment.author.id)
+  const canEdit = isAuthor && Boolean(onEdit)
+  const canDelete = isAuthor && Boolean(onDelete)
+  if (!canEdit && isEditDialogOpen) setIsEditDialogOpen(false)
+  if (!canDelete && isDeleteDialogOpen) setIsDeleteDialogOpen(false)
   const dateLocale = i18n.language === 'ru' ? ru : enUS
 
   const handleDelete = () => {
-    onDelete?.(comment.id)
+    if (!isAuthor || !onDelete) {
+      setIsDeleteDialogOpen(false)
+      return
+    }
+    onDelete(comment.id)
     setIsDeleteDialogOpen(false)
   }
 
   const handleEdit = () => {
+    if (!isAuthor || !onEdit) {
+      setIsEditDialogOpen(false)
+      return
+    }
     if (editText.trim()) {
-      onEdit?.(comment.id, editText.trim())
+      onEdit(comment.id, editText.trim())
       setIsEditDialogOpen(false)
     }
   }
@@ -258,20 +270,20 @@ const TaskComment = ({
             )} */}
 
             {/* Действия доступные только автору */}
-            {isAuthor && (
-              <>
-                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>{t('buttons.edit')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>{t('buttons.delete')}</span>
-                </DropdownMenuItem>
-              </>
+            {isAuthor && onEdit && (
+              <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                <span>{t('buttons.edit')}</span>
+              </DropdownMenuItem>
+            )}
+            {isAuthor && onDelete && (
+              <DropdownMenuItem
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>{t('buttons.delete')}</span>
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,0 +1,14 @@
+---
+description: "Сохранение старого конструктора, отчётов и задач inLog"
+globs: "src/features/constructor/**, src/features/tasks/**, src/features/task-details/**, src/features/whiteboard/**, src/features/report/**, src/entities/admin/**, src/entities/task/**, src/pages/admin/**"
+alwaysApply: false
+---
+
+- Сначала прочитай docs/migration/06-preservation-checklist.md и соответствующие API/types/селекторы/route consumers.
+- Не переписывай дерево, таблицу, Kanban или Gantt с нуля только ради нового оформления. Сохраняй hooks/props/DTO/ID, пока не готов проверенный adapter.
+- Legacy структура node/tab/group/field не обязана совпадать с новым TableSchema. Сохраняй source IDs, связи и неизвестные metadata; не выполняй автоматическую разрушительную миграцию.
+- Тестовые данные задач общие для списка, Kanban, Gantt, карточки, шаблонов и подзадач. После изменения статуса/дат представления согласованы, отрицательный ответ возвращает корректное состояние.
+- Сохраняй org/project/task query-параметры старых URL, перепроверяй контекст при переходах/reload/back.
+- Mutation success показывай только после unwrap/проверки результата. Не подменяй незавершённую функцию успешным toast.
+- Доска и её storage keys не удаляются и не переименовываются без переноса/экспорта; namespace по человеку/проекту не должен терять существующие сцены.
+- Изменения в этих модулях не входят в этап login, кроме узкой совместимости, явно необходимой для него и отражённой в отчёте.

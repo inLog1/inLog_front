@@ -1,0 +1,782 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> inlog@0.0.0 lint
+> eslint .
+
+
+src/app/routing/AppRouter.tsx
+  95:6  warning  React Hook useEffect has missing dependencies: 'navigate' and 't'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/entities/admin/model/adminSlice.ts
+   16:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   27:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  144:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/entities/organization/model/organizationSlice.ts
+  14:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/entities/project/model/projectSlice.ts
+  20:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/entities/project/model/types.ts
+   9:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  10:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/entities/task/model/taskSlice.ts
+   62:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   82:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/entities/task/model/types.ts
+  42:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  60:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/auth/model/authSlice.ts
+   41:17  error  Empty block statement                     no-empty
+   55:17  error  Empty block statement                     no-empty
+   87:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/auth/ui/EmailConfirmationForm.tsx
+  35:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/auth/ui/EmailConfirmationForm.tsx:35:7
+  33 |
+  34 |     if (!key) {
+> 35 |       setStatus('error')
+     |       ^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |       return
+  37 |     }
+  38 |  react-hooks/set-state-in-effect
+
+src/features/auth/ui/LoginForm.tsx
+  57:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/auth/ui/PasswordRecoveryForm.tsx
+  58:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/auth/ui/RegisterForm.tsx
+  94:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/constructor/constructor-node-details/model/ConstructorNodeContext.tsx
+  72:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-node-details/model/ConstructorNodeContext.tsx:72:9
+  70 |   useEffect(() => {
+  71 |     if (groups && groups.length > 0) {
+> 72 |         fetchTableRows()
+     |         ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  73 |     }
+  74 | }, [groups])
+  75 |  react-hooks/set-state-in-effect
+  74:4   warning  React Hook useEffect has a missing dependency: 'fetchTableRows'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+  91:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react-refresh/only-export-components
+
+src/features/constructor/constructor-node-details/ui/ConstructorNodeConnections.tsx
+  18:40  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `node`, but the source dependencies were [nodes, currentLang, node?.related_groups, node?.parent]. Inferred less specific property than source.
+
+src/features/constructor/constructor-node-details/ui/ConstructorNodeConnections.tsx:18:40
+  16 |     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
+  17 |
+> 18 |     const connectionsOptions = useMemo(() => {
+     |                                        ^^^^^^^
+> 19 |         const result: MultiSelectOption[] = []
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 20 |         if (
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 56 |         return result
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 57 |     }, [nodes, currentLang, node?.related_groups, node?.parent])
+     | ^^^^^^ Could not preserve existing manual memoization
+  58 |
+  59 |     const handleChangeConnections = useCallback((value: string[]) => {
+  60 |         onChange({...node, related_groups: value.map(Number)})  react-hooks/preserve-manual-memoization
+  57:8   warning  React Hook useMemo has a missing dependency: 'node?.id'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+
+src/features/constructor/constructor-node-details/ui/ConstructorNodeDetails.tsx
+  29:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/constructor/constructor-node-details/ui/ConstructorTableWrapper.tsx
+   22:20  error    Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+  211:8   warning  React Hook useMemo has a missing dependency: 'tableCoumns'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/features/constructor/constructor-node-details/ui/ConstructorTabs.tsx
+  57:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-node-details/ui/ConstructorTabs.tsx:57:13
+  55 |     useEffect(() => {
+  56 |         if (node?.pre_made_structure_elements) {
+> 57 |             setTabs(node?.pre_made_structure_elements?.map((tab: AdminPanelNodeTab, i: number, arr: AdminPanelNodeTab[]) =>
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  58 |                 tab.id ? tab : { ...tab, id: i === 0 ? 0 : arr[i - 1]?.id! + 1 }) || [])
+  59 |         }else{
+  60 |             setTabs([])  react-hooks/set-state-in-effect
+  58:60  error  Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-non-null-asserted-optional-chain
+
+src/features/constructor/constructor-node-details/ui/ConstructorTabsConnections.tsx
+  28:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-node-details/ui/ConstructorTabsConnections.tsx:28:13
+  26 |         if (nodes.length > 0 && tab.id) {
+  27 |             const relativeTabs = findAllRelativeTabs(nodes, tab) || []
+> 28 |             setConnectionTabs(relativeTabs)
+     |             ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |         } else {
+  30 |             setConnectionTabs([])
+  31 |         }  react-hooks/set-state-in-effect
+  32:8   warning  React Hook useEffect has a missing dependency: 'tab'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+src/features/constructor/constructor-table/ui/ConstructorTable.tsx
+   75:18  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+   80:17  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  111:63  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  120:86  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  146:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-table/ui/ConstructorTable.tsx:146:5
+  144 |     if (!columnsChanged) return
+  145 |
+> 146 |     setColumns(initialColumns)
+      |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  147 |
+  148 |     if (rows.length > 0) {
+  149 |       const updatedData = rows.map(row => {  react-hooks/set-state-in-effect
+  172:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-table/ui/ConstructorTable.tsx:172:7
+  170 |   useEffect(() => {
+  171 |     if (initialRows) {
+> 172 |       setRows(initialRows)
+      |       ^^^^^^^ Avoid calling setState() directly within an effect
+  173 |     }
+  174 |   }, [initialRows])
+  175 |                                         react-hooks/set-state-in-effect
+  204:9   error  'targetId' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       prefer-const
+  253:59  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  349:34  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  408:54  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  536:9   error  Unexpected lexical declaration in case block                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-case-declarations
+
+src/features/constructor/constructor-tree/model/hooks/use-related-tabs-options.ts
+  23:42  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `currentLang`, but the source dependencies were [relativeNodes, isCreating, i18n.language]. Inferred different dependency than source.
+
+src/features/constructor/constructor-tree/model/hooks/use-related-tabs-options.ts:23:42
+  21 |     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
+  22 |
+> 23 |     const tabConnectionOptions = useMemo((): SelectOption[] => {
+     |                                          ^^^^^^^^^^^^^^^^^^^^^^^
+> 24 |         const result: SelectOption[] = []
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 25 |         if (relativeNodes && relativeNodes.length > 0) {
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 49 |         return result
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 50 |     }, [relativeNodes,isCreating, i18n.language])
+     | ^^^^^^ Could not preserve existing manual memoization
+  51 |
+  52 |     return tabConnectionOptions
+  53 | }                        react-hooks/preserve-manual-memoization
+  23:42  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `node?.pre_made_structure_elements`, but the source dependencies were [relativeNodes, isCreating, i18n.language]. Inferred different dependency than source.
+
+src/features/constructor/constructor-tree/model/hooks/use-related-tabs-options.ts:23:42
+  21 |     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
+  22 |
+> 23 |     const tabConnectionOptions = useMemo((): SelectOption[] => {
+     |                                          ^^^^^^^^^^^^^^^^^^^^^^^
+> 24 |         const result: SelectOption[] = []
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 25 |         if (relativeNodes && relativeNodes.length > 0) {
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 49 |         return result
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 50 |     }, [relativeNodes,isCreating, i18n.language])
+     | ^^^^^^ Could not preserve existing manual memoization
+  51 |
+  52 |     return tabConnectionOptions
+  53 | }  react-hooks/preserve-manual-memoization
+  50:8   warning  React Hook useMemo has missing dependencies: 'currentLang' and 'node?.pre_made_structure_elements'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+
+src/features/constructor/constructor-tree/ui/ConstructorTree.tsx
+  159:13  error    Error: Cannot access variable before it is declared
+
+`collapseAllNodes` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+src/features/constructor/constructor-tree/ui/ConstructorTree.tsx:159:13
+  157 |     const toggleAllNodes = useCallback(() => {
+  158 |         if (allExpanded) {
+> 159 |             collapseAllNodes()
+      |             ^^^^^^^^^^^^^^^^ `collapseAllNodes` accessed before it is declared
+  160 |         } else {
+  161 |             expandAllNodes()
+  162 |         }
+
+src/features/constructor/constructor-tree/ui/ConstructorTree.tsx:247:5
+  245 |     }, [tree])
+  246 |
+> 247 |     const collapseAllNodes = useCallback(() => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 248 |         const allItems = tree.getItems()
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 249 |         allItems.forEach(item => {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 250 |             if (item.isFolder() && item.isExpanded()) {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 251 |                 item.collapse()
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 252 |             }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 253 |         })
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 254 |         setAllExpanded(false)
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 255 |     }, [tree])
+      | ^^^^^^^^^^^^^^^ `collapseAllNodes` is declared here
+  256 |
+  257 |     const allNodesCount = currentNodes.length
+  258 |  react-hooks/immutability
+  161:13  error    Error: Cannot access variable before it is declared
+
+`expandAllNodes` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+src/features/constructor/constructor-tree/ui/ConstructorTree.tsx:161:13
+  159 |             collapseAllNodes()
+  160 |         } else {
+> 161 |             expandAllNodes()
+      |             ^^^^^^^^^^^^^^ `expandAllNodes` accessed before it is declared
+  162 |         }
+  163 |     }, [allExpanded])
+  164 |
+
+src/features/constructor/constructor-tree/ui/ConstructorTree.tsx:237:5
+  235 |     })
+  236 |
+> 237 |     const expandAllNodes = useCallback(() => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 238 |         const allItems = tree.getItems()
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 239 |         allItems.forEach(item => {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 240 |             if (item.isFolder() && !item.isExpanded()) {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 241 |                 item.expand()
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 242 |             }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 243 |         })
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 244 |         setAllExpanded(true)
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 245 |     }, [tree])
+      | ^^^^^^^^^^^^^^^ `expandAllNodes` is declared here
+  246 |
+  247 |     const collapseAllNodes = useCallback(() => {
+  248 |         const allItems = tree.getItems()                                react-hooks/immutability
+  163:8   warning  React Hook useCallback has missing dependencies: 'collapseAllNodes' and 'expandAllNodes'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+  165:44  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  171:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  188:55  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  219:9   warning  React Hook useMemo has an unnecessary dependency: 'nodesMap'. Either exclude it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react-hooks/exhaustive-deps
+  259:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  319:57  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+
+src/features/constructor/constructor-tree/ui/ConstructorTreeNode.tsx
+  15:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/constructor/constructor-tree/ui/TreeNodeFormDialog.tsx
+  120:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/constructor/constructor-tree/ui/TreeNodeFormDialog.tsx:120:13
+  118 |
+  119 |         if (mode === 'edit' && node) {
+> 120 |             setFormData({
+      |             ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  121 |                 name_ru: node.name_ru,
+  122 |                 name_en: node.name_en,
+  123 |             })  react-hooks/set-state-in-effect
+  163:8   warning  React Hook useCallback has an unnecessary dependency: 'mode'. Either exclude it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+src/features/constructor/constructor-tree/utils.ts
+  51:74  error  Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong  @typescript-eslint/no-non-null-asserted-optional-chain
+
+src/features/geo-mechanics/well-log-plot/model/prepareCurves.ts
+  8:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/geo-mechanics/well-log-plot/model/prepareLithology.ts
+  5:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  9:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/notifications/notifications-settings/ui/NotificationsSettings.tsx
+   51:9   error    Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-expressions
+   56:13  error    Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-expressions
+   62:13  error    'userForRequest' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            prefer-const
+  154:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/notifications/notifications-settings/ui/NotificationsSettings.tsx:154:9
+  152 |         if (!userSettings) return
+  153 |
+> 154 |         setTimeFrom(toHHMM(userSettings.notify_from_time))
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  155 |         setTimeTo(toHHMM(userSettings.notify_to_time))
+  156 |         setActiveDays(userSettings.notifiable_days_of_week)
+  157 |  react-hooks/set-state-in-effect
+  185:8   warning  React Hook useEffect has a missing dependency: 't'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+  188:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/notifications/notifications-settings/ui/NotificationsSettings.tsx:188:9
+  186 |
+  187 |     useEffect(() => {
+> 188 |         setTableData(getDefaultRowsList(t))
+      |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  189 |     }, [i18n.language])
+  190 |
+  191 |     useEffect(() => {                                                                                                 react-hooks/set-state-in-effect
+  189:8   warning  React Hook useEffect has a missing dependency: 't'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+  192:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/notifications/notifications-settings/ui/NotificationsSettings.tsx:192:9
+  190 |
+  191 |     useEffect(() => {
+> 192 |         setWeekDays(weekDaysMoc[i18n.language === 'ru' ? 'ru' : 'en'])
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  193 |     }, [i18n.language])
+  194 |
+  195 |     const isBusy = isUpdateUserSettingsLoading                                              react-hooks/set-state-in-effect
+
+src/features/org-project-selector/ui/OrgProjectSelector.tsx
+  32:12  error  '_addOrgLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  32:28  error  '_setAddOrgLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  33:12  error  '_addProjLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  33:29  error  '_setAddProjLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  50:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/org-project-selector/ui/OrgProjectSelector.tsx:50:13
+  48 |
+  49 |         if (orgParam && Number(orgParam)) {
+> 50 |             setCurrentOrgId(Number(orgParam))
+     |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  51 |         }
+  52 |
+  53 |         if (projectParam && Number(projectParam)) {  react-hooks/set-state-in-effect
+
+src/features/organizations-and-projects/ui/OrganizationsAndProjects.tsx
+  179:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/platform-admin/ui/AdminOrganizationEditDialog.tsx
+  42:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/platform-admin/ui/AdminOrganizationEditDialog.tsx:42:5
+  40 |     if (!organization) return
+  41 |
+> 42 |     setForm({
+     |     ^^^^^^^ Avoid calling setState() directly within an effect
+  43 |       full_name: organization.full_name,
+  44 |       short_name: organization.short_name,
+  45 |       address: organization.address,  react-hooks/set-state-in-effect
+
+src/features/platform-admin/ui/AdminProjectEditDialog.tsx
+  57:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/platform-admin/ui/AdminProjectEditDialog.tsx:57:5
+  55 |     if (!project) return
+  56 |
+> 57 |     setForm({
+     |     ^^^^^^^ Avoid calling setState() directly within an effect
+  58 |       name: project.name,
+  59 |       organization_id: String(project.organization_id),
+  60 |       reservoir: project.reservoir ?? '',  react-hooks/set-state-in-effect
+
+src/features/platform-admin/ui/UserRoleSelect.tsx
+  51:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+src/features/profile/ui/Employee.tsx
+  115:8   warning  React Hook useEffect has missing dependencies: 'userData?.date_of_birth', 'userData?.department', 'userData?.email', 'userData?.experience', 'userData?.in_organization_since', 'userData?.mobile_phone', 'userData?.name', 'userData?.organization', 'userData?.patronymic', 'userData?.personnel_number', 'userData?.position', 'userData?.room', 'userData?.surname', 'userData?.work_phone', and 'userData?.workplace'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  164:22  error    'field' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                prefer-const
+  194:26  error    'field' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                prefer-const
+
+src/features/report/report-details/ui/ReportDetails.tsx
+  89:8  warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/features/report/report-details/ui/ReportTable.tsx
+  209:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/report/report-tree/ui/ReportTree.tsx
+   69:44  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+   75:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+   92:55  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  103:47  error    Error: Cannot access variable before it is declared
+
+`getAllChildrenIds` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+src/features/report/report-tree/ui/ReportTree.tsx:103:47
+  101 |
+  102 |         children.forEach(child => {
+> 103 |             allChildren = [...allChildren, ...getAllChildrenIds(child.id)]
+      |                                               ^^^^^^^^^^^^^^^^^ `getAllChildrenIds` accessed before it is declared
+  104 |         })
+  105 |
+  106 |         return allChildren
+
+src/features/report/report-tree/ui/ReportTree.tsx:98:5
+   96 |     }), [getChildren])
+   97 |
+>  98 |     const getAllChildrenIds = useCallback((nodeId: number): number[] => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  99 |         const children = currentNodes.filter(node => node.parent === nodeId)
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 100 |         let allChildren = [...children.map(child => child.id)]
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 101 |
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 102 |         children.forEach(child => {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 103 |             allChildren = [...allChildren, ...getAllChildrenIds(child.id)]
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 104 |         })
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 106 |         return allChildren
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 107 |     }, [currentNodes])
+      | ^^^^^^^^^^^^^^^^^^^^^^^ `getAllChildrenIds` is declared here
+  108 |
+  109 |     const tree = useTree<TreeNodeData>({
+  110 |         rootItemId: '__root__',  react-hooks/immutability
+  152:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  203:8   warning  React Hook useCallback has a missing dependency: 'currentNodes'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setSelectedNodes' needs the current value of 'currentNodes'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+  224:8   warning  React Hook useCallback has a missing dependency: 'selectedColumns'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+  238:8   warning  React Hook useCallback has unnecessary dependencies: 'selectedNodes' and 'selectedTabs'. Either exclude them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+  247:8   warning  React Hook useCallback has a missing dependency: 'createReport'. Either include it or remove the dependency array. If 'createReport' changes too often, find the parent component that defines it and wrap that definition in useCallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  266:8   warning  React Hook useMemo has missing dependencies: 'initialColumns.length' and 'initialTabs.length'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+  339:53  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+
+src/features/report/report-tree/ui/ReportTreeNode.tsx
+  18:11  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  26:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  57:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/report/report-tree/ui/ReportTreeNode.tsx:57:13
+  55 |     useEffect(() => {
+  56 |         if (node.related_groups?.length > 0) {
+> 57 |             setConnectionNodes(nodes.filter(n => node.related_groups.includes(n.id)))
+     |             ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  58 |         } else {
+  59 |             setConnectionNodes([])
+  60 |         }                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/set-state-in-effect
+  75:26  error  Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `node.pre_made_structure_elements`, but the source dependencies were [node?.pre_made_structure_elements]. Inferred different dependency than source.
+
+src/features/report/report-tree/ui/ReportTreeNode.tsx:75:26
+  73 |     })
+  74 |
+> 75 |     const tabs = useMemo(() => {
+     |                          ^^^^^^^
+> 76 |         return node?.pre_made_structure_elements?.map((tab: AdminPanelNodeTab, i: number, arr: AdminPanelNodeTab[]) =>
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 77 |             tab.id ? tab : { ...tab, id: i === 0 ? 0 : arr[i - 1]?.id! + 1 }
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 78 |         ) || []
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 79 |     }, [node?.pre_made_structure_elements])
+     | ^^^^^^ Could not preserve existing manual memoization
+  80 |
+  81 |     const columnsByTab = useMemo(() => {
+  82 |         if (!columnsData) return new Map<number, any[]>()  react-hooks/preserve-manual-memoization
+  77:56  error  Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-non-null-asserted-optional-chain
+  82:50  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  83:37  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+
+src/features/report/report-tree/ui/ReportTreeTab.tsx
+  52:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/report/report-tree/ui/ReportTreeTab.tsx:52:13
+  50 |         if(nodes.length > 0 && tab.id) {
+  51 |             const relativeTabs = findAllRelativeTabs(nodes, tab) || []
+> 52 |             setConnectionTabs(relativeTabs)
+     |             ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  53 |         } else {
+  54 |             setConnectionTabs([])
+  55 |         }  react-hooks/set-state-in-effect
+  56:8   warning  React Hook useEffect has a missing dependency: 'tab'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+src/features/task-details/ui/TaskDescription.tsx
+  21:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/task-details/ui/TaskDescription.tsx:21:9
+  19 |
+  20 |     useEffect(() => {
+> 21 |         setLocalValue(value);
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  22 |         setIsChanged(false);
+  23 |     }, [value]);
+  24 |  react-hooks/set-state-in-effect
+
+src/features/task-details/ui/TaskDetails.tsx
+  120:6   warning  React Hook useEffect has a missing dependency: 'form'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  123:9   error    'isHasAccess' is never reassigned. Use 'const' instead                                                   prefer-const
+  141:12  error    Unexpected any. Specify a different type                                                                 @typescript-eslint/no-explicit-any
+  364:13  error    'currentTagIds' is never reassigned. Use 'const' instead                                                 prefer-const
+
+src/features/tasks/tasks-kanban/ui/TasksKanban.tsx
+  111:21  error  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src/features/tasks/tasks-roadmap/lib/roadmapHelpers.tsx
+   83:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/features/tasks/tasks-roadmap/ui/RoadmapControls.tsx
+  61:8  warning  React Hook useEffect has a missing dependency: 'onFilterChange'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/features/tasks/tasks-roadmap/ui/RoadmapSettings.tsx
+  54:6  warning  React Hook useEffect has a missing dependency: 'onChange'. Either include it or remove the dependency array. If 'onChange' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+
+src/features/tasks/tasks-roadmap/ui/TasksRoadmap.tsx
+  134:44  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  158:8   warning  React Hook useMemo has an unnecessary dependency: 'taskTypes'. Either exclude it or remove the dependency array. Outer scope values like 'taskTypes' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+
+src/features/tasks/ui/Tasks.tsx
+  144:29  error    '_task' is defined but never used                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  171:8   warning  React Hook useEffect has a missing dependency: 'filterParams'. Either include it or remove the dependency array. You can also do a functional update 'setFilterParams(f => ...)' if you only need 'filterParams' in the 'setFilterParams' call  react-hooks/exhaustive-deps
+  184:8   warning  React Hook useEffect has a missing dependency: 't'. Either include it or remove the dependency array                                                                                                                                            react-hooks/exhaustive-deps
+
+src/features/tasks/ui/TasksFilter.tsx
+   74:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/tasks/ui/TasksFilter.tsx:74:9
+  72 |             (localFilters.taskType && localFilters.taskType !== 'all')
+  73 |         )
+> 74 |         setIsFilterActive(hasActiveFilters)
+     |         ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  75 |     }, [localFilters])
+  76 |
+  77 |     const handleApply = () => {  react-hooks/set-state-in-effect
+  116:9   warning  React Hook useImperativeHandle has a missing dependency: 'handleReset'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  203:17  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react-refresh/only-export-components
+
+src/features/tasks/ui/TasksList.tsx
+  62:6  warning  React Hook useCallback has unnecessary dependencies: 'changePagination' and 'pagination.limit'. Either exclude them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/features/whiteboard/ui/TaskCardWidget.tsx
+  30:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/features/whiteboard/ui/TaskCardWidget.tsx:30:7
+  28 |   useEffect(() => {
+  29 |     if (cardData) {
+> 30 |       setTitle(cardData.title)
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  31 |       setDescription(cardData.description ?? '')
+  32 |     }
+  33 |   }, [cardData?.cardId, cardData?.title, cardData?.description])  react-hooks/set-state-in-effect
+  33:6  warning  React Hook useEffect has a missing dependency: 'cardData'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+
+src/pages/admin/admin-constructor/ui/AdminConstructorPage.tsx
+  33:8  warning  React Hook useCallback has an unnecessary dependency: 'adminPanelNodes'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/shared/lib/errors-handler.ts
+   9:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/shared/lib/hooks/use-language.ts
+  35:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+src/shared/lib/hooks/use-language.ts:35:7
+  33 |     if (savedLang && savedLang !== i18n.language) {
+  34 |       i18n.changeLanguage(savedLang as LanguageType)
+> 35 |       setCurrentLanguage(savedLang as LanguageType)
+     |       ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |       document.documentElement.lang = savedLang
+  37 |     } else if (i18n.language) {
+  38 |       setCurrentLanguage(i18n.language as LanguageType)  react-hooks/set-state-in-effect
+
+src/shared/lib/hooks/use-suspense-query.ts
+  4:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/shared/ui/badge.tsx
+  36:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+src/shared/ui/button.tsx
+  56:18  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+src/shared/ui/editable-field.tsx
+  47:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  88:99  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+src/shared/ui/form.tsx
+  170:3  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+src/widgets/root-layout/index.tsx
+  23:14  error    'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  53:6   warning  React Hook useEffect has a missing dependency: 'fetchVerifyToken'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+  55:41  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `t`, but the source dependencies were [isUserLoading, isOrgsLoading, isProjectsLoading, userError, organizations, projects, navigate]. Inferred different dependency than source.
+
+src/widgets/root-layout/index.tsx:55:41
+  53 |   }, [])
+  54 |
+> 55 |   const verifyAndRedirect = useCallback(() => {
+     |                                         ^^^^^^^
+> 56 |     const token = localStorage.getItem(ACCESS_TOKEN)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 57 |     if (isUserLoading || isOrgsLoading || isProjectsLoading || !token) return
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 64 |
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 65 |   }, [isUserLoading, isOrgsLoading, isProjectsLoading, userError, organizations, projects, navigate])
+     | ^^^^ Could not preserve existing manual memoization
+  66 |
+  67 |   useEffect(() => {
+  68 |     verifyAndRedirect()  react-hooks/preserve-manual-memoization
+  65:6   warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+tailwind.config.ts
+  44:15  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 162 problems (131 errors, 31 warnings)
+  6 errors and 0 warnings potentially fixable with the `--fix` option.

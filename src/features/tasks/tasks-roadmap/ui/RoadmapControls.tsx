@@ -1,7 +1,6 @@
 import type { SetStateAction } from "react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
 import { useGetStatusesQuery } from "../../../../entities/task/model/taskSlice"
 import type { TasksFilterParams } from "../../../../entities/task/model/types"
 import useDebounce from "../../../../shared/lib/hooks/use-deboucne"
@@ -12,6 +11,7 @@ import { RoadmapFilter } from "./RoadmapFilter"
 import RoadmapSettings from "./RoadmapSettings"
 
 interface Props {
+    projectId: number
     disabled: boolean
     initialValues: Partial<TasksFilterParams>
     viewMode: RoadmapDetalizationMode
@@ -24,13 +24,9 @@ interface Props {
 
 const RoadmapControls = (props: Props) => {
     const { t } = useTranslation()
-    const { disabled, initialValues, viewMode, columnSettings, onChangeColumnSettings, setViewMode, onFilterChange } = props
+    const { disabled, initialValues, viewMode, columnSettings, onChangeColumnSettings, setViewMode, onFilterChange, projectId } = props
 
-    const [searchParams] = useSearchParams()
-
-    const projectId = searchParams.get('project')
-
-    const { data: statuses } = useGetStatusesQuery({ projectId: Number(projectId) }, { skip: !projectId })
+    const { data: statuses } = useGetStatusesQuery({ projectId }, { skip: !projectId })
 
     const [searchValue, setSearchValue] = useState('')
 

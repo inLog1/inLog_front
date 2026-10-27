@@ -4,7 +4,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 import { AlertCircle, RefreshCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useSearchParams } from 'react-router-dom'
 import { makeSelectAdminPanelNodes } from '../../../../entities/admin'
 import { adminApi, useGetAdminPanelGroupsQuery, useGetAdminPanelNodeByIdQuery } from '../../../../entities/admin/model/adminSlice'
 import type { AdminPanelGroup, AdminPanelNode } from '../../../../entities/admin/model/types'
@@ -47,28 +46,42 @@ interface Props {
     }) => void
     deleteTab: (tabId: number) => void
     updateNode: (node: AdminPanelNode) => void
-
-
+    organizationId: number
+    canReadRecords: boolean
+    access: {
+        schemaCreate: boolean
+        schemaUpdate: boolean
+        schemaDelete: boolean
+        recordsRead: boolean
+        recordsCreate: boolean
+        recordsUpdate: boolean
+        recordsDelete: boolean
+    }
 }
 
 const ConstructorNodeDetails = (props: Props) => {
-    const { nodeId, addTab, updateTab, deleteTab, updateNode } = props
+    const { nodeId, addTab, updateTab, deleteTab, updateNode, organizationId, canReadRecords, access } = props
     const { t, i18n } = useTranslation()
     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
-    const [searchParams] = useSearchParams()
-    const organizationId = Number(searchParams.get('org'))
     const dispatch = useDispatch()
 
     const nodes = useSelector(makeSelectAdminPanelNodes(organizationId!))
 
-    const { data: currentNode, isLoading, isFetching, isError } = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
+    const nodeQuery = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
+    const currentNode = nodeQuery.currentData
+    const isLoading = nodeQuery.isLoading
+    const isFetching = nodeQuery.isFetching
+    const isError = nodeQuery.isError
 
-    const { data: groups, isLoading: isGroupsLoading, isFetching: isGroupsFetching } = useGetAdminPanelGroupsQuery({
+    const groupsQuery = useGetAdminPanelGroupsQuery({
         group: nodeId,
         organizationId: organizationId,
     }, {
-        skip: !nodeId
+        skip: !nodeId || !organizationId
     })
+    const groups = groupsQuery.currentData
+    const isGroupsLoading = groupsQuery.isLoading
+    const isGroupsFetching = groupsQuery.isFetching
 
     const handleUpdateNodeConnections = (node: AdminPanelNode) => {
         updateNode(node)
@@ -110,7 +123,7 @@ const ConstructorNodeDetails = (props: Props) => {
     }
 
     return (
-        <ConstructorNodeProvider nodeId={nodeId} groups={groups || []}>
+        <ConstructorNodeProvider nodeId={nodeId} groups={groups || []} organizationId={organizationId} canReadRecords={canReadRecords}>
         <div>
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">{currentNode?.[`name_${currentLang}`]}</h1>
@@ -131,6 +144,7 @@ const ConstructorNodeDetails = (props: Props) => {
                     <AccordionContent>
                         <ConstructorTableWrapper
                             groups={groups || []}
+                            access={access}
                             isShowTitle={false}
                             data={
                                 {
@@ -149,6 +163,7 @@ const ConstructorNodeDetails = (props: Props) => {
                         <ConstructorNodeConnections
                             node={currentNode!}
                             nodes={nodes}
+                            disabled={!access.schemaUpdate}
                             onChange={handleUpdateNodeConnections}
                         />
                     </AccordionContent>
@@ -161,6 +176,8 @@ const ConstructorNodeDetails = (props: Props) => {
                             addTab={addTab}
                             updateTab={updateTab}
                             deleteTab={deleteTab}
+                            organizationId={organizationId}
+                            access={access}
                         />
                     </AccordionContent>
                 </AccordionItem>

@@ -1,0 +1,200 @@
+import { taskFixtures } from '../tasks/fixtures'
+import { FORM_DELEGATION_IDS, FORM_GRANT_DEFINITIONS } from './form-grants'
+import { ROLE_GRANT_DEFINITIONS } from './role-grants'
+import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-grants'
+import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
+import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
+import type { MockState } from './types'
+
+const corporation = { type: 'corporation' as const, corporationId: 1 }
+const org = (organizationId: number) => ({
+  type: 'organization' as const,
+  organizationId,
+  corporationId: 1,
+})
+
+export function createSeed(): MockState {
+  return {
+    schemaVersion: MOCK_SCHEMA_VERSION,
+    recordRevision: 1,
+    namespace: MOCK_NAMESPACE,
+    installationPhase: 'ready',
+    authMode: 'mixed',
+    accessVersion: 1,
+    corporation: { id: 1, name: 'Демо-корпорация' },
+    users: [
+      { id: 1, email: 'owner@example.test', name: 'Алина', patronymic: 'Сергеевна', surname: 'Власова', position: 'Координатор установки', legacyRole: 'super_admin', status: 'active' },
+      { id: 2, email: 'admin.a@example.test', name: 'Борис', patronymic: 'Ильич', surname: 'Лебедев', position: 'Администратор лаборатории', legacyRole: 'member', status: 'active' },
+      { id: 3, email: 'employee.a@example.test', name: 'Кира', patronymic: 'Олеговна', surname: 'Соколова', position: 'Сотрудник лаборатории', legacyRole: 'member', status: 'active' },
+      { id: 4, email: 'employee.b@example.test', name: 'Глеб', patronymic: 'Павлович', surname: 'Морозов', position: 'Сотрудник лаборатории', legacyRole: 'member', status: 'active' },
+      { id: 5, email: 'customer@example.test', name: 'Нина', patronymic: 'Андреевна', surname: 'Орлова', position: 'Представитель заказчика', legacyRole: 'member', status: 'active' },
+      { id: 6, email: 'pending@example.test', name: 'Павел', patronymic: 'Романович', surname: 'Ершов', position: 'Сотрудник без назначений', legacyRole: 'member', status: 'active' },
+      { id: 7, email: 'project.only@example.test', name: 'Марк', patronymic: 'Викторович', surname: 'Белов', position: 'Сотрудник одного проекта', legacyRole: 'member', status: 'active' },
+      // Fresh seed only. Reads constructor schema and records in laboratory A and cannot create, update, or delete them.
+      { id: 8, email: 'constructor.reader@example.test', name: 'Вера', patronymic: 'Игоревна', surname: 'Крылова', position: 'Чтение записей конструктора', legacyRole: 'member', status: 'active' },
+      // Member of laboratories A and B. Fresh seed only; no form grants until an administrator assigns them.
+      { id: 9, email: 'forms.switch@example.test', name: 'Ирина', patronymic: 'Павловна', surname: 'Седова', position: 'Автор форм двух лабораторий', legacyRole: 'member', status: 'active' },
+    ],
+    identities: [
+      { id: 'idn-owner', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner', email: 'owner@example.test', userId: 1 },
+      { id: 'idn-admin-a', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-admin-a', email: 'admin.a@example.test', userId: 2 },
+      { id: 'idn-employee-a', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-employee-a', email: 'employee.a@example.test', userId: 3 },
+      { id: 'idn-employee-b', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-employee-b', email: 'employee.b@example.test', userId: 4 },
+      { id: 'idn-customer', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-customer', email: 'customer@example.test', userId: 5 },
+      { id: 'idn-pending', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-pending', email: 'pending@example.test', userId: 6 },
+      { id: 'idn-project-only', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-project-only', email: 'project.only@example.test', userId: 7 },
+      { id: 'idn-constructor-reader', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-constructor-reader', email: 'constructor.reader@example.test', userId: 8 },
+      { id: 'idn-forms-switch', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-forms-switch', email: 'forms.switch@example.test', userId: 9 },
+      { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
+    ],
+    organizations: [
+      { id: 101, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория А', shortName: 'Лаб. А', address: 'Демо, корпус А' },
+      { id: 102, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория Б', shortName: 'Лаб. Б', address: 'Демо, корпус Б' },
+      { id: 201, corporationId: 1, kind: 'customer', fullName: 'Организация-заказчик', shortName: 'Заказчик', address: 'Демо, офис заказчика' },
+    ],
+    projects: [
+      { id: 1001, organizationId: 101, corporationId: 1, name: 'Проект А-1' },
+      { id: 1003, organizationId: 101, corporationId: 1, name: 'Проект А-2' },
+      { id: 1002, organizationId: 102, corporationId: 1, name: 'Проект Б-1' },
+    ],
+    memberships: [
+      { id: 'mem-1-101', userId: 1, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-1-102', userId: 1, organizationId: 102, kind: 'laboratory' },
+      { id: 'mem-1-201', userId: 1, organizationId: 201, kind: 'customer' },
+      { id: 'mem-2-101', userId: 2, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-3-101', userId: 3, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-4-102', userId: 4, organizationId: 102, kind: 'laboratory' },
+      { id: 'mem-5-201', userId: 5, organizationId: 201, kind: 'customer' },
+      { id: 'mem-7-101', userId: 7, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-9-101', userId: 9, organizationId: 101, kind: 'laboratory' },
+      { id: 'mem-9-102', userId: 9, organizationId: 102, kind: 'laboratory' },
+    ],
+    grants: [
+      { id: 'g-org-manage', resource: 'organizations', action: 'manage' },
+      { id: 'g-assign', resource: 'assignments', action: 'update' },
+      { id: 'g-projects', resource: 'projects', action: 'read' },
+      { id: 'g-test', resource: 'test-resource', action: 'read' },
+      { id: 'g-members-manage', resource: 'members', action: 'manage' },
+      { id: 'g-members-read', resource: 'members', action: 'read' },
+      { id: 'g-tasks', resource: 'tasks', action: 'read' },
+      { id: 'g-tasks-create', resource: 'tasks', action: 'create' },
+      { id: 'g-tasks-update', resource: 'tasks', action: 'update' },
+      { id: 'g-tasks-delete', resource: 'tasks', action: 'delete' },
+      { id: 'g-tasks-assign', resource: 'tasks', action: 'assign' },
+      { id: 'g-requests-read', resource: 'requests', action: 'read' },
+      { id: 'g-requests-create', resource: 'requests', action: 'create' },
+      { id: 'g-delegate', resource: 'delegations', action: 'delegate' },
+      // Proposed section codes. Fresh seed only; migration does not copy them into a saved snapshot.
+      { id: 'g-constructor-schema-read', resource: 'constructor.schema', action: 'read' },
+      { id: 'g-constructor-schema-update', resource: 'constructor.schema', action: 'update' },
+      { id: 'g-constructor-records-read', resource: 'constructor.records', action: 'read' },
+      { id: 'g-constructor-records-update', resource: 'constructor.records', action: 'update' },
+      { id: 'g-reports-read', resource: 'reports', action: 'read' },
+      { id: 'g-reports-generate', resource: 'reports', action: 'generate' },
+      // Proposed. create and delete are not implied by update. Fresh seed only.
+      { id: 'g-constructor-schema-create', resource: 'constructor.schema', action: 'create' },
+      { id: 'g-constructor-schema-delete', resource: 'constructor.schema', action: 'delete' },
+      { id: 'g-constructor-records-create', resource: 'constructor.records', action: 'create' },
+      { id: 'g-constructor-records-delete', resource: 'constructor.records', action: 'delete' },
+      ...FORM_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...TABLE_VIEW_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+    ],
+    roles: [
+      {
+        id: 'role-owner',
+        displayName: 'Координатор',
+        grantIds: [
+          'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage', 'g-tasks',
+          'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
+        ],
+        delegationGrantIds: [
+          'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage',
+          'g-members-read', 'g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign',
+          'g-requests-read', 'g-requests-create', 'g-delegate',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
+          ...FORM_DELEGATION_IDS,
+          ...TABLE_VIEW_DELEGATION_IDS,
+          ...SECTION_DELEGATION_IDS,
+        ],
+      },
+      {
+        id: 'role-lab-admin',
+        displayName: 'Администратор лаборатории',
+        grantIds: [
+          'g-members-manage', 'g-assign', 'g-projects', 'g-test',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
+        ],
+        delegationGrantIds: ['g-members-read'],
+      },
+      {
+        id: 'role-employee',
+        displayName: 'Сотрудник',
+        grantIds: ['g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign', 'g-projects'],
+        delegationGrantIds: [],
+      },
+      { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'], delegationGrantIds: [] },
+      {
+        id: 'role-constructor-reader',
+        displayName: 'Чтение конструктора',
+        grantIds: ['g-constructor-schema-read', 'g-constructor-records-read'],
+        delegationGrantIds: [],
+      },
+      { id: 'role-decoy', displayName: 'corporate_superadmin', grantIds: [], delegationGrantIds: [] },
+      { id: 'role-members-reader', displayName: 'Чтение состава', grantIds: ['g-members-read'], delegationGrantIds: [] },
+    ],
+    assignments: [
+      { id: 'asg-owner', userId: 1, roleId: 'role-owner', scope: corporation },
+      { id: 'asg-admin', userId: 2, roleId: 'role-lab-admin', scope: org(101) },
+      { id: 'asg-employee-a', userId: 3, roleId: 'role-employee', scope: org(101) },
+      { id: 'asg-employee-b', userId: 4, roleId: 'role-employee', scope: org(102) },
+      { id: 'asg-customer', userId: 5, roleId: 'role-customer', scope: org(201) },
+      {
+        id: 'asg-project-only',
+        userId: 7,
+        roleId: 'role-employee',
+        scope: { type: 'project', projectId: 1001, organizationId: 101, corporationId: 1 },
+      },
+      { id: 'asg-constructor-reader', userId: 8, roleId: 'role-constructor-reader', scope: org(101) },
+    ],
+    delegations: [
+      {
+        id: 'dlg-admin-to-employee-a',
+        fromUserId: 2,
+        toUserId: 3,
+        grant: {
+          id: 'g-members-read-delegated',
+          resource: 'members',
+          action: 'read',
+          scope: org(101),
+        },
+      },
+    ],
+    systemCapabilities: [{ userId: 1, code: 'corporate_superadmin' }],
+    accessAudit: [],
+    sessions: [],
+    ...taskFixtures(),
+    constructorNodes: [],
+    constructorTabs: [],
+    constructorFields: [],
+    constructorRecords: [],
+    forms: [],
+    formDrafts: [],
+    formVersions: [],
+    formRecords: [],
+    tableViews: [],
+    sections: [],
+    sectionDrafts: [],
+    sectionVersions: [],
+    notifications: [],
+    fault: null,
+  }
+}

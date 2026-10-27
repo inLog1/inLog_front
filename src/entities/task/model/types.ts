@@ -40,6 +40,8 @@ export interface TasksFilterParams {
     tags: Tag[]
     priority: Task['priority']
     created_at__range: any
+    parent__isnull?: boolean | string
+    is_completed?: boolean | string
     supervisor__user: Supervisor['user']
     ordering: string
     limit: string | number

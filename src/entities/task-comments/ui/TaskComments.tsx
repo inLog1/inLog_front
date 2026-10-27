@@ -27,6 +27,7 @@ interface Props {
     avatar?: string
   }
   onAddComment?: (text: string) => void
+  addDisabledReason?: string
   onEditComment?: (commentId: string | number, text: string) => void
   onDeleteComment?: (commentId: string | number) => void
 }
@@ -36,6 +37,7 @@ const TaskComments = ({
   comments = [],
   currentUser,
   onAddComment,
+  addDisabledReason,
   onEditComment,
   onDeleteComment,
 }: Props) => {
@@ -44,10 +46,15 @@ const TaskComments = ({
   const [newCommentText, setNewCommentText] = useState('')
   const [replyToId, setReplyToId] = useState<string | number | null>(null)
   const [replyText, setReplyText] = useState('')
+  if (!onAddComment && isDialogOpen) setIsDialogOpen(false)
 
   const handleAddComment = () => {
+    if (!onAddComment) {
+      setIsDialogOpen(false)
+      return
+    }
     if (newCommentText.trim()) {
-      onAddComment?.(newCommentText.trim())
+      onAddComment(newCommentText.trim())
       setNewCommentText('')
       setIsDialogOpen(false)
     }
@@ -75,10 +82,14 @@ const TaskComments = ({
           )}
         </h3>
         <Button
-          onClick={() => setIsDialogOpen(true)}
+          onClick={() => {
+            if (onAddComment) setIsDialogOpen(true)
+          }}
           size="sm"
           variant="outline"
           className="gap-2"
+          disabled={!onAddComment}
+          title={onAddComment ? undefined : addDisabledReason}
         >
           <Plus className="h-4 w-4" />
           {t('buttons.add-comment')}

@@ -1,5 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useGenerateReportMutation, useGetAdminPanelGroupsQuery } from "../../../../entities/admin/model/adminSlice";
 import type { AdminPanelGroup, AdminPanelReportRequest, AdminPanelReportTable } from "../../../../entities/admin/model/types";
 import { errorsHandler } from "../../../../shared/lib/errors-handler";
@@ -8,7 +7,9 @@ import { useTranslation } from "react-i18next";
 interface Props {
   children: React.ReactNode
   nodeId: number
-  groups: AdminPanelGroup[],
+  groups: AdminPanelGroup[]
+  organizationId: number | null
+  canReadRecords: boolean
 }
 
 interface ProviderState {
@@ -30,52 +31,74 @@ const ConstructorNodeContext = createContext<ProviderState>(initialState)
 
 export function ConstructorNodeProvider({
   children,
-  nodeId
+  nodeId,
+  organizationId,
+  canReadRecords,
 }: Props) {
   const {t} = useTranslation()
-  const [searchParams] = useSearchParams()
-  const organizationId = Number(searchParams.get('org'))
 
-  const [tableRowsData, setTableRowsData] = useState<AdminPanelReportTable>({})
+  const screenKey = `${organizationId ?? ''}:${nodeId}`
+  const [storedRows, setStoredRows] = useState<{ key: string; data: AdminPanelReportTable }>({ key: '', data: {} })
+  const tableRowsData = storedRows.key === screenKey ? storedRows.data : {}
+  const requestSerial = useRef(0)
+  const screenRef = useRef({ organizationId, nodeId })
+  const setTableRowsData = (data: AdminPanelReportTable) => {
+    setStoredRows({ key: screenKey, data })
+  }
 
-  const { data: groups } = useGetAdminPanelGroupsQuery({
+  const groupsQuery = useGetAdminPanelGroupsQuery({
     group: nodeId,
-    organizationId: organizationId,
+    organizationId: organizationId ?? 0,
   }, {
-    skip: !nodeId
+    skip: !nodeId || organizationId == null || !canReadRecords
   })
+  const groups = groupsQuery.currentData
 
   const [generateReport] = useGenerateReportMutation()
 
   const fetchTableRows = async () => {
+    const serial = requestSerial.current
+    const requestedOrganizationId = organizationId
+    const requestedNodeId = nodeId
+    const requestedGroups = groups
     try {
-      if (!groups) return
+      if (!canReadRecords || !requestedGroups || requestedOrganizationId == null) return
       const body: AdminPanelReportRequest[] = []
       body.push({
-        group: nodeId,
-        fields: groups.map((group) => Number(group.id))
+        group: requestedNodeId,
+        fields: requestedGroups.map((group) => Number(group.id))
       })
-      const { data: response } = await generateReport({
-        organizationId: organizationId,
+      const response = await generateReport({
+        organizationId: requestedOrganizationId,
         body
-      })
-      if(response){
-        setTableRowsData(response)
-      }
+      }).unwrap()
+      if (
+        serial !== requestSerial.current
+        || requestedOrganizationId !== screenRef.current.organizationId
+        || requestedNodeId !== screenRef.current.nodeId
+      ) return
+      setStoredRows({ key: `${requestedOrganizationId ?? ''}:${requestedNodeId}`, data: response ?? {} })
     } catch (error) {
+      if (
+        serial !== requestSerial.current
+        || requestedOrganizationId !== screenRef.current.organizationId
+        || requestedNodeId !== screenRef.current.nodeId
+      ) return
+      setStoredRows({ key: `${requestedOrganizationId ?? ''}:${requestedNodeId}`, data: {} })
       errorsHandler(error, t)
     }
   }
 
   useEffect(() => {
-    setTableRowsData({})
-  }, [nodeId])
+    screenRef.current = { organizationId, nodeId }
+    requestSerial.current += 1
+  }, [nodeId, organizationId])
 
   useEffect(() => {
-    if (groups && groups.length > 0) {
-        fetchTableRows()
+    if (canReadRecords && groups && groups.length > 0) {
+      fetchTableRows()
     }
-}, [groups])
+  }, [groups, canReadRecords])
 
 
   return (

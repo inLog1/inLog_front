@@ -11,6 +11,7 @@ export const routes = {
     checkEmail: () => '/check-email',
     changeEmail: () => '/change-email',
     emailConfirmation: () => '/email-confirmation',
+    mockProvider: () => '/auth/mock-provider',
     verifyGoogle: () => '/verify-google-account',
     verifySlack: () => '/verify-slack-account',
     verifyYandex: () => '/verify-yandex-account',
@@ -39,6 +40,18 @@ export const routes = {
       roadmap: () => '/scheduler/roadmap',
     },
 
+    forms: {
+      list: () => '/forms',
+      editor: (formId: string) => `/forms/${formId}`,
+      fill: (formId: string) => `/forms/${formId}/fill`,
+      records: (formId: string) => `/forms/${formId}/records`,
+      record: (formId: string, recordId: string) => `/forms/${formId}/records/${recordId}`,
+      views: (formId: string) => `/forms/${formId}/views`,
+      viewCreate: (formId: string) => `/forms/${formId}/views/new`,
+      view: (formId: string, viewId: string) => `/forms/${formId}/views/${viewId}`,
+      viewEdit: (formId: string, viewId: string) => `/forms/${formId}/views/${viewId}/edit`,
+    },
+
     admin: {
       list: () => '/admin',
       users: () => '/admin/users',
@@ -56,7 +69,16 @@ export const routes = {
       profile: () => '/settings/profile',
       organizationsAndProjects: () => '/settings/organizations-and-projects',
       notifications: () => '/settings/notifications',
+      access: () => '/settings/access',
+      accessRoleNew: () => '/settings/access/roles/new',
+      accessRole: (roleId: string) => `/settings/access/roles/${roleId}`,
+      sections: () => '/settings/sections',
+      sectionNew: () => '/settings/sections/new',
+      section: (sectionId: string) => `/settings/sections/${sectionId}`,
+      sectionPreview: (sectionId: string) => `/settings/sections/${sectionId}/preview`,
     },
+
+    workspaceSection: (sectionId: string) => `/workspace/sections/${sectionId}`,
 
     geoMechanics: {
       list: () => '/geo-mechanics',

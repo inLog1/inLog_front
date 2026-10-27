@@ -42,6 +42,7 @@ interface Props {
   files?: IFile[]
   title?: string
   onUpload?: (file: File) => void
+  uploadDisabledReason?: string
   onDelete?: (id: number) => void
 }
 
@@ -49,6 +50,7 @@ export function FileAttachment({
   files = [],
   title,
   onUpload,
+  uploadDisabledReason,
   onDelete,
 }: Props) {
   const { t } = useTranslation()
@@ -61,7 +63,7 @@ export function FileAttachment({
   }>({ open: false })
 
   const handleUploadFiles = (fileList: FileList | null) => {
-    if (!fileList) return
+    if (!onUpload || !fileList) return
 
     Array.from(fileList).forEach((file) => {
       // const newFile: IFile = {
@@ -142,7 +144,7 @@ export function FileAttachment({
  return (
     <TooltipProvider>
       <div className="flex flex-col gap-4">
-        <div
+        {onUpload ? <div
           onDragOver={(e) => {
             e.preventDefault()
             setIsDragging(true)
@@ -168,7 +170,9 @@ export function FileAttachment({
             className="absolute inset-0 opacity-0 cursor-pointer"
             onChange={handleInputChange}
           />
-        </div>
+        </div> : uploadDisabledReason ? (
+          <p className="text-sm text-muted-foreground">{uploadDisabledReason}</p>
+        ) : null}
 
         {files.length > 0 && (
           <ul className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -244,13 +248,15 @@ export function FileAttachment({
                           <Download className="w-4 h-4 mr-2" />
                           {t('buttons.download')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDelete?.(file.id)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          {t('buttons.delete')}
-                        </DropdownMenuItem>
+                        {onDelete && (
+                          <DropdownMenuItem
+                            onClick={() => onDelete(file.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            {t('buttons.delete')}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

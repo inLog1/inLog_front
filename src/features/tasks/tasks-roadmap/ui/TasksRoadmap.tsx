@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useTaskOperations } from '../../../org-project-selector/model/useWorkspaceSection'
+import { Button } from '../../../../shared/ui/button'
 import { taskApi, useGetTasksQuery, useUpdateTaskMutation } from '../../../../entities/task/model/taskSlice'
 import type { TasksFilterParams } from '../../../../entities/task/model/types'
 import { DATE_REQUEST_FORMAT } from '../../../../shared/config/constants'
@@ -24,11 +26,11 @@ import './TaskRoadmap.css'
 
 const CONTAINER_HEIGHT = 'calc(100vh - 200px)'
 
-function TasksRoadmap() {
+function TasksRoadmap({ projectId, organizationId }: { projectId: number; organizationId: number }) {
     const { t, i18n } = useTranslation()
+    const operations = useTaskOperations(organizationId, projectId)
     const { theme } = useTheme()
     const [searchParams] = useSearchParams()
-    const projectId = searchParams.get('project')
     const dateFrom = searchParams.get('date_from')
     const dateTo = searchParams.get('date_to')
     const [updateTask] = useUpdateTaskMutation()
@@ -49,8 +51,8 @@ function TasksRoadmap() {
 
     const refApi = useRef<IApi | null>(null);
 
-    const { data: tasksData, isLoading } = useGetTasksQuery({
-        projectId: Number(projectId),
+    const { data: tasksData, isLoading, isError, refetch } = useGetTasksQuery({
+        projectId,
         params: { is_template: false, ...filterParams },
     }, { skip: !projectId })
 
@@ -132,11 +134,16 @@ function TasksRoadmap() {
     const GanttWrapper = theme === 'dark' ? WillowDark : Willow
 
     const handleUpdateTask = async (event: any) => {
+        if (!operations.update) {
+            toast.error(t('tasks-page.no-update'))
+            dispatch(taskApi.util.invalidateTags(['Tasks']))
+            return
+        }
         let toastId: string | number | undefined;
         try {
             toastId = toast.loading(t('notice-list.saving-task-data'))
             await updateTask({
-                projectId: Number(projectId),
+                projectId,
                 taskSlug: event.task.slug,
                 data: {
                     due_date_start: formatDate(event.task.start, DATE_REQUEST_FORMAT),
@@ -160,6 +167,7 @@ function TasksRoadmap() {
     return (
         <div className="flex flex-col gap-4 pt-1">
             <RoadmapControls
+                projectId={projectId}
                 disabled={isLoading}
                 initialValues={{
                     limit: 100,
@@ -192,6 +200,14 @@ function TasksRoadmap() {
                                 />
                             </GanttWrapper>
                         </Locale>
+                    ) : isError ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-3" role="alert">
+                            <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">{t('workspace.section-error')}</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+                                {t('workspace.retry')}
+                            </Button>
+                        </div>
                     ) : (isLoading) ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                             <Clock className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 import type { AppDispatch } from '../../../app/store/store'
-import { ACCESS_TOKEN } from '../../../shared/config/constants'
+import { getApiMode } from '../../../shared/config/runtime'
+import { readAccessToken } from '../../../shared/api/session-storage'
 import { notificationApi } from './notificationSlice'
 import type { Notification } from './types'
 import { getNotificationsWsUrl } from '../lib/get-notifications-ws-url'
+import { registerNotificationSocketStop } from './socket-control'
 
 const RECONNECT_DELAY_MS = 5000
 
@@ -14,17 +16,20 @@ export function useNotificationsWebSocket(enabled = true) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || getApiMode() === 'mock') return
 
-    const tokenRaw = localStorage.getItem(ACCESS_TOKEN)
-    if (!tokenRaw) return
+    const token = readAccessToken()
+    if (!token) return
 
-    let token: string
-    try {
-      token = JSON.parse(tokenRaw) as string
-    } catch {
-      return
+    const stop = () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      wsRef.current?.close()
+      wsRef.current = null
     }
+    const unregister = registerNotificationSocketStop(stop)
 
     const connect = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return
@@ -66,12 +71,8 @@ export function useNotificationsWebSocket(enabled = true) {
     connect()
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-
-      wsRef.current?.close()
-      wsRef.current = null
+      unregister()
+      stop()
     }
   }, [dispatch, enabled])
 }

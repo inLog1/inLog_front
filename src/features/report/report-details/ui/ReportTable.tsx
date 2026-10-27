@@ -9,13 +9,16 @@ import type { AdminPanelReportTable } from "../../../../entities/admin/model/typ
 import { formatDate } from "date-fns"
 import { DATE_VIEW_FORMAT } from "../../../../shared/config/constants"
 
+export type ReportViewStatus = 'idle' | 'loading' | 'empty' | 'ready' | 'error' | 'forbidden'
+
 interface ReportTableProps {
     data: AdminPanelReportTable
     isLoading?: boolean
+    status?: ReportViewStatus
     onRefresh?: () => void
 }
 
-const ReportTable = ({ data, isLoading = false, onRefresh }: ReportTableProps) => {
+const ReportTable = ({ data, isLoading = false, status, onRefresh }: ReportTableProps) => {
     const { t } = useTranslation()
     const [refreshing, setRefreshing] = useState(false)
 
@@ -104,8 +107,9 @@ const ReportTable = ({ data, isLoading = false, onRefresh }: ReportTableProps) =
 
     const totalRecords = tableData.length
     const hasData = data && Object.keys(data).length > 0
+    const view: ReportViewStatus = status ?? (isLoading ? 'loading' : hasData ? 'ready' : 'empty')
 
-    if (isLoading && !hasData) {
+    if (view === 'loading') {
         return (
             <Card className="border border-border rounded-lg">
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -135,7 +139,14 @@ const ReportTable = ({ data, isLoading = false, onRefresh }: ReportTableProps) =
         )
     }
 
-    if (!hasData) {
+    if (view === 'idle' || view === 'empty' || view === 'error' || view === 'forbidden') {
+        const message = view === 'idle'
+            ? t('admin-page.report-idle')
+            : view === 'error'
+                ? t('admin-page.report-error')
+                : view === 'forbidden'
+                    ? t('admin-page.report-forbidden')
+                    : t('admin-page.report-empty')
         return (
             <Card className="border border-border rounded-lg">
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -158,7 +169,7 @@ const ReportTable = ({ data, isLoading = false, onRefresh }: ReportTableProps) =
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
                         <p className="text-muted-foreground">
-                            {t('admin-page.no-data')}
+                            {message}
                         </p>
                     </div>
                 </CardContent>

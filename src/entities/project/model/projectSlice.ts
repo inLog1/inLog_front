@@ -35,13 +35,6 @@ export const projectApi = createApi({
 
           getProjectById: builder.query<Project, number>({
             query: (id) => `projects/project/${id}/`,
-            async onQueryStarted(_, { queryFulfilled }) {
-              try {
-                  await queryFulfilled
-              } catch (error: any) {
-                  errorsHandler(error?.error)
-              }
-          },
             providesTags: (_result, _error, id) => [{ type: 'Project', id }],
           }),
 

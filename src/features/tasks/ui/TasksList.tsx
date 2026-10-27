@@ -16,9 +16,10 @@ interface Props {
   isTemplates: boolean
   filterParams: Partial<TasksFilterParams>
   selectTask: (task: Task) => void
-  deleteTask: (task: Task) => void
+  deleteTask?: (task: Task) => void
   createTemplate: (task: Task) => void
-  changeTaskStatus: (slug: string, status: 'completed' | 'incomplete') => void
+  changeTaskStatus?: (slug: string, status: 'completed' | 'incomplete') => void
+  updateDeniedReason?: string
   changePagination: (params: { limit: number; offset: number }) => void
   resetFilters: () => void
   pagination: {
@@ -42,6 +43,7 @@ const TasksList = ({
   deleteTask,
   createTemplate,
   changeTaskStatus,
+  updateDeniedReason,
   changePagination,
   resetFilters,
   pagination,
@@ -139,6 +141,7 @@ const TasksList = ({
                 deleteTask={deleteTask}
                 createTemplate={createTemplate}
                 changeStatus={changeTaskStatus}
+                updateDeniedReason={updateDeniedReason}
               />
             </div>
           )

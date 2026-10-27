@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 import { Loader2, Plus, Search, SortAsc, SortDesc, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,21 +14,23 @@ import { useCreateTaskMutation, useDeleteTaskMutation, useGetStatusesQuery, useG
 import { useGetProjectMembersQuery } from '../../../entities/project/model/projectSlice'
 import type { Task, TasksFilterParams } from '../../../entities/task/model/types'
 import { TaskDetails } from '../../../features/task-details'
-import { DEBOUNCE_DELAY } from '../../../shared/config/constants'
+import { useTaskOperations } from '../../../features/org-project-selector/model/useWorkspaceSection'
+import { DATE_REQUEST_FORMAT, DEBOUNCE_DELAY } from '../../../shared/config/constants'
 import useDebounce from '../../../shared/lib/hooks/use-deboucne'
 import { Input } from '../../../shared/ui/input'
+import { clearCreateTaskRequest, peekCreateTaskRequest } from '../model/compose-task'
 import type { TasksFilterValues } from '../model/types'
 import CreateTaskForm from './CreateTaskForm'
 import { TasksFilter } from './TasksFilter'
 import TasksList from './TasksList'
 
-export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | 'templates-page' }) {
+export default function Tasks({ type = 'tasks-page', projectId, organizationId }: { type?: 'tasks-page' | 'templates-page'; projectId: number; organizationId: number }) {
     const { t } = useTranslation()
+    const operations = useTaskOperations(organizationId, projectId)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isTemplates = type === 'templates-page'
 
-    const projectId = searchParams.get('project')
     const selectedTaskSlug = searchParams.get('task')
 
     const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -42,18 +45,18 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
         handleReset: () => void
     }>(null)
 
-    const { data: statuses } = useGetStatusesQuery({ projectId: Number(projectId) }, { skip: !projectId })
-    const { data: members } = useGetProjectMembersQuery(Number(projectId), { skip: !projectId })
-    const { data: tagsResponse } = useGetTaskTagsQuery({ projectId: Number(projectId), limit: 9999, is_orphan: false }, { skip: !projectId })
+    const { data: statuses } = useGetStatusesQuery({ projectId }, { skip: !projectId })
+    const { data: members } = useGetProjectMembersQuery(projectId, { skip: !projectId })
+    const { data: tagsResponse } = useGetTaskTagsQuery({ projectId, limit: 9999, is_orphan: false }, { skip: !projectId })
 
-    const { data: tasksData, isLoading: tasksLoading, isFetching: tasksFetching } = useGetTasksQuery({
-        projectId: Number(projectId),
+    const { data: tasksData, isLoading: tasksLoading, isFetching: tasksFetching, isError: tasksError, refetch: refetchTasks } = useGetTasksQuery({
+        projectId,
         params: { ...(filterParams ?? {}), ...{ is_template: isTemplates ? true : false } },
 
     }, { skip: !projectId })
 
     const { data: taskData, isFetching: taskFetching, isLoading: taskLoading } = useGetTaskQuery({
-        projectId: Number(projectId),
+        projectId,
         taskSlug: selectedTaskSlug || '',
     }, { skip: !projectId || !selectedTaskSlug })
 
@@ -61,15 +64,28 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
     const [createTask] = useCreateTaskMutation()
     const [updateTask] = useUpdateTaskMutation()
 
+    if (!operations.create && createModalOpen) setCreateModalOpen(false)
+
+    useEffect(() => {
+        if (isTemplates || !operations.settled || !peekCreateTaskRequest()) return
+        if (operations.create) setCreateModalOpen(true)
+        clearCreateTaskRequest()
+    }, [isTemplates, operations.create, operations.settled])
+
     const handleAddTask = async (name: string, priority: Task['priority']) => {
-        if (!Number(projectId)) {
+        if (!operations.create) {
+            toast.error(t('tasks-page.no-create'))
+            setCreateModalOpen(false)
+            return
+        }
+        if (!projectId) {
             toast.error(t('errors.select-project-first'))
             return
         }
 
         try {
             const newTask = await createTask({
-                projectId: Number(projectId),
+                projectId,
                 data: {
                     name: name.trim(),
                     priority,
@@ -101,6 +117,10 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
     }
 
     const handleChangeTaskStatus = async (slug: string, status: 'completed' | 'incomplete') => {
+        if (!operations.update) {
+            toast.error(t('tasks-page.no-update'))
+            return
+        }
         const targetStatus = statuses?.find((st) => status === 'completed' ? st.name_en === 'Closed' : st.name_en === 'No status')
         let toastId: string | number | undefined
         try {
@@ -110,7 +130,7 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
             }
             toastId = toast.loading(t('notice-list.changing-task-status'))
             await updateTask({
-                projectId: Number(projectId),
+                projectId,
                 taskSlug: slug,
                 data: {
                     status: targetStatus?.id
@@ -125,9 +145,13 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
     }
 
     const handleDeleteTask = async (task: Task) => {
+        if (!operations.delete) {
+            toast.error(t('tasks-page.no-delete'))
+            return
+        }
         try {
             await deleteTask({
-                projectId: Number(projectId),
+                projectId,
                 taskSlug: task.slug
             }).unwrap()
 
@@ -146,10 +170,19 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
     }
 
     const handleFilterChange = (filters: TasksFilterValues) => {
-        setFilterParams({
-            ...(filterParams ?? {}),
-            ...filters
-        } as TasksFilterParams)
+        const next: Partial<TasksFilterParams> = {
+            limit: filterParams.limit,
+            offset: 0,
+            ordering: filterParams.ordering,
+            name__icontains: filterParams.name__icontains,
+            taskType: filters.taskType,
+        }
+        if (filters.dateRange?.from) {
+            const from = format(filters.dateRange.from, DATE_REQUEST_FORMAT)
+            const to = filters.dateRange.to ? format(filters.dateRange.to, DATE_REQUEST_FORMAT) : from
+            next.created_at__range = `${from},${to}`
+        }
+        setFilterParams(next)
         searchParams.delete('task')
     }
 
@@ -204,12 +237,14 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
             statuses={statuses ?? []}
             members={members ?? []}
             taskSlug={selectedTaskSlug || ''}
+            projectId={projectId}
+            organizationId={organizationId}
         />
     }
 
     return (
         <ResizablePanelGroup
-            className="h-fit rounded-lg border border-border "
+            className="h-fit min-w-0 max-w-full overflow-hidden rounded-lg border border-border"
             orientation="horizontal"
         >
             <ResizablePanel
@@ -217,13 +252,23 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
             >
                 <div className="flex flex-col h-full ">
                     <div className="p-4 ">
-                        <div className="flex items-center justify-between mb-4">
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h1 className="text-2xl font-bold tracking-tight">
                                 {t(`${type}.title`)}
                             </h1>
-                            <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+                            <Dialog open={createModalOpen && operations.create} onOpenChange={(open) => {
+                                if (!operations.create) {
+                                    setCreateModalOpen(false)
+                                    return
+                                }
+                                setCreateModalOpen(open)
+                            }}>
                                 <DialogTrigger asChild>
-                                    <Button size="sm" disabled={tasksLoading || taskFetching || !projectId}>
+                                    <Button
+                                        size="sm"
+                                        disabled={tasksLoading || taskFetching || !projectId || !operations.create}
+                                        title={operations.create ? undefined : t('tasks-page.no-create')}
+                                    >
                                         <Plus className="h-4 w-4 mr-2" />
                                         {isTemplates ? t(`templates-page.create-template`) : t(`tasks-page.create-task`)}
                                     </Button>
@@ -282,15 +327,24 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
                             </div>
                         </div>
                     </div>
+                    {tasksError ? (
+                        <div className="m-4 rounded-lg border border-border p-6 text-center" role="alert">
+                            <p className="mb-4 text-sm text-muted-foreground">{t('workspace.section-error')}</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => void refetchTasks()}>
+                                {t('workspace.retry')}
+                            </Button>
+                        </div>
+                    ) : (
                     <TasksList
                         tasks={tasksData?.results || []}
                         filterParams={filterParams}
                         isTemplates={isTemplates}
                         selectedTaskSlug={selectedTaskSlug || undefined}
                         selectTask={handleSelectTask}
-                        deleteTask={handleDeleteTask}
+                        deleteTask={operations.delete ? handleDeleteTask : undefined}
                         createTemplate={createTemplate}  
-                        changeTaskStatus={handleChangeTaskStatus}
+                        changeTaskStatus={operations.update ? handleChangeTaskStatus : undefined}
+                        updateDeniedReason={operations.update ? undefined : t('tasks-page.no-update')}
                         changePagination={handlePaginationChange}
                         resetFilters={handleResetFilters}
                         isFetching={tasksFetching}
@@ -301,6 +355,7 @@ export default function Tasks({ type = 'tasks-page' }: { type?: 'tasks-page' | '
                             total: tasksData?.count || 0
                         }}
                     />
+                    )}
                 </div>
             </ResizablePanel>
 

@@ -7,9 +7,18 @@ import { useGetAdminPanelGroupsQuery } from "../../../../entities/admin/model/ad
 interface Props {
     tab: AdminPanelNodeTab
     organizationId: number
+    access: {
+        schemaCreate: boolean
+        schemaUpdate: boolean
+        schemaDelete: boolean
+        recordsRead: boolean
+        recordsCreate: boolean
+        recordsUpdate: boolean
+        recordsDelete: boolean
+    }
 }
 
-const ConstructorTab = ({ tab, organizationId }: Props) => {
+const ConstructorTab = ({ tab, organizationId, access }: Props) => {
     
     const { data: groups } = useGetAdminPanelGroupsQuery({
         structure_element: tab.id,
@@ -23,6 +32,7 @@ const ConstructorTab = ({ tab, organizationId }: Props) => {
             <div className="p-4 flex flex-col gap-6">
                 <ConstructorTableWrapper
                     groups={groups || []}
+                    access={access}
                     data={{
                         entityId: tab.id!,
                         name_en: tab.name_en,

@@ -31,6 +31,16 @@ export const organizationApi = createApi({
             },
             providesTags: ['Organization'],
           }),
+          getOrganizationById: builder.query<Organization, number>({
+            query: (id) => `organizations/organization/${id}/`,
+            transformResponse: (response: { id?: number; full_name?: string; short_name?: string; address?: string; role?: string | null }) => ({
+              id: Number(response?.id),
+              fullName: response?.full_name,
+              shortName: response?.short_name,
+              address: response?.address,
+              role: response?.role ?? null,
+            }),
+          }),
           addOrganization: builder.mutation<OrganizationResponse, Partial<OrganizationRequest>>({
             query: (data) => ({
               url: 'organizations/organization/',
@@ -49,4 +59,9 @@ export const organizationApi = createApi({
     }),
 })
 
-export const { useGetOrganizationsQuery, useAddOrganizationMutation, useDeleteOrganizationMutation } = organizationApi
+export const {
+  useGetOrganizationsQuery,
+  useGetOrganizationByIdQuery,
+  useAddOrganizationMutation,
+  useDeleteOrganizationMutation,
+} = organizationApi

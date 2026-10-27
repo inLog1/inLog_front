@@ -1,0 +1,16 @@
+---
+description: "inLog: границы FSD, данные и mocks"
+globs: "src/**/*.ts, src/**/*.tsx"
+alwaysApply: false
+---
+
+- Импорты только вниз по FSD; slices одного слоя не связывай напрямую. Композиция доменов в pages/app. Не создавай deprecated слой processes.
+- Не размазывай business access по shared. entities/access — permissions/scopes, app/routing — guards; entities/session — жизненный цикл сессии. Не импортируй app/store в новые entities/shared.
+- Используй public API новых slices. Существующие deep imports не меняй массово.
+- RTK Query — серверные данные, Redux — нужное глобальное client state, local state/RHF — черновики. Не дублируй query cache.
+- Новые endpoints можно подключать injectEndpoints к одному service; существующие восемь API и exports не объединять без отдельного этапа.
+- DTO current API не заменяй проектными моделями без adapters. Proposed API описывай явно и отдельно, не выдавай его за реализованный backend.
+- MSW стартует до render только в явном mock-mode. Непокрытые API-запросы блокируются с диагностикой; production backend не используется как fallback. WebSocket mock/live решается отдельно.
+- Session-bound данные изолируются при смене пользователя; query keys учитывают org/project. URL не является подтверждением доступа.
+- Schemas содержат стабильные IDs; переименование label не меняет ключ значения. FormSchema ссылается на TableSchema, Section на форму/таблицу; записи не копируются ради нового UI.
+- Конкретные имена новых папок выбирай по текущему этапу. Не создавай пустую архитектуру под весь будущий продукт.

@@ -3,15 +3,17 @@ import { useTranslation } from "react-i18next"
 import type { AdminPanelNode } from "../../../../entities/admin/model/types"
 import { MultiSelect, type MultiSelectOption } from "../../../../shared/ui/multiple-select"
 import { findAllParentNodes } from "../../constructor-tree/utils"
+import { displayedConnectionValues } from "../model/displayed-connection-values"
 
 interface Props {
     node: AdminPanelNode
     nodes: AdminPanelNode[]
     onChange: (node: AdminPanelNode) => void
+    disabled?: boolean
 }
 
 const ConstructorNodeConnections = (props: Props) => {
-    const { node, nodes, onChange } = props
+    const { node, nodes, onChange, disabled = false } = props
     const { t, i18n } = useTranslation()
     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
 
@@ -60,11 +62,14 @@ const ConstructorNodeConnections = (props: Props) => {
         onChange({...node, related_groups: value.map(Number)})
     }, [node, onChange])
 
+    const connectionValue = displayedConnectionValues(node.related_groups, connectionsOptions)
+
     return (
         <MultiSelect
             options={connectionsOptions}
-            value={node?.related_groups.map(group => group.toString())}
+            value={connectionValue}
             placeholder={t('admin-page.choose-related-nodes')}
+            disabled={disabled}
             onValueChange={handleChangeConnections}
         />
     )

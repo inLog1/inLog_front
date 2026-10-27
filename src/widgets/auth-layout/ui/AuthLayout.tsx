@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { SignHeader } from '../../../features/auth/ui/SignHeader';
+import { SignHeader } from '../../../features/auth/ui/SignHeader'
+import { AuthTopBar } from './AuthTopBar'
 
 interface AuthLayoutProps {
   children: ReactNode
@@ -7,10 +8,12 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div
-      className="min-h-screen flex flex-col bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/images/laboratory.jpg')" }}
-    >
+    <div className="auth-stage flex min-h-screen flex-col">
+      <AuthTopBar />
+      <div
+        className="flex min-h-0 flex-1 flex-col bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/images/laboratory.jpg')" }}
+      >
       <SignHeader />
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">
@@ -18,6 +21,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           {children}
         </div>
       </main>
+      </div>
     </div>
   )
 }
