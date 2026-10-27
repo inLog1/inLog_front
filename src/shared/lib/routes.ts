@@ -57,6 +57,9 @@ export const routes = {
       profile: () => '/settings/profile',
       organizationsAndProjects: () => '/settings/organizations-and-projects',
       notifications: () => '/settings/notifications',
+      access: () => '/settings/access',
+      accessRoleNew: () => '/settings/access/roles/new',
+      accessRole: (roleId: string) => `/settings/access/roles/${roleId}`,
     },
 
     geoMechanics: {

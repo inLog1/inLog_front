@@ -1,4 +1,5 @@
 import { platformApi } from '../../../shared/api/platformApi'
+import type { AccessDirectory, AccessRoleDetail, AccessRoleView, AssignmentWrite, RoleWrite } from './directory'
 import type { SessionAccess } from './types'
 
 export type InstallationPhase = 'uninitialized' | 'owner-assigned' | 'configuring' | 'ready'
@@ -8,6 +9,11 @@ export type InstallationStatus = {
   schemaVersion: number
   /** Mock-only. True when another tab holds the writer lease. */
   writeLocked?: boolean
+  /**
+   * Mock-only. True when this environment has no cross-tab lock, so writes are refused.
+   * It is not the same as another tab holding the lease.
+   */
+  writesUnavailable?: boolean
 }
 
 export type AuthCapabilities = {
@@ -32,6 +38,49 @@ export const accessApi = platformApi.injectEndpoints({
       query: () => 'authentication/capabilities/',
       providesTags: ['Capabilities'],
     }),
+    /**
+     * Proposed mock contract. The page calls these hooks only when apiMode is mock.
+     */
+    getAccessDirectory: build.query<AccessDirectory, { scope: 'organization'; organizationId: number } | { scope: 'corporation' }>({
+      query: (arg) => arg.scope === 'corporation'
+        ? 'access/directory/?scope=corporation'
+        : `access/directory/?organization=${arg.organizationId}`,
+      providesTags: ['AccessControl'],
+    }),
+    getAccessRole: build.query<AccessRoleDetail, string>({
+      query: (roleId) => `access/roles/${roleId}/`,
+      providesTags: ['AccessControl'],
+    }),
+    createAccessRole: build.mutation<{ role: AccessRoleView }, RoleWrite>({
+      query: (body) => ({ url: 'access/roles/', method: 'POST', body }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
+    updateAccessRole: build.mutation<{ role: AccessRoleView }, { roleId: string; body: RoleWrite }>({
+      query: ({ roleId, body }) => ({ url: `access/roles/${roleId}/`, method: 'PATCH', body }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
+    deleteAccessRole: build.mutation<{ deleted: string }, { roleId: string; expectedAccessVersion?: number }>({
+      query: ({ roleId, expectedAccessVersion }) => ({
+        url: expectedAccessVersion == null
+          ? `access/roles/${roleId}/`
+          : `access/roles/${roleId}/?expectedAccessVersion=${expectedAccessVersion}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
+    createAccessAssignment: build.mutation<{ assignment: AccessDirectory['assignments'][number]; idempotent: boolean }, AssignmentWrite>({
+      query: (body) => ({ url: 'access/assignments/', method: 'POST', body }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
+    revokeAccessAssignment: build.mutation<{ revoked: string }, { assignmentId: string; expectedAccessVersion?: number }>({
+      query: ({ assignmentId, expectedAccessVersion }) => ({
+        url: expectedAccessVersion == null
+          ? `access/assignments/${assignmentId}/`
+          : `access/assignments/${assignmentId}/?expectedAccessVersion=${expectedAccessVersion}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
   }),
 })
 
@@ -39,4 +88,11 @@ export const {
   useGetSessionAccessQuery,
   useGetInstallationStatusQuery,
   useGetAuthCapabilitiesQuery,
+  useGetAccessDirectoryQuery,
+  useGetAccessRoleQuery,
+  useCreateAccessRoleMutation,
+  useUpdateAccessRoleMutation,
+  useDeleteAccessRoleMutation,
+  useCreateAccessAssignmentMutation,
+  useRevokeAccessAssignmentMutation,
 } = accessApi

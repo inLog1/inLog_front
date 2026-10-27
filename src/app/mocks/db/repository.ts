@@ -24,6 +24,17 @@ export class MockWriterHeldError extends Error {
   }
 }
 
+/**
+ * The page has no cross-tab lock API. The in-memory lock only exists inside
+ * this JavaScript realm, so it is not used as a substitute and writes are refused.
+ */
+export class MockWriterUnavailableError extends Error {
+  constructor() {
+    super('This environment has no cross-tab lock API. A lock kept inside one page does not exclude other tabs, so mock writes are refused.')
+    this.name = 'MockWriterUnavailableError'
+  }
+}
+
 export class StaleMockWriteError extends Error {
   constructor() {
     super('Mock write was based on an older snapshot')
@@ -32,8 +43,17 @@ export class StaleMockWriteError extends Error {
 }
 
 export type MockRead =
-  | { ok: true; state: MockState; writeLocked?: boolean }
+  | { ok: true; state: MockState; writeLocked?: boolean; writesUnavailable?: boolean }
   | { ok: false; reason: 'schema-mismatch'; foundVersion: number }
+
+type LockLookup = () => { request?: LockManager['request'] } | null | undefined
+
+let lockLookup: LockLookup = () => (typeof navigator === 'undefined' ? undefined : navigator.locks)
+
+/** Test seam. Null restores navigator.locks. An empty lookup is the browser without the API. */
+export function setMockLockSource(source: LockLookup | null): void {
+  lockLookup = source ?? (() => (typeof navigator === 'undefined' ? undefined : navigator.locks))
+}
 
 type WriterLease = { ownerId: string; until: number }
 
@@ -50,7 +70,110 @@ type Controls<T> = {
 // Serializes mock operations in this JavaScript realm only.
 // Other tabs are refused with the writer lease below; this queue is not their lock.
 let queue: Promise<unknown> = Promise.resolve()
-let writerId = `tab-${crypto.randomUUID()}`
+
+/**
+ * sessionStorage keeps the tab lineage across reload. A duplicated tab copies
+ * that value, so the lineage alone cannot name the single live document.
+ * Each document also has a memory-only epoch. The exclusive lock is what
+ * proves this document is the live holder; the lease still blocks a different lineage.
+ */
+const WRITER_SESSION_KEY = 'inlog:mock:writer-tab'
+let writerSession: string | null = null
+
+function readWriterSession(): string | null {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const stored = sessionStorage.getItem(WRITER_SESSION_KEY)
+      if (stored) return stored
+    }
+  } catch {
+    // Private mode still keeps the lineage for this document.
+  }
+  return writerSession
+}
+
+function writeWriterSession(id: string): void {
+  writerSession = id
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(WRITER_SESSION_KEY, id)
+  } catch {
+    // The in-memory copy remains for this document.
+  }
+}
+
+function acceptableLineage(id: string | null): id is string {
+  return id != null && id.startsWith('tab-') && !id.includes('#') && id.length > 4 && id.length < 80
+}
+
+function loadOrCreateLineage(): string {
+  const existing = readWriterSession()
+  if (acceptableLineage(existing)) return existing
+  const created = `tab-${crypto.randomUUID()}`
+  writeWriterSession(created)
+  return created
+}
+
+function createEpoch(): string {
+  return `epoch-${crypto.randomUUID()}`
+}
+
+function lineageOf(ownerId: string): string {
+  const split = ownerId.indexOf('#')
+  return split === -1 ? ownerId : ownerId.slice(0, split)
+}
+
+let lineageId = loadOrCreateLineage()
+let epochId = createEpoch()
+let writerId = `${lineageId}#${epochId}`
+
+type HeldWriterLock = { ownerId: string; release: (() => void) | null }
+const heldWriterLocks = new Map<string, HeldWriterLock>()
+
+function writerLockName(namespace: string): string {
+  return `inlog-mock-writer:${namespace}`
+}
+
+function releaseWriterLock(namespace: string, ownerId = writerId): void {
+  const held = heldWriterLocks.get(namespace)
+  if (!held || held.ownerId !== ownerId) return
+  heldWriterLocks.delete(namespace)
+  held.release?.()
+}
+
+function releaseEveryWriterLock(): void {
+  for (const namespace of [...heldWriterLocks.keys()]) {
+    const held = heldWriterLocks.get(namespace)
+    heldWriterLocks.delete(namespace)
+    held?.release?.()
+  }
+}
+
+function rememberHeldLock(namespace: string, release: (() => void) | null): void {
+  heldWriterLocks.set(namespace, { ownerId: writerId, release })
+}
+
+async function acquireWriterLock(namespace: string): Promise<'held' | 'blocked' | 'unavailable'> {
+  const locks = lockLookup()
+  if (!locks?.request) return 'unavailable'
+  const held = heldWriterLocks.get(namespace)
+  if (held?.ownerId === writerId) return 'held'
+  if (held) return 'blocked'
+  return new Promise((resolve) => {
+    void locks.request!(writerLockName(namespace), { ifAvailable: true }, (lock) => {
+      if (!lock) {
+        resolve('blocked')
+        return
+      }
+      rememberHeldLock(namespace, null)
+      resolve('held')
+      return new Promise<void>((release) => {
+        const current = heldWriterLocks.get(namespace)
+        if (current?.ownerId === writerId) current.release = release
+        else release()
+      })
+    })
+  })
+}
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {
   const run = queue.then(task, task)
@@ -62,9 +185,45 @@ export function currentMockWriterId(): string {
   return writerId
 }
 
-/** Test seam: this realm pretends to be another tab. */
+/** Test seam: this realm pretends to be another tab. It does not rewrite the session lineage. */
 export function setMockWriterId(id: string): void {
   writerId = id
+  const split = id.indexOf('#')
+  if (split === -1) {
+    lineageId = id
+    epochId = ''
+    return
+  }
+  lineageId = id.slice(0, split)
+  epochId = id.slice(split + 1)
+}
+
+/** Remembers the lineage that a reload of this tab will inherit. The epoch stays in memory. */
+export function rememberMockWriterSession(): void {
+  writeWriterSession(lineageId)
+}
+
+/**
+ * Simulates a new document in the same tab.
+ * The old document's lock is gone. The lineage comes back from the session slot
+ * with a new epoch, so its own unexpired lease can be reclaimed. A foreign lease cannot.
+ */
+export function reloadMockWriterIdentity(): string {
+  releaseEveryWriterLock()
+  lineageId = loadOrCreateLineage()
+  epochId = createEpoch()
+  writerId = `${lineageId}#${epochId}`
+  return writerId
+}
+
+/**
+ * Simulates a second live document that inherited this tab's sessionStorage.
+ * The first document keeps its lock, so the copy must not become a writer.
+ */
+export function duplicateMockWriterDocument(): string {
+  epochId = createEpoch()
+  writerId = `${lineageId}#${epochId}`
+  return writerId
 }
 
 function factory(): IDBFactory {
@@ -150,8 +309,11 @@ function isWriterLease(value: unknown): value is WriterLease {
   return typeof lease.ownerId === 'string' && typeof lease.until === 'number'
 }
 
-function foreignLease(value: unknown, now: number): boolean {
-  return isWriterLease(value) && value.ownerId !== writerId && value.until > now
+function claimAllowed(lease: unknown, now: number, lockHeld: boolean): boolean {
+  if (!lockHeld) return false
+  if (!isWriterLease(lease) || lease.until <= now) return true
+  if (lease.ownerId === writerId) return true
+  return lineageOf(lease.ownerId) === lineageId
 }
 
 function ourLease(now: number): WriterLease {
@@ -210,11 +372,11 @@ async function readUnlocked(namespace: string): Promise<MockRead | { ok: false; 
   })
 }
 
-async function ensureUnlocked(namespace: string): Promise<MockRead> {
+async function ensureUnlocked(namespace: string, lockHeld: boolean): Promise<MockRead> {
   return openAndRun(namespace, 'readwrite', (store, controls) => {
     readBoth(store, (root, writer) => {
       const now = Date.now()
-      const locked = foreignLease(writer, now)
+      const locked = !claimAllowed(writer, now, lockHeld)
       const viewed = viewRecord(root)
       if (!viewed.ok && viewed.reason === 'empty') {
         if (locked) {
@@ -245,11 +407,12 @@ async function ensureUnlocked(namespace: string): Promise<MockRead> {
 async function updateUnlocked(
   mutator: (state: MockState) => MockState,
   namespace: string,
+  lockHeld: boolean,
 ): Promise<MockState> {
   return openAndRun(namespace, 'readwrite', (store, controls) => {
     readBoth(store, (root, writer) => {
       const now = Date.now()
-      if (foreignLease(writer, now)) {
+      if (!claimAllowed(writer, now, lockHeld)) {
         controls.fail(new MockWriterHeldError())
         return
       }
@@ -296,12 +459,12 @@ async function updateUnlocked(
   })
 }
 
-async function resetUnlocked(namespace: string): Promise<MockState> {
+async function resetUnlocked(namespace: string, lockHeld: boolean): Promise<MockState> {
   return openAndRun(namespace, 'readwrite', (store, controls) => {
     const writerRequest = store.get(WRITER_KEY)
     writerRequest.onsuccess = () => {
       const now = Date.now()
-      if (foreignLease(writerRequest.result, now)) {
+      if (!claimAllowed(writerRequest.result, now, lockHeld)) {
         controls.fail(new MockWriterHeldError())
         return
       }
@@ -318,19 +481,48 @@ export async function readMockState(namespace = MOCK_NAMESPACE): Promise<MockRea
   return enqueue(() => readUnlocked(namespace))
 }
 
+async function releasingRefusal<T>(lockHeld: boolean, namespace: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  } catch (error) {
+    if (lockHeld && error instanceof MockWriterHeldError) releaseWriterLock(namespace)
+    throw error
+  }
+}
+
 export async function ensureMockState(namespace = MOCK_NAMESPACE): Promise<MockRead> {
-  return enqueue(() => ensureUnlocked(namespace))
+  return enqueue(async () => {
+    const lock = await acquireWriterLock(namespace)
+    if (lock === 'unavailable') {
+      const read = await readUnlocked(namespace)
+      if (!read.ok && read.reason === 'empty') throw new MockWriterUnavailableError()
+      if (!read.ok) return read
+      return { ok: true, state: read.state, writeLocked: false, writesUnavailable: true }
+    }
+    const lockHeld = lock === 'held'
+    const result = await releasingRefusal(lockHeld, namespace, () => ensureUnlocked(namespace, lockHeld))
+    if (result.ok && result.writeLocked && lockHeld) releaseWriterLock(namespace)
+    return result
+  })
 }
 
 export async function updateMockState(
   mutator: (state: MockState) => MockState,
   namespace = MOCK_NAMESPACE,
 ): Promise<MockState> {
-  return enqueue(() => updateUnlocked(mutator, namespace))
+  return enqueue(async () => {
+    const lock = await acquireWriterLock(namespace)
+    if (lock === 'unavailable') throw new MockWriterUnavailableError()
+    return releasingRefusal(lock === 'held', namespace, () => updateUnlocked(mutator, namespace, lock === 'held'))
+  })
 }
 
 export async function resetMockNamespace(namespace = MOCK_NAMESPACE): Promise<MockState> {
-  return enqueue(() => resetUnlocked(namespace))
+  return enqueue(async () => {
+    const lock = await acquireWriterLock(namespace)
+    if (lock === 'unavailable') throw new MockWriterUnavailableError()
+    return releasingRefusal(lock === 'held', namespace, () => resetUnlocked(namespace, lock === 'held'))
+  })
 }
 
 /** Plants a raw record for tests. It does not migrate and does not take the writer lease. */
@@ -342,10 +534,26 @@ export async function replaceMockRecord(namespace: string, value: unknown): Prom
   }))
 }
 
-export async function isMockWriteLocked(namespace = MOCK_NAMESPACE): Promise<boolean> {
-  return enqueue(() => openAndRun(namespace, 'readonly', (store, controls) => {
+async function readWriterLease(namespace: string): Promise<unknown> {
+  return openAndRun(namespace, 'readonly', (store, controls) => {
     const request = store.get(WRITER_KEY)
-    request.onsuccess = () => controls.succeed(foreignLease(request.result, Date.now()))
+    request.onsuccess = () => controls.succeed(request.result)
     request.onerror = () => controls.fail(request.error ?? new Error('IndexedDB read failed'))
-  }))
+  })
+}
+
+export async function mockWriteStatus(namespace = MOCK_NAMESPACE): Promise<{ writeLocked: boolean; writesUnavailable: boolean }> {
+  return enqueue(async () => {
+    const lock = await acquireWriterLock(namespace)
+    if (lock === 'unavailable') return { writeLocked: false, writesUnavailable: true }
+    const lease = await readWriterLease(namespace)
+    const allowed = claimAllowed(lease, Date.now(), lock === 'held')
+    if (!allowed && lock === 'held') releaseWriterLock(namespace)
+    return { writeLocked: !allowed, writesUnavailable: false }
+  })
+}
+
+export async function isMockWriteLocked(namespace = MOCK_NAMESPACE): Promise<boolean> {
+  const status = await mockWriteStatus(namespace)
+  return status.writeLocked
 }

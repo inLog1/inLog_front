@@ -77,6 +77,7 @@ export function useTaskOperations(organizationId: number | null, projectId: numb
   return {
     ...visibleTaskOperations(grants, target, mockMode),
     actorId: session.subjectId,
+    settled: !mockMode || access.isError || (access.isSuccess && access.data?.accessState === 'ready'),
   }
 }
 

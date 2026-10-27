@@ -1,4 +1,5 @@
 import { http, passthrough, type HttpHandler } from 'msw'
+import { accessHandlers } from './access/handlers'
 import { authHandlers } from './auth/handlers'
 import { constructorHandlers } from './constructor/handlers'
 import { guardOutboundRequest } from './outbound-guard'
@@ -8,6 +9,7 @@ import { reportHandlers } from './reports/handlers'
 import { taskHandlers } from './tasks/handlers'
 
 export const handlers: HttpHandler[] = [
+  ...accessHandlers,
   ...authHandlers,
   ...taskHandlers,
   ...constructorHandlers,

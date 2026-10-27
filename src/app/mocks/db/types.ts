@@ -1,4 +1,5 @@
 import type {
+  AccessAuditEntry,
   AccessRole,
   DelegationGrant,
   RoleAssignment,
@@ -201,6 +202,8 @@ export type MockState = {
   assignments: RoleAssignment[]
   delegations: DelegationGrant[]
   systemCapabilities: SystemCapability[]
+  /** Empty on a migrated snapshot. Migration does not invent entries or grants. */
+  accessAudit?: AccessAuditEntry[]
   sessions: MockSessionRecord[]
   taskStatuses: MockTaskStatus[]
   taskTags: MockTaskTag[]

@@ -11,6 +11,8 @@ export type SessionState = {
   error: 'network' | 'server' | null
   schemaMismatch: boolean
   mockWriteLocked: boolean
+  /** Mock writes are refused because the browser has no cross-tab lock. */
+  mockWritesUnavailable: boolean
   /** User logout must not copy the workspace query into the login return path. */
   omitWorkspaceReturn: boolean
 }

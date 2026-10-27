@@ -249,16 +249,30 @@ export function hasInstallationCapability(
   return installationCorporationId(snapshot) === corporationId
 }
 
+/**
+ * Administrative gate for roles and assignments in one scope.
+ * Installation capability covers the corporation and its organizations and projects.
+ * It does not make can() true for ordinary resources.
+ * An organization administrator still needs assignments.update on that scope.
+ */
 export function canManageAssignment(
   snapshot: AccessSnapshot,
   actorId: number,
   scope: AccessScope,
 ): boolean {
   if (!scopeIsCanonical(scope, snapshot.projects, snapshot.organizations)) return false
-  if (scope.type === 'corporation') {
-    return hasInstallationCapability(snapshot, actorId, scope.corporationId)
-  }
+  if (scope.type === 'own') return can(snapshot, actorId, 'assignments', 'update', scope)
+  if (hasInstallationCapability(snapshot, actorId, scope.corporationId)) return true
+  if (scope.type === 'corporation') return false
   return can(snapshot, actorId, 'assignments', 'update', scope)
+}
+
+/** Older roles have no ownerScope. They belong to the installation, not to an organization. */
+export function roleOwnerScope(role: AccessRole, snapshot: AccessSnapshot): AccessScope | null {
+  if (role.ownerScope) return role.ownerScope
+  const corporationId = installationCorporationId(snapshot)
+  if (corporationId == null) return null
+  return { type: 'corporation', corporationId }
 }
 
 export function assignmentDenial(

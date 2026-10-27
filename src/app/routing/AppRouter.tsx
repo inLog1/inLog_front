@@ -10,7 +10,8 @@ import LoginPage from '../../pages/auth/login'
 import PasswordRecoveryPage from '../../pages/auth/password-recovery'
 import RecoveryMessagePage from '../../pages/auth/recovery-message'
 import RegisterPage from '../../pages/auth/register'
-import DashboardPage from '../../pages/dashboard'
+import { HomePage } from '../home/HomePage'
+import { AccessPage, RoleEditorPage } from '../../pages/app/access'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
 import SchedulerPage from '../../pages/dashboard/scheduler'
 import TasksPage from '../../pages/dashboard/scheduler/tasks'
@@ -19,7 +20,7 @@ import SettingsPage from '../../pages/dashboard/settings'
 import OrganizationsAndProjectsPage from '../../pages/dashboard/settings/ogranizations-and-projects'
 import ProfilePage from '../../pages/dashboard/settings/profile'
 import { routes } from '../../shared/lib/routes'
-import { RootLayout } from '../../widgets/root-layout'
+import { AppShell } from '../shell/AppShell'
 import { AdminReportsPage } from '../../pages/admin/admin-reports'
 import { AdminUsersPage } from '../../pages/admin/admin-users'
 import { AdminMembersPage } from '../../pages/admin/admin-members'
@@ -60,8 +61,8 @@ export function AppRouter() {
           ) : null}
 
           <Route element={<RequireWorkspace />}>
-            <Route path={routes.dashboard()} element={<RootLayout />} >
-              <Route index element={<DashboardPage />} />
+            <Route path={routes.dashboard()} element={<AppShell />} >
+              <Route index element={<HomePage />} />
               <Route path={routes.scheduler.list()} element={<SchedulerPage />} >
                 <Route index element={<RedirectKeepingSearch to={routes.scheduler.tasks()} />} />
                 <Route path={routes.scheduler.tasks()} element={<TasksPage />} />
@@ -85,6 +86,9 @@ export function AppRouter() {
                 </Route>
               </Route>
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
+              <Route path={routes.settings.access()} element={<AccessPage />} />
+              <Route path={routes.settings.accessRoleNew()} element={<RoleEditorPage />} />
+              <Route path="/settings/access/roles/:roleId" element={<RoleEditorPage />} />
               <Route path={routes.settings.organizationsAndProjects()} element={<OrganizationsAndProjectsPage />} />
               <Route path={routes.settings.list()} element={<SettingsPage />}>
                 <Route index element={<RedirectKeepingSearch to={routes.settings.notifications()} />} />

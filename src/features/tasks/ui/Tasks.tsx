@@ -18,6 +18,7 @@ import { useTaskOperations } from '../../../features/org-project-selector/model/
 import { DATE_REQUEST_FORMAT, DEBOUNCE_DELAY } from '../../../shared/config/constants'
 import useDebounce from '../../../shared/lib/hooks/use-deboucne'
 import { Input } from '../../../shared/ui/input'
+import { clearCreateTaskRequest, peekCreateTaskRequest } from '../model/compose-task'
 import type { TasksFilterValues } from '../model/types'
 import CreateTaskForm from './CreateTaskForm'
 import { TasksFilter } from './TasksFilter'
@@ -64,6 +65,12 @@ export default function Tasks({ type = 'tasks-page', projectId, organizationId }
     const [updateTask] = useUpdateTaskMutation()
 
     if (!operations.create && createModalOpen) setCreateModalOpen(false)
+
+    useEffect(() => {
+        if (isTemplates || !operations.settled || !peekCreateTaskRequest()) return
+        if (operations.create) setCreateModalOpen(true)
+        clearCreateTaskRequest()
+    }, [isTemplates, operations.create, operations.settled])
 
     const handleAddTask = async (name: string, priority: Task['priority']) => {
         if (!operations.create) {
@@ -237,7 +244,7 @@ export default function Tasks({ type = 'tasks-page', projectId, organizationId }
 
     return (
         <ResizablePanelGroup
-            className="h-fit rounded-lg border border-border "
+            className="h-fit min-w-0 max-w-full overflow-hidden rounded-lg border border-border"
             orientation="horizontal"
         >
             <ResizablePanel
@@ -245,7 +252,7 @@ export default function Tasks({ type = 'tasks-page', projectId, organizationId }
             >
                 <div className="flex flex-col h-full ">
                     <div className="p-4 ">
-                        <div className="flex items-center justify-between mb-4">
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h1 className="text-2xl font-bold tracking-tight">
                                 {t(`${type}.title`)}
                             </h1>

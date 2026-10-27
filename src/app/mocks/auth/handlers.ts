@@ -3,7 +3,7 @@ import type { InstallationPhase } from '../../../entities/access/model/accessApi
 import type { AuthMode } from '../../../shared/config/runtime'
 import { resetMockNamespace, updateMockState } from '../db/repository'
 import type { MockFault } from '../db/types'
-import { bearer, commit, json, load, MOCK_PREFIX, persistenceFailure, positiveId, readJson, reply, writeLockedFlag } from '../http'
+import { bearer, commit, json, load, MOCK_PREFIX, persistenceFailure, positiveId, readJson, reply, writeSupport } from '../http'
 import {
   cancelMockSso,
   capabilitiesOf,
@@ -63,10 +63,12 @@ export const authHandlers: HttpHandler[] = [
   http.get(`${MOCK_PREFIX}/installation/status/`, async () => {
     const ready = await load('installation/status/')
     if (ready instanceof Response) return ready
+    const writing = await writeSupport()
     return json({
       phase: ready.installationPhase,
       schemaVersion: ready.schemaVersion,
-      writeLocked: await writeLockedFlag(),
+      writeLocked: writing.writeLocked,
+      writesUnavailable: writing.writesUnavailable,
     })
   }),
 

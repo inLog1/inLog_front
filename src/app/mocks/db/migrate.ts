@@ -9,7 +9,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 1 is the snapshot from before delegationGrantIds was stored.
  * Version 2 has no task catalog. Missing task arrays are filled once.
  * Version 3 has no constructor arrays. Missing arrays are added empty once.
- * Role grant lists already stored are not extended.
+ * Version 4 has no access audit. An empty audit is added once.
+ * Role grant lists already stored are not extended. ownerScope is not filled in.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -28,18 +29,25 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const tasksChanged = withTasks !== record
   const withConstructor = ensureConstructorCatalog(withTasks)
   const constructorChanged = withConstructor !== withTasks
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged) {
+  const withAudit = ensureAccessAudit(withConstructor)
+  const auditChanged = withAudit !== withConstructor
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withConstructor,
+      ...withAudit,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
     },
   }
+}
+
+function ensureAccessAudit(record: MockState): MockState {
+  if (Array.isArray(record.accessAudit)) return record
+  return { ...record, accessAudit: [] }
 }
 
 function ensureConstructorCatalog(record: MockState): MockState {

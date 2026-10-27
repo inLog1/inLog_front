@@ -11,6 +11,7 @@ const initialState: SessionState = {
   error: null,
   schemaMismatch: false,
   mockWriteLocked: false,
+  mockWritesUnavailable: false,
   omitWorkspaceReturn: false,
 }
 
@@ -23,6 +24,7 @@ const sessionSlice = createSlice({
       state.subjectId = null
       state.error = null
       state.mockWriteLocked = false
+      state.mockWritesUnavailable = false
       state.omitWorkspaceReturn = false
     },
     advanceGeneration(state) {
@@ -63,6 +65,9 @@ const sessionSlice = createSlice({
     },
     setMockWriteLocked(state, action: PayloadAction<boolean>) {
       state.mockWriteLocked = action.payload
+    },
+    setMockWritesUnavailable(state, action: PayloadAction<boolean>) {
+      state.mockWritesUnavailable = action.payload
     },
     bumpEpoch(state) {
       state.epoch += 1

@@ -3,16 +3,21 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { routes } from '../../../shared/lib/routes'
+import { cn } from '../../../shared/lib/utils'
 import { Button } from '../../../shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
 import { type OrgProjectSelectorType, useEnsureOrgProjectParams } from '../model/useEnsureOrgProjectParams'
 
 interface Props {
     type?: OrgProjectSelectorType
+    appearance?: 'panel' | 'toolbar'
+    persist?: boolean
 }
 
 const OrgProjectSelector = ({
     type = 'all',
+    appearance = 'panel',
+    persist = true,
 }: Props) => {
     const { t } = useTranslation()
     const {
@@ -27,7 +32,7 @@ const OrgProjectSelector = ({
         selectOrganization,
         selectProject,
         refetch,
-    } = useEnsureOrgProjectParams(type)
+    } = useEnsureOrgProjectParams(type, { persist })
 
     const handleOrgChange = (value: string) => {
         const organizationId = Number(value)
@@ -39,6 +44,58 @@ const OrgProjectSelector = ({
         const projectId = Number(value)
         if (!Number.isInteger(projectId)) return
         selectProject(projectId)
+    }
+
+    const showOrganization = type === 'all' || type === 'organization'
+    const showProject = type === 'all' || type === 'project'
+
+    if (appearance === 'toolbar') {
+        if (status === 'error' && (reason === 'organizations-error' || reason === 'access-error')) {
+            return (
+                <Button type="button" variant="outline" size="sm" className="h-8 max-w-full" onClick={refetch}>
+                    {t('workspace.retry')}
+                </Button>
+            )
+        }
+        if (orgsLoading) {
+            return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-label={t('workspace.loading')} />
+        }
+        return (
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                {showOrganization && (
+                    <Select value={currentOrgId ? String(currentOrgId) : undefined} onValueChange={handleOrgChange}>
+                        <SelectTrigger className="h-8 w-[min(100%,11rem)] min-w-[8rem] bg-background" aria-label={t('scheduler-page.organization')}>
+                            <SelectValue placeholder={t('scheduler-page.select-organization-first')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {organizations.map((org) => (
+                                <SelectItem key={org.id} value={org.id.toString()}>
+                                    {org.fullName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                {showProject && (
+                    <Select
+                        value={currentProjectId ? String(currentProjectId) : undefined}
+                        onValueChange={handleProjectChange}
+                        disabled={!currentOrgId || (!projectsLoading && projects.length === 0)}
+                    >
+                        <SelectTrigger className={cn('h-8 w-[min(100%,11rem)] min-w-[8rem] bg-background')} aria-label={t('scheduler-page.projects')}>
+                            <SelectValue placeholder={projectsLoading ? t('workspace.loading') : t('scheduler-page.select-project-first')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {projects.map((proj) => (
+                                <SelectItem key={proj.id} value={proj.id.toString()}>
+                                    {proj.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
+        )
     }
 
     if (status === 'error' && (reason === 'organizations-error' || reason === 'access-error')) {

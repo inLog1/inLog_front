@@ -1,165 +1,119 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckSquare,
-  FolderKanban,
-  Folders,
-  LayoutDashboard,
-  Monitor,
-  Moon,
-  PanelLeftClose,
-  PieChart,
-  Settings,
-  ShieldPlus,
-  Sun,
-  TowerControl,
-  UserCheck,
-  Users,
-  Wrench,
-} from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { selectIsPlatformAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
-import { useWorkspaceHref } from '../../features/org-project-selector/model/useEnsureOrgProjectParams'
-import type { WorkspaceLinkScope } from '../../features/org-project-selector/model/workspace-context'
-import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
+import { LogOut, PanelLeftClose } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { selectUser, selectUserFullName } from '../../entities/user/model/selectors'
+import { requestLogout } from '../../shared/api/session-events'
 import { cn } from '../../shared/lib/utils'
-import { Button } from '../../shared/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../shared/ui/dropdown-menu'
 import { AppLogo } from '../../shared/ui/app-logo'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../../shared/ui/tooltip'
-import { UserMenu } from '../header/ui/UserMenu'
+import { Button } from '../../shared/ui/button'
+import { toast } from 'sonner'
+import { ThemeMenu } from './ThemeMenu'
 
-interface SidebarProps {
-  onCollapse: () => void
+export type SidebarLinkModel = {
+  id: string
+  label: string
+  to: string
+  icon: LucideIcon
+  end?: boolean
 }
 
-export function Sidebar({ onCollapse }: SidebarProps) {
+export type SidebarGroupModel = {
+  id: string
+  label: string
+  items: SidebarLinkModel[]
+}
+
+type SidebarProps = {
+  homeTo: string
+  groups: SidebarGroupModel[]
+  profileTo: string
+  onNavigate?: () => void
+}
+
+export function Sidebar({ homeTo, groups, profileTo, onNavigate }: SidebarProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const isPlatformAdmin = useSelector(selectIsPlatformAdmin)
   const user = useSelector(selectUser)
   const userName = useSelector(selectUserFullName) || user?.email
-  const userRole = useSelector(selectUserRole)
-  const roleLabel = userRole
-    ? t(`admin-page.platform-roles.${userRole}`, { defaultValue: userRole })
-    : null
-
-  const isPlatform = isPlatformConsolePath(location.pathname)
-  const href = useWorkspaceHref()
-
-  const clientItems: { label: string; path: string; scope: WorkspaceLinkScope; icon: typeof LayoutDashboard; end: boolean }[] = [
-    { label: t('sidebar.dashboard'), path: routes.dashboard(), scope: 'app', icon: LayoutDashboard, end: true },
-    { label: t('admin-page.constructor'), path: routes.admin.constructor(), scope: 'organization', icon: Wrench, end: false },
-    { label: t('admin-page.reports'), path: routes.admin.reports(), scope: 'organization', icon: PieChart, end: false },
-    { label: t('sidebar.organizations-and-projects'), path: routes.settings.organizationsAndProjects(), scope: 'app', icon: Folders, end: false },
-    { label: t('sidebar.scheduler'), path: routes.scheduler.list(), scope: 'project', icon: FolderKanban, end: false },
-    { label: t('sidebar.geo-mechanics'), path: routes.geoMechanics.list(), scope: 'app', icon: TowerControl, end: false },
-    { label: t('sidebar.settings'), path: routes.settings.notifications(), scope: 'app', icon: Settings, end: false },
-  ]
-
-  const platformItems: { label: string; path: string; scope: WorkspaceLinkScope; icon: typeof Users }[] = [
-    { label: t('admin-page.users'), path: routes.admin.users(), scope: 'app', icon: Users },
-    { label: t('admin-page.members'), path: routes.admin.members(), scope: 'app', icon: UserCheck },
-    { label: t('sidebar.organizations-and-projects'), path: routes.admin.organizationsAndProjects(), scope: 'app', icon: Folders },
-    { label: t('admin-page.tasks'), path: routes.admin.tasks(), scope: 'app', icon: CheckSquare },
-  ]
-
-  const itemClass = (active: boolean) =>
-    cn(
-      'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle',
-      active && 'bg-shell-accent text-shell-accent-foreground hover:bg-shell-accent',
-    )
 
   return (
-    <aside className="relative flex h-full w-60 min-w-60 flex-col bg-shell text-shell-foreground">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
+    <aside className="flex h-full w-60 min-w-60 flex-col bg-shell text-shell-foreground">
+      <div className="flex items-center justify-between gap-2 border-b border-shell-line px-3 py-3">
+        <NavLink
+          to={homeTo}
+          onClick={onNavigate}
+          className="min-w-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent"
+          aria-label={t('home.title')}
+        >
+          <AppLogo />
+        </NavLink>
+        {onNavigate && (
+          <Button
             type="button"
-            onClick={onCollapse}
-            aria-label={t('sidebar.collapse')}
-            aria-controls="app-sidebar"
-            aria-expanded
-            className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-shell-subtle text-shell-foreground transition-colors hover:bg-shell-subtle-hover"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground md:hidden"
+            onClick={onNavigate}
+            aria-label={t('shell.close-menu')}
           >
             <PanelLeftClose className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right">{t('sidebar.collapse')}</TooltipContent>
-      </Tooltip>
-
-      <div className="border-b border-shell-line px-3 py-3">
-        <AppLogo
-          className="px-1"
-          subtitle={isPlatformAdmin ? (
-            <div className="mt-1 text-xs leading-tight text-shell-muted">
-              {isPlatform ? t('sidebar.platform-console') : t('sidebar.user-area')}
-            </div>
-          ) : null}
-        />
-
-        {isPlatformAdmin && (
-          <button
-            type="button"
-            onClick={() => navigate(href(isPlatform ? routes.dashboard() : routes.admin.list(), 'app'))}
-            className="mt-3 flex w-full cursor-pointer items-center gap-2 rounded-lg bg-shell-subtle px-3 py-2 text-left text-sm hover:bg-shell-subtle-hover"
-          >
-            {isPlatform ? (
-              <ArrowLeft className="h-4 w-4 shrink-0" />
-            ) : (
-              <ShieldPlus className="h-4 w-4 shrink-0" />
-            )}
-            <span className="min-w-0 flex-1 truncate">
-              {isPlatform ? t('sidebar.user-area') : t('sidebar.platform-console')}
-            </span>
-            {!isPlatform && <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />}
-          </button>
+          </Button>
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
-        {isPlatform
-          ? platformItems.map((item) => (
+      <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-3" aria-label={t('shell.navigation')}>
+        {groups.map((group) => (
+          <div key={group.id} className="space-y-1">
+            {group.id !== 'primary' && (
+              <div className="px-3 pb-1 text-xs font-medium text-shell-muted">{group.label}</div>
+            )}
+            {group.items.map((item) => (
               <NavLink
-                key={item.path}
-                to={href(item.path, item.scope)}
-                className={({ isActive }) => itemClass(isActive)}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="leading-tight">{item.label}</span>
-              </NavLink>
-            ))
-          : clientItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={href(item.path, item.scope)}
+                key={item.id}
+                to={item.to}
                 end={item.end}
-                className={({ isActive }) => itemClass(isActive)}
+                onClick={onNavigate}
+                className={({ isActive }) => cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent',
+                  isActive && 'bg-shell-accent text-shell-accent-foreground hover:bg-shell-accent',
+                )}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="leading-tight">{item.label}</span>
+                <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 leading-tight">{item.label}</span>
               </NavLink>
             ))}
+          </div>
+        ))}
       </nav>
 
-      <div className="border-t border-shell-line p-3">
+      <div className="space-y-2 border-t border-shell-line p-3">
+        <NavLink
+          to={profileTo}
+          onClick={onNavigate}
+          className="block min-w-0 rounded-md px-1 py-1 hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shell-accent"
+        >
+          <div className="truncate text-sm text-shell-foreground">{userName}</div>
+          {user?.position && (
+            <div className="truncate text-xs text-shell-muted">{user.position}</div>
+          )}
+        </NavLink>
         <div className="flex items-center gap-2">
-          <UserMenu />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm leading-tight text-shell-foreground">{userName}</div>
-            {roleLabel && (
-              <div className="mt-0.5 truncate text-xs leading-tight text-shell-muted">{roleLabel}</div>
-            )}
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-8 min-w-0 flex-1 justify-start px-2 text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground"
+            onClick={() => {
+              onNavigate?.()
+              void requestLogout({ reason: 'user', callApi: true }).then(() => {
+                toast.success(t('notice-list.log-out-success'))
+              })
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            {t('header.logout')}
+          </Button>
           <ThemeMenu />
         </div>
       </div>
@@ -167,37 +121,41 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   )
 }
 
-function ThemeMenu() {
+export function SidebarDrawer({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+}) {
   const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    panel?.querySelector<HTMLElement>('a, button')?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose, open, panel])
+
+  if (!open) return null
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground">
-          {theme === 'dark' ? (
-            <Moon className="h-4 w-4" />
-          ) : theme === 'light' ? (
-            <Sun className="h-4 w-4" />
-          ) : (
-            <Monitor className="h-4 w-4" />
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          <Sun className="h-4 w-4" />
-          {t('sidebar.light-mode')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          <Moon className="h-4 w-4" />
-          {t('sidebar.dark-mode')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          <Monitor className="h-4 w-4" />
-          {t('sidebar.system-mode')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="fixed inset-0 z-50 md:hidden">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        aria-label={t('shell.close-menu')}
+        onClick={onClose}
+      />
+      <div ref={setPanel} id="app-sidebar" role="dialog" aria-modal="true" aria-label={t('shell.navigation')} className="absolute inset-y-0 left-0 max-w-full shadow-xl">
+        {children}
+      </div>
+    </div>
   )
 }

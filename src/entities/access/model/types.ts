@@ -36,12 +36,39 @@ export type EffectiveGrant = RoleGrant & {
 export type AccessRole = {
   id: string
   displayName: string
+  /** Optional text. Absent on an older snapshot means an empty description. */
+  description?: string
   grantIds: string[]
   /**
    * Grants this role may hand to someone else. They are not operational rights.
    * Absent on an older snapshot means the role cannot delegate.
    */
   delegationGrantIds?: string[]
+  /**
+   * Who may change this role. Absent on an older snapshot means the installation
+   * corporation: only its corporate superadmin may change the role.
+   * A missing value is not a grant and is not filled in by migration.
+   */
+  ownerScope?: AccessScope
+}
+
+export type AccessAuditAction =
+  | 'role.create'
+  | 'role.update'
+  | 'role.delete'
+  | 'assignment.create'
+  | 'assignment.revoke'
+
+/** Mock history stored with the change. It is not a production audit log. */
+export type AccessAuditEntry = {
+  id: string
+  at: string
+  actorId: number
+  action: AccessAuditAction
+  roleId: string | null
+  assignmentId: string | null
+  before: unknown
+  after: unknown
 }
 
 export type RoleAssignment = {

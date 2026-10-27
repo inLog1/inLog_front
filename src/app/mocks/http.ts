@@ -1,8 +1,9 @@
 import { HttpResponse } from 'msw'
 import {
   ensureMockState,
-  isMockWriteLocked,
+  mockWriteStatus,
   MockWriterHeldError,
+  MockWriterUnavailableError,
   SchemaMismatchError,
   StaleMockWriteError,
   updateMockState,
@@ -33,6 +34,12 @@ export function persistenceFailure(error: unknown): Response | null {
     return json({
       code: 'mock_writer_held',
       detail: 'Another tab is the writer for this mock namespace. This tab did not change it.',
+    }, 409)
+  }
+  if (error instanceof MockWriterUnavailableError) {
+    return json({
+      code: 'writer_lock_unavailable',
+      detail: 'This browser has no cross-tab lock. A lock inside one page does not exclude other tabs, so the mock database was not changed.',
     }, 409)
   }
   if (error instanceof StaleMockWriteError) {
@@ -113,6 +120,6 @@ export async function readJson(request: Request): Promise<Record<string, unknown
   }
 }
 
-export async function writeLockedFlag(): Promise<boolean> {
-  return isMockWriteLocked()
+export async function writeSupport(): Promise<{ writeLocked: boolean; writesUnavailable: boolean }> {
+  return mockWriteStatus()
 }

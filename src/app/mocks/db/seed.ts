@@ -26,6 +26,8 @@ export function createSeed(): MockState {
       { id: 5, email: 'customer@example.test', name: 'Нина', patronymic: 'Андреевна', surname: 'Орлова', position: 'Представитель заказчика', legacyRole: 'member', status: 'active' },
       { id: 6, email: 'pending@example.test', name: 'Павел', patronymic: 'Романович', surname: 'Ершов', position: 'Сотрудник без назначений', legacyRole: 'member', status: 'active' },
       { id: 7, email: 'project.only@example.test', name: 'Марк', patronymic: 'Викторович', surname: 'Белов', position: 'Сотрудник одного проекта', legacyRole: 'member', status: 'active' },
+      // Fresh seed only. Reads constructor schema and records in laboratory A and cannot create, update, or delete them.
+      { id: 8, email: 'constructor.reader@example.test', name: 'Вера', patronymic: 'Игоревна', surname: 'Крылова', position: 'Чтение записей конструктора', legacyRole: 'member', status: 'active' },
     ],
     identities: [
       { id: 'idn-owner', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner', email: 'owner@example.test', userId: 1 },
@@ -35,6 +37,7 @@ export function createSeed(): MockState {
       { id: 'idn-customer', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-customer', email: 'customer@example.test', userId: 5 },
       { id: 'idn-pending', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-pending', email: 'pending@example.test', userId: 6 },
       { id: 'idn-project-only', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-project-only', email: 'project.only@example.test', userId: 7 },
+      { id: 'idn-constructor-reader', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-constructor-reader', email: 'constructor.reader@example.test', userId: 8 },
       { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
     ],
     organizations: [
@@ -123,6 +126,12 @@ export function createSeed(): MockState {
         delegationGrantIds: [],
       },
       { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'], delegationGrantIds: [] },
+      {
+        id: 'role-constructor-reader',
+        displayName: 'Чтение конструктора',
+        grantIds: ['g-constructor-schema-read', 'g-constructor-records-read'],
+        delegationGrantIds: [],
+      },
       { id: 'role-decoy', displayName: 'corporate_superadmin', grantIds: [], delegationGrantIds: [] },
       { id: 'role-members-reader', displayName: 'Чтение состава', grantIds: ['g-members-read'], delegationGrantIds: [] },
     ],
@@ -138,6 +147,7 @@ export function createSeed(): MockState {
         roleId: 'role-employee',
         scope: { type: 'project', projectId: 1001, organizationId: 101, corporationId: 1 },
       },
+      { id: 'asg-constructor-reader', userId: 8, roleId: 'role-constructor-reader', scope: org(101) },
     ],
     delegations: [
       {
@@ -153,6 +163,7 @@ export function createSeed(): MockState {
       },
     ],
     systemCapabilities: [{ userId: 1, code: 'corporate_superadmin' }],
+    accessAudit: [],
     sessions: [],
     ...taskFixtures(),
     constructorNodes: [],

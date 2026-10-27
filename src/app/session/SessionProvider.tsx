@@ -2,8 +2,10 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import { accessApi, useGetSessionAccessQuery } from '../../entities/access/model/accessApi'
+import { adminApi } from '../../entities/admin/model/adminSlice'
 import { organizationApi } from '../../entities/organization/model/organizationSlice'
 import { projectApi } from '../../entities/project/model/projectSlice'
+import { taskApi } from '../../entities/task/model/taskSlice'
 import { selectSession, sessionActions } from '../../entities/session'
 import { userApi } from '../../entities/user/model/userSlice'
 import { useVerifyTokenMutation } from '../../features/auth/model/authSlice'
@@ -52,6 +54,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     seenAccessVersion.current = version
     dispatch(organizationApi.util.invalidateTags(['Organization']))
     dispatch(projectApi.util.invalidateTags(['Project']))
+    dispatch(taskApi.util.invalidateTags(['Tasks', 'Task']))
+    dispatch(adminApi.util.invalidateTags(['Nodes', 'Node', 'NodeTabs', 'NodeGroups']))
   }, [dispatch, phase, sessionAccess.data?.accessVersion])
 
   useEffect(() => {
@@ -84,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             dispatch(sessionActions.setInstallationPhase(installation.phase))
             dispatch(sessionActions.setSchemaMismatch(false))
             dispatch(sessionActions.setMockWriteLocked(installation.writeLocked === true))
+            dispatch(sessionActions.setMockWritesUnavailable(installation.writesUnavailable === true))
           } catch (error) {
             if (!current()) return
             if (errorCode(error) === 'schema_mismatch') {
@@ -158,15 +163,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       void query.unwrap().then((installation) => {
         if (!active) return
         dispatch(sessionActions.setMockWriteLocked(installation.writeLocked === true))
+        dispatch(sessionActions.setMockWritesUnavailable(installation.writesUnavailable === true))
       }).catch(() => undefined).finally(() => {
         query.unsubscribe()
       })
+      if (store.getState().session.phase !== 'authenticated') return
+      const access = dispatch(accessApi.endpoints.getSessionAccess.initiate(undefined, { forceRefetch: true }))
+      void access.finally(() => {
+        access.unsubscribe()
+      })
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshLease()
     }
     // Shorter than the 60s writer lease, so an open tab keeps the lock and a second tab stays read-only.
+    // The same timer re-reads session access. It is not a push channel to other tabs.
     const timer = window.setInterval(refreshLease, 20_000)
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       active = false
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [dispatch])
 

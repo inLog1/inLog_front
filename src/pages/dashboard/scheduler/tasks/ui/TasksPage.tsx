@@ -30,7 +30,7 @@ const TasksPage = () => {
                     onValueChange={(value) => setViewMode(value as ViewMode)}
                     className="w-auto"
                 >
-                    <TabsList className="grid w-[400px] grid-cols-3">
+                    <TabsList className="grid w-full max-w-md grid-cols-3">
                         <TabsTrigger value="list" className={cn("flex items-center gap-2 cursor-pointer")}>
                             <LayoutList className="h-4 w-4" />
                             <span>{t('buttons.list')}</span>

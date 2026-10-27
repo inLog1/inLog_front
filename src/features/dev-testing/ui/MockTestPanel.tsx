@@ -19,6 +19,7 @@ export function MockTestPanel() {
   const { t } = useTranslation()
   const dispatch = useDispatch()
   const writeLocked = useSelector(selectSession).mockWriteLocked
+  const writesUnavailable = useSelector(selectSession).mockWritesUnavailable
   const navigate = useNavigate()
   const location = useLocation()
   const accounts = useGetDevAccountsQuery()
@@ -97,6 +98,7 @@ export function MockTestPanel() {
   if (!open) {
     return (
       <div className="fixed bottom-4 right-4 z-50 flex max-w-xs flex-col items-end gap-2">
+        {writesUnavailable && <p className="rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg" role="status">{t('dev-panel.writes-unavailable')}</p>}
         {writeLocked && <p className="rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-lg" role="status">{t('dev-panel.reset-blocked')}</p>}
         <button
           type="button"
@@ -116,6 +118,7 @@ export function MockTestPanel() {
         <button type="button" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</button>
       </div>
       <p className="mb-2 text-muted-foreground">{t('dev-panel.caption')}</p>
+      {writesUnavailable && <p className="mb-2" role="status">{t('dev-panel.writes-unavailable')}</p>}
       {writeLocked && <p className="mb-2" role="status">{t('dev-panel.reset-blocked')}</p>}
       <div className="space-y-1">
         {accounts.data?.map((account) => (

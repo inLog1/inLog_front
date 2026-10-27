@@ -29,7 +29,7 @@ export function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="outline-none">
+      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={t('header.user-menu')}>
         {/* <Avatar className="h-10 w-10 cursor-pointer">
           <AvatarImage src={user?.avatar?.medium} alt={user?.fullName} />
           <AvatarFallback>{initials}</AvatarFallback>
@@ -45,7 +45,7 @@ export function UserMenu() {
         </Avatar>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" className="w-56">
+      <DropdownMenuContent side="bottom" align="end" className="w-56">
         <DropdownMenuLabel>
           {user?.full_name || user?.email || t('header.user-menu')}
         </DropdownMenuLabel>

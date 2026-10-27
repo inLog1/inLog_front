@@ -166,14 +166,14 @@ const ConstructorTabs = ({ node, addTab, updateTab, deleteTab, organizationId, a
 
             {tabs.length > 0 && (
                 <Tabs defaultValue={tabs[0]?.id?.toString()}>
-                    <TabsList className="flex-wrap h-auto">
+                    <TabsList className="flex h-auto w-full max-w-full flex-wrap">
                         {tabs.map((tab) => (
                             <div key={tab.id} className="relative">
                                 <TabsTrigger
                                     value={tab.id!.toString()}
                                     className="group data-[state=active]:bg-background p-2 pr-8 my-auto cursor-pointer"
                                 >
-                                    <span className="hidden sm:inline">{tab[`name_${currentLang}`]}</span>
+                                    <span className="max-w-[9rem] truncate">{tab[`name_${currentLang}`]}</span>
                                 </TabsTrigger>
 
                                 <div className="absolute right-1 top-1/2 -translate-y-[42%]">

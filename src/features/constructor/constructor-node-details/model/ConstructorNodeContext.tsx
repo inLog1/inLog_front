@@ -37,15 +37,22 @@ export function ConstructorNodeProvider({
 }: Props) {
   const {t} = useTranslation()
 
-  const [tableRowsData, setTableRowsData] = useState<AdminPanelReportTable>({})
+  const screenKey = `${organizationId ?? ''}:${nodeId}`
+  const [storedRows, setStoredRows] = useState<{ key: string; data: AdminPanelReportTable }>({ key: '', data: {} })
+  const tableRowsData = storedRows.key === screenKey ? storedRows.data : {}
   const requestSerial = useRef(0)
+  const screenRef = useRef({ organizationId, nodeId })
+  const setTableRowsData = (data: AdminPanelReportTable) => {
+    setStoredRows({ key: screenKey, data })
+  }
 
-  const { data: groups } = useGetAdminPanelGroupsQuery({
+  const groupsQuery = useGetAdminPanelGroupsQuery({
     group: nodeId,
     organizationId: organizationId ?? 0,
   }, {
     skip: !nodeId || organizationId == null || !canReadRecords
   })
+  const groups = groupsQuery.currentData
 
   const [generateReport] = useGenerateReportMutation()
 
@@ -53,40 +60,45 @@ export function ConstructorNodeProvider({
     const serial = requestSerial.current
     const requestedOrganizationId = organizationId
     const requestedNodeId = nodeId
+    const requestedGroups = groups
     try {
-      if (!canReadRecords || !groups || organizationId == null) return
+      if (!canReadRecords || !requestedGroups || requestedOrganizationId == null) return
       const body: AdminPanelReportRequest[] = []
       body.push({
-        group: nodeId,
-        fields: groups.map((group) => Number(group.id))
+        group: requestedNodeId,
+        fields: requestedGroups.map((group) => Number(group.id))
       })
       const response = await generateReport({
-        organizationId,
+        organizationId: requestedOrganizationId,
         body
       }).unwrap()
       if (
         serial !== requestSerial.current
-        || requestedOrganizationId !== organizationId
-        || requestedNodeId !== nodeId
+        || requestedOrganizationId !== screenRef.current.organizationId
+        || requestedNodeId !== screenRef.current.nodeId
       ) return
-      setTableRowsData(response ?? {})
+      setStoredRows({ key: `${requestedOrganizationId ?? ''}:${requestedNodeId}`, data: response ?? {} })
     } catch (error) {
-      if (serial !== requestSerial.current) return
-      setTableRowsData({})
+      if (
+        serial !== requestSerial.current
+        || requestedOrganizationId !== screenRef.current.organizationId
+        || requestedNodeId !== screenRef.current.nodeId
+      ) return
+      setStoredRows({ key: `${requestedOrganizationId ?? ''}:${requestedNodeId}`, data: {} })
       errorsHandler(error, t)
     }
   }
 
   useEffect(() => {
+    screenRef.current = { organizationId, nodeId }
     requestSerial.current += 1
-    setTableRowsData({})
   }, [nodeId, organizationId])
 
   useEffect(() => {
     if (canReadRecords && groups && groups.length > 0) {
-        fetchTableRows()
+      fetchTableRows()
     }
-}, [groups, canReadRecords])
+  }, [groups, canReadRecords])
 
 
   return (

@@ -8,11 +8,16 @@ import type { MockState } from './types'
 import { MOCK_DB_VERSION, MOCK_SCHEMA_VERSION, PUBLIC_FIXTURE_PASSWORD } from './constants'
 import {
   currentMockWriterId,
+  duplicateMockWriterDocument,
   ensureMockState,
   MockWriterHeldError,
+  MockWriterUnavailableError,
   readMockState,
+  reloadMockWriterIdentity,
+  rememberMockWriterSession,
   replaceMockRecord,
   resetMockNamespace,
+  setMockLockSource,
   setMockWriterId,
   StaleMockWriteError,
   updateMockState,
@@ -117,6 +122,19 @@ async function rawRoot(namespace: string): Promise<MockState> {
   }
 }
 
+async function readWriter(namespace: string): Promise<{ ownerId?: string; until?: number } | undefined> {
+  const db = await openDb(namespace)
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction('state', 'readonly').objectStore('state').get('writer')
+      request.onsuccess = () => resolve(request.result as { ownerId?: string; until?: number } | undefined)
+      request.onerror = () => reject(request.error ?? new Error('writer read failed'))
+    })
+  } finally {
+    db.close()
+  }
+}
+
 async function plantWriter(namespace: string, lease: { ownerId: string; until: number }) {
   const db = await openDb(namespace)
   try {
@@ -130,6 +148,11 @@ async function plantWriter(namespace: string, lease: { ownerId: string; until: n
   } finally {
     db.close()
   }
+}
+
+function writerLineage(ownerId: string): string {
+  const split = ownerId.indexOf('#')
+  return split === -1 ? ownerId : ownerId.slice(0, split)
 }
 
 function flushTasks() {
@@ -314,7 +337,7 @@ describe('mock repository', () => {
     await flushTasks()
     const after = await readMockState(namespace)
     expect(after.ok && after.state.accessVersion).toBe(1)
-    expect(after.ok && after.state.users).toHaveLength(7)
+    expect(after.ok && after.state.users).toHaveLength(8)
     expect(after.ok && after.state.users.some((user) => user.email === 'project.only@example.test')).toBe(true)
     expect(deleteDatabase).not.toHaveBeenCalled()
     deleteDatabase.mockRestore()
@@ -334,6 +357,125 @@ describe('mock repository', () => {
     expect(after.ok && after.state.accessVersion).toBe(5)
     expect(after.ok && after.state.authMode).toBe('local')
     expect(currentMockWriterId()).toContain('tab-')
+  })
+
+  it('reclaims the same tab after reload and does not take a live lease from another tab', async () => {
+    const namespace = `inlog:mock:test-reload-${crypto.randomUUID()}`
+    const owner = currentMockWriterId()
+    rememberMockWriterSession()
+    await ensureMockState(namespace)
+    await plantWriter(namespace, { ownerId: owner, until: Date.now() + 60_000 })
+    setMockWriterId('tab-fresh-document')
+    expect(currentMockWriterId()).not.toBe(owner)
+    const restored = reloadMockWriterIdentity()
+    expect(writerLineage(restored)).toBe(writerLineage(owner))
+    expect(restored).not.toBe(owner)
+    expect(restored).not.toBe('tab-fresh-document')
+    const reopened = await ensureMockState(namespace)
+    expect(reopened.ok && reopened.writeLocked).toBe(false)
+    const written = await updateMockState((state) => ({ ...state, accessVersion: 4 }), namespace)
+    expect(written.accessVersion).toBe(4)
+    expect((await readWriter(namespace))?.ownerId).toBe(restored)
+
+    const rival = `inlog:mock:test-rival-${crypto.randomUUID()}`
+    await ensureMockState(rival)
+    await plantWriter(rival, { ownerId: 'tab-other-live', until: Date.now() + 60_000 })
+    const again = reloadMockWriterIdentity()
+    expect(writerLineage(again)).toBe(writerLineage(owner))
+    expect(again).not.toBe('tab-other-live')
+    const locked = await ensureMockState(rival)
+    expect(locked.ok && locked.writeLocked).toBe(true)
+    await expect(updateMockState((state) => ({ ...state, accessVersion: 9 }), rival)).rejects.toBeInstanceOf(MockWriterHeldError)
+    await expect(resetMockNamespace(rival)).rejects.toBeInstanceOf(MockWriterHeldError)
+    expect((await readWriter(rival))?.ownerId).toBe('tab-other-live')
+    expect((await rawRoot(rival)).accessVersion).toBe(1)
+  })
+
+  it('does not let a duplicated tab write with the copied session lineage', async () => {
+    const namespace = `inlog:mock:test-duplicate-${crypto.randomUUID()}`
+    rememberMockWriterSession()
+    const first = currentMockWriterId()
+    await ensureMockState(namespace)
+    await updateMockState((state) => ({ ...state, accessVersion: 3 }), namespace)
+    const duplicate = duplicateMockWriterDocument()
+    expect(duplicate).not.toBe(first)
+    expect(writerLineage(duplicate)).toBe(writerLineage(first))
+    const view = await ensureMockState(namespace)
+    expect(view.ok && view.writeLocked).toBe(true)
+    await expect(updateMockState((state) => ({ ...state, accessVersion: 9 }), namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+    await expect(resetMockNamespace(namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+    expect((await readWriter(namespace))?.ownerId).toBe(first)
+    const after = await readMockState(namespace)
+    expect(after.ok && after.state.accessVersion).toBe(3)
+    expect(after.ok && after.state.recordRevision).toBe(2)
+  })
+
+  it('does not add the constructor reader to a snapshot that was saved without that user', async () => {
+    const namespace = `inlog:mock:test-reader-migration-${crypto.randomUUID()}`
+    const seed = createSeed()
+    const saved: MockState = {
+      ...seed,
+      namespace,
+      users: seed.users.filter((user) => user.id !== 8),
+      identities: seed.identities.filter((item) => item.userId !== 8),
+      roles: seed.roles.filter((role) => role.id !== 'role-constructor-reader'),
+      assignments: seed.assignments.filter((item) => item.userId !== 8),
+    }
+    await replaceMockRecord(namespace, saved)
+    const opened = await ensureMockState(namespace)
+    expect(opened.ok).toBe(true)
+    if (!opened.ok) return
+    expect(opened.state.users.some((user) => user.email === 'constructor.reader@example.test')).toBe(false)
+    expect(opened.state.roles.some((role) => role.id === 'role-constructor-reader')).toBe(false)
+    expect(opened.state.assignments.some((item) => item.userId === 8)).toBe(false)
+  })
+
+  it('refuses writes when the cross-tab lock API is missing and still reads the saved record', async () => {
+    const namespace = `inlog:mock:test-no-locks-${crypto.randomUUID()}`
+    await ensureMockState(namespace)
+    await updateMockState((state) => ({ ...state, accessVersion: 4 }), namespace)
+    setMockLockSource(() => undefined)
+    try {
+      const read = await readMockState(namespace)
+      expect(read.ok && read.state.accessVersion).toBe(4)
+      const opened = await ensureMockState(namespace)
+      expect(opened.ok && opened.writesUnavailable).toBe(true)
+      expect(opened.ok && opened.writeLocked).toBe(false)
+      await expect(updateMockState((state) => ({ ...state, accessVersion: 9 }), namespace)).rejects.toBeInstanceOf(MockWriterUnavailableError)
+      await expect(resetMockNamespace(namespace)).rejects.toBeInstanceOf(MockWriterUnavailableError)
+      expect((await rawRoot(namespace)).accessVersion).toBe(4)
+    } finally {
+      setMockLockSource(null)
+    }
+  })
+
+  it('adds an empty access audit without granting new permissions or users', async () => {
+    const namespace = `inlog:mock:test-audit-${crypto.randomUUID()}`
+    const seed = createSeed()
+    const saved: MockState = {
+      ...seed,
+      namespace,
+      schemaVersion: 4,
+      accessVersion: 7,
+      accessAudit: undefined,
+      users: seed.users.filter((user) => user.id !== 8),
+      roles: seed.roles.map((role) => role.id === 'role-owner' ? { ...role, grantIds: ['g-projects'] } : role),
+      systemCapabilities: [{ userId: 1, code: 'corporate_superadmin' }],
+    }
+    await replaceMockRecord(namespace, saved)
+    const opened = await ensureMockState(namespace)
+    expect(opened.ok).toBe(true)
+    if (!opened.ok) return
+    expect(opened.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+    expect(opened.state.accessAudit).toEqual([])
+    expect(opened.state.accessVersion).toBe(7)
+    expect(opened.state.users.some((user) => user.id === 8)).toBe(false)
+    expect(opened.state.roles.find((role) => role.id === 'role-owner')?.grantIds).toEqual(['g-projects'])
+    expect(opened.state.roles.find((role) => role.id === 'role-owner')?.ownerScope).toBeUndefined()
+    expect(opened.state.systemCapabilities).toEqual([{ userId: 1, code: 'corporate_superadmin' }])
+    const disk = await rawRoot(namespace)
+    expect(disk.accessAudit).toEqual([])
+    expect(disk.users.some((user) => user.email === 'constructor.reader@example.test')).toBe(false)
   })
 
   it('does not store the fixture password and logout does not reset the database', async () => {

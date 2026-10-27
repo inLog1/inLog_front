@@ -67,14 +67,21 @@ const ConstructorNodeDetails = (props: Props) => {
 
     const nodes = useSelector(makeSelectAdminPanelNodes(organizationId!))
 
-    const { data: currentNode, isLoading, isFetching, isError } = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
+    const nodeQuery = useGetAdminPanelNodeByIdQuery({ organizationId: organizationId!, nodeId }, { skip: !organizationId || !nodeId })
+    const currentNode = nodeQuery.currentData
+    const isLoading = nodeQuery.isLoading
+    const isFetching = nodeQuery.isFetching
+    const isError = nodeQuery.isError
 
-    const { data: groups, isLoading: isGroupsLoading, isFetching: isGroupsFetching } = useGetAdminPanelGroupsQuery({
+    const groupsQuery = useGetAdminPanelGroupsQuery({
         group: nodeId,
         organizationId: organizationId,
     }, {
         skip: !nodeId || !organizationId
     })
+    const groups = groupsQuery.currentData
+    const isGroupsLoading = groupsQuery.isLoading
+    const isGroupsFetching = groupsQuery.isFetching
 
     const handleUpdateNodeConnections = (node: AdminPanelNode) => {
         updateNode(node)
@@ -156,6 +163,7 @@ const ConstructorNodeDetails = (props: Props) => {
                         <ConstructorNodeConnections
                             node={currentNode!}
                             nodes={nodes}
+                            disabled={!access.schemaUpdate}
                             onChange={handleUpdateNodeConnections}
                         />
                     </AccordionContent>
