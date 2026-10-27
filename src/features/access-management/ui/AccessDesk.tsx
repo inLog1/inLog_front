@@ -18,11 +18,12 @@ type AccessDeskProps = {
   area: 'organization' | 'corporation'
   organizationId: number | null
   canManageCorporation: boolean
+  installationSuperadmin: boolean
   onArea: (area: 'organization' | 'corporation') => void
   roleHref: (roleId: string | 'new') => string
 }
 
-export function AccessDesk({ area, organizationId, canManageCorporation, onArea, roleHref }: AccessDeskProps) {
+export function AccessDesk({ area, organizationId, canManageCorporation, installationSuperadmin, onArea, roleHref }: AccessDeskProps) {
   const { t } = useTranslation()
   const skip = area === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
@@ -32,6 +33,12 @@ export function AccessDesk({ area, organizationId, canManageCorporation, onArea,
 
   return (
     <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 md:p-6">
+      {installationSuperadmin ? (
+        <div className="rounded-lg border border-border bg-card p-4" role="status">
+          <p className="text-sm font-medium">{t('access.installation-superadmin')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
+        </div>
+      ) : null}
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{t('access.lead')}</p>
@@ -75,9 +82,13 @@ function RoleList({ directory, roleHref }: { directory: AccessDirectory; roleHre
   return (
     <div className="mt-4 flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link to={roleHref('new')}>{t('access.create-role')}</Link>
-        </Button>
+        {directory.canCreateRole ? (
+          <Button asChild>
+            <Link to={roleHref('new')}>{t('access.create-role')}</Link>
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('access.create-denied')}</p>
+        )}
       </div>
       {directory.roles.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.roles-empty')}</p> : null}
       <ul className="flex flex-col gap-3">
@@ -93,9 +104,11 @@ function RoleList({ directory, roleHref }: { directory: AccessDirectory; roleHre
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">{permissionSummary(role.operational) || t('access.no-permissions')}</p>
               </div>
-              <Button asChild variant="outline" className="shrink-0">
-                <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
-              </Button>
+              {role.canEdit ? (
+                <Button asChild variant="outline" className="shrink-0">
+                  <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
+                </Button>
+              ) : null}
             </div>
           </li>
         ))}

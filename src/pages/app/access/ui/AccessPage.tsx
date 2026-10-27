@@ -51,6 +51,7 @@ function MockAccessPage() {
       area={area}
       organizationId={workspace.currentOrgId}
       canManageCorporation={capable}
+      installationSuperadmin={capable}
       onArea={setArea}
       roleHref={(roleId) => roleLink(href, roleId, area)}
     />

@@ -75,6 +75,13 @@ export function HomePage() {
         />
       </header>
 
+      {mockMode && ready && access.data?.systemCapabilities.includes('corporate_superadmin') ? (
+        <div className="rounded-lg border border-border bg-card p-4" role="status">
+          <p className="text-sm font-medium">{t('access.installation-superadmin')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
+        </div>
+      ) : null}
+
       {mockMode && access.isError && (
         <div className="rounded-xl border border-border bg-card p-4" role="alert">
           <p className="text-sm text-muted-foreground">{t('workspace.access-error')}</p>

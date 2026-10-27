@@ -134,12 +134,29 @@ describe('access management service', () => {
   })
 
   it('rejects self-elevation and a change that strengthens an assigned role', () => {
+    const stock = adminSession()
+    const deniedCreate = createRole(stock.state, stock.token, {
+      displayName: 'Без права создавать',
+      description: '',
+      grantIds: [grantId(stock.state, 'tasks', 'read')],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+    })
+    expect(deniedCreate.status).toBe(403)
+    expect(deniedCreate.body).toEqual({ code: 'forbidden' })
+    expect(deniedCreate.state.roles).toEqual(stock.state.roles)
+    expect(deniedCreate.state.accessAudit).toEqual(stock.state.accessAudit)
+
     const seed = createSeed()
     const tasksRead = grantId(seed, 'tasks', 'read')
     const prepared: MockState = {
       ...seed,
       roles: seed.roles.map((role) => role.id === 'role-lab-admin'
-        ? { ...role, delegationGrantIds: [...(role.delegationGrantIds ?? []), tasksRead] }
+        ? {
+          ...role,
+          grantIds: [...role.grantIds, grantId(seed, 'roles', 'create'), grantId(seed, 'roles', 'update')],
+          delegationGrantIds: [...(role.delegationGrantIds ?? []), tasksRead],
+        }
         : role),
     }
     const admin = adminSession(prepared)
@@ -172,9 +189,10 @@ describe('access management service', () => {
     expect(formRole.status).toBe(201)
     const formRoleId = formRole.state.roles.find((item) => item.displayName === 'Проверка форм')?.id ?? ''
     const elevated = createAssignment(formRole.state, owner.token, { userId: 1, roleId: formRoleId, scope: org(101) })
-    expect(elevated.status).toBe(403)
-    expect(elevated.body).toEqual({ code: 'self_elevation' })
-    expect(elevated.state.assignments).toEqual(formRole.state.assignments)
+    expect(elevated.status).toBe(201)
+    expect(elevated.state.accessAudit?.some((entry) => entry.action === 'assignment.create' && entry.actorId === 1)).toBe(true)
+    expect(hasCorporateSuperadmin(toSnapshot(elevated.state), 1)).toBe(true)
+    expect(hasCorporateSuperadmin(toSnapshot(elevated.state), 9)).toBe(false)
     const switchAuthor = createAssignment(formRole.state, owner.token, { userId: 9, roleId: formRoleId, scope: org(101) })
     expect(switchAuthor.status).toBe(201)
     expect(can(toSnapshot(switchAuthor.state), 9, 'forms', 'update', org(101))).toBe(true)
@@ -227,8 +245,25 @@ describe('access management service', () => {
     })
     expect(forgedProject.status).toBe(403)
     expect(forgedProject.body).toEqual({ code: 'invalid_scope' })
+    expect((directory.body as { canCreateRole: boolean }).canCreateRole).toBe(false)
 
-    const created = createRole(admin.state, admin.token, {
+    const noDefinition = createRole(admin.state, admin.token, {
+      displayName: 'Допустимый читатель',
+      description: '',
+      grantIds: [reports],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+    })
+    expect(noDefinition.status).toBe(403)
+    expect(noDefinition.state.roles).toEqual(admin.state.roles)
+    const editor: MockState = {
+      ...admin.state,
+      roles: admin.state.roles.map((role) => role.id === 'role-lab-admin'
+        ? { ...role, grantIds: [...role.grantIds, grantId(admin.state, 'roles', 'create'), grantId(admin.state, 'roles', 'update')] }
+        : role),
+    }
+
+    const created = createRole(editor, admin.token, {
       displayName: 'Допустимый читатель',
       description: '',
       grantIds: [reports],
@@ -239,7 +274,7 @@ describe('access management service', () => {
     const roleId = created.state.roles.find((item) => item.displayName === 'Допустимый читатель')?.id ?? ''
     const assigned = createAssignment(created.state, admin.token, { userId: 3, roleId, scope: org(101) })
     expect(assigned.status).toBe(201)
-    const tooStrong = createRole(admin.state, admin.token, {
+    const tooStrong = createRole(editor, admin.token, {
       displayName: 'Удаление задач',
       description: '',
       grantIds: [grantId(state, 'tasks', 'delete')],
@@ -247,7 +282,7 @@ describe('access management service', () => {
       ownerScope: org(101),
     })
     expect(tooStrong.status).toBe(403)
-    const otherOrganization = createRole(admin.state, admin.token, {
+    const otherOrganization = createRole(editor, admin.token, {
       displayName: 'Чужая лаборатория',
       description: '',
       grantIds: [reports],
@@ -255,7 +290,7 @@ describe('access management service', () => {
       ownerScope: org(102),
     })
     expect(otherOrganization.status).toBe(403)
-    const edited = updateRole(admin.state, admin.token, 'role-employee', {
+    const edited = updateRole(editor, admin.token, 'role-employee', {
       displayName: 'Сотрудник',
       description: '',
       grantIds: ['g-tasks', reports],

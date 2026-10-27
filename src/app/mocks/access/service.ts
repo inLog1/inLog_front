@@ -1,5 +1,7 @@
 import {
   assignmentDenial,
+  can,
+  issuedSetDenial,
   canDelegate,
   canManageAssignment,
   hasInstallationCapability,
@@ -233,7 +235,8 @@ function memberOf(state: MockState, userId: number, organizationId: number): boo
   return state.memberships.some((item) => item.userId === userId && item.organizationId === organizationId)
 }
 
-function roleView(state: MockState, role: AccessRole, owner: AccessScope): AccessRoleView {
+function roleView(state: MockState, role: AccessRole, owner: AccessScope, actorId: number): AccessRoleView {
+  const snapshot = toSnapshot(state)
   const assignments = state.assignments.filter((item) => item.roleId === role.id)
   const users = new Set(assignments.map((item) => item.userId))
   return {
@@ -246,8 +249,8 @@ function roleView(state: MockState, role: AccessRole, owner: AccessScope): Acces
     assignmentCount: assignments.length,
     affectedUserCount: users.size,
     affectedScopes: assignments.map((item) => item.scope),
-    canEdit: true,
-    canDelete: assignments.length === 0,
+    canEdit: can(snapshot, actorId, 'roles', 'update', owner),
+    canDelete: assignments.length === 0 && can(snapshot, actorId, 'roles', 'delete', owner),
   }
 }
 
@@ -255,7 +258,7 @@ function visibleRoles(state: MockState, userId: number, area: 'organization' | '
   const snapshot = toSnapshot(state)
   return state.roles.filter((role) => {
     const owner = roleOwnerScope(role, snapshot)
-    if (!owner || !canManageAssignment(snapshot, userId, owner)) return false
+    if (!owner || (!can(snapshot, userId, 'roles', 'read', owner) && !canManageAssignment(snapshot, userId, owner))) return false
     if (area === 'corporation') return owner.type === 'corporation'
     if (organizationId == null) return false
     return scopeInOrganization(owner, organizationId)
@@ -287,7 +290,9 @@ export function readDirectory(
   let area: 'organization' | 'corporation'
   let organizationId: number | null = null
   if (query.scope === 'corporation' && (query.organization == null || query.organization === '')) {
-    if (!canManageCorporation) return fail(state, 403, 'forbidden')
+    if (!canManageCorporation && !can(snapshot, who.user.id, 'roles', 'read', { type: 'corporation', corporationId })) {
+      return fail(state, 403, 'forbidden')
+    }
     area = 'corporation'
   } else if (query.organization != null && query.organization !== '' && query.scope !== 'corporation') {
     if (!/^[1-9]\d*$/.test(query.organization)) return fail(state, 400, 'invalid_organization')
@@ -295,7 +300,9 @@ export function readDirectory(
     const organization = state.organizations.find((item) => item.id === organizationId)
     if (!organization || organization.corporationId !== corporationId) return fail(state, 404, 'not_found')
     const scope = { type: 'organization' as const, organizationId, corporationId }
-    if (!canManageAssignment(snapshot, who.user.id, scope)) return fail(state, 403, 'forbidden')
+    if (!canManageAssignment(snapshot, who.user.id, scope) && !can(snapshot, who.user.id, 'roles', 'read', scope)) {
+      return fail(state, 403, 'forbidden')
+    }
     area = 'organization'
   } else {
     return fail(state, 400, 'invalid_organization')
@@ -327,12 +334,13 @@ export function readDirectory(
     corporationId,
     accessVersion: state.accessVersion,
     canManageCorporation,
+    canCreateRole: can(snapshot, who.user.id, 'roles', 'create', delegationScope),
     offeredGrants: offeredGrants(state),
     delegableGrantIds: delegableIds(state, who.user.id, delegationScope),
     canDelegateFurther: canDelegate(snapshot, who.user.id, 'delegations', 'delegate', delegationScope),
     roles: roles.flatMap((role) => {
       const owner = roleOwnerScope(role, snapshot)
-      return owner ? [roleView(state, role, owner)] : []
+      return owner ? [roleView(state, role, owner, who.user.id)] : []
     }),
     assignments: assignments.map((item) => ({
       id: item.id,
@@ -393,9 +401,9 @@ export function readRole(state: MockState, token: string | null, roleId: string)
   const role = state.roles.find((item) => item.id === roleId)
   if (!role) return fail(state, 404, 'not_found')
   const owner = roleOwnerScope(role, snapshot)
-  if (!owner || !canManageAssignment(snapshot, who.user.id, owner)) return fail(state, 403, 'forbidden')
+  if (!owner || !can(snapshot, who.user.id, 'roles', 'read', owner)) return fail(state, 403, 'forbidden')
   const body: AccessRoleDetail = {
-    role: roleView(state, role, owner),
+    role: roleView(state, role, owner, who.user.id),
     offeredGrants: offeredGrants(state),
     delegableGrantIds: delegableIds(state, who.user.id, owner),
     canDelegateFurther: canDelegate(snapshot, who.user.id, 'delegations', 'delegate', owner),
@@ -443,10 +451,10 @@ export function createRole(state: MockState, token: string | null, write: RoleBo
   if (!write.ownerScope) return fail(state, 400, 'invalid_scope')
   const snapshot = toSnapshot(state)
   if (!scopeIsCanonical(write.ownerScope, snapshot.projects, snapshot.organizations)) return fail(state, 403, 'invalid_scope')
-  if (!canManageAssignment(snapshot, who.user.id, write.ownerScope)) return fail(state, 403, 'forbidden')
+  if (!can(snapshot, who.user.id, 'roles', 'create', write.ownerScope)) return fail(state, 403, 'forbidden')
   if (!grantsFitRole(state, null, write)) return fail(state, 403, 'forbidden')
   const role = nextRole(`role-${crypto.randomUUID()}`, write, write.ownerScope)
-  const denial = assignmentDenial(snapshot, who.user.id, role, write.ownerScope, -1)
+  const denial = issuedSetDenial(snapshot, who.user.id, role, write.ownerScope, -1)
   if (denial) return fail(state, 403, denial === 'invalid_scope' ? 'invalid_scope' : 'forbidden')
   const saved = withAudit(state, {
     actorId: who.user.id,
@@ -457,7 +465,7 @@ export function createRole(state: MockState, token: string | null, write: RoleBo
     after: roleSnapshot(role),
   })
   saved.roles = [...state.roles, role]
-  return { state: saved, status: 201, body: { role: roleView(saved, role, write.ownerScope) } }
+  return { state: saved, status: 201, body: { role: roleView(saved, role, write.ownerScope, who.user.id) } }
 }
 
 export function updateRole(state: MockState, token: string | null, roleId: string, write: RoleBodyWrite): FlowResult {
@@ -467,7 +475,7 @@ export function updateRole(state: MockState, token: string | null, roleId: strin
   const current = state.roles.find((item) => item.id === roleId)
   if (!current) return fail(state, 404, 'not_found')
   const owner = roleOwnerScope(current, snapshot)
-  if (!owner || !canManageAssignment(snapshot, who.user.id, owner)) return fail(state, 403, 'forbidden')
+  if (!owner || !can(snapshot, who.user.id, 'roles', 'update', owner)) return fail(state, 403, 'forbidden')
   if (write.ownerScope && !sameScope(write.ownerScope, owner)) return fail(state, 403, 'scope_expansion')
   if (!grantsFitRole(state, current, write)) return fail(state, 403, 'forbidden')
   const role = nextRole(current.id, write, current.ownerScope)
@@ -476,11 +484,11 @@ export function updateRole(state: MockState, token: string | null, roleId: strin
     if (!scopeCovers(owner, assignment.scope, snapshot.projects, snapshot.organizations)) {
       return fail(state, 403, 'scope_expansion')
     }
-    const denial = assignmentDenial(snapshot, who.user.id, role, assignment.scope, assignment.userId)
+    const denial = issuedSetDenial(snapshot, who.user.id, role, assignment.scope, assignment.userId)
     if (denial) return fail(state, 403, denial === 'self_elevation' ? 'self_elevation' : denial === 'invalid_scope' ? 'invalid_scope' : 'forbidden')
   }
   if (affected.length === 0) {
-    const denial = assignmentDenial(snapshot, who.user.id, role, owner, -1)
+    const denial = issuedSetDenial(snapshot, who.user.id, role, owner, -1)
     if (denial) return fail(state, 403, denial === 'invalid_scope' ? 'invalid_scope' : 'forbidden')
   }
   const saved = withAudit(state, {
@@ -492,7 +500,7 @@ export function updateRole(state: MockState, token: string | null, roleId: strin
     after: roleSnapshot(role),
   })
   saved.roles = state.roles.map((item) => item.id === role.id ? role : item)
-  return { state: saved, status: 200, body: { role: roleView(saved, role, owner) } }
+  return { state: saved, status: 200, body: { role: roleView(saved, role, owner, who.user.id) } }
 }
 
 export function deleteRole(state: MockState, token: string | null, roleId: string, expectedAccessVersion?: number): FlowResult {
@@ -502,7 +510,7 @@ export function deleteRole(state: MockState, token: string | null, roleId: strin
   const current = state.roles.find((item) => item.id === roleId)
   if (!current) return fail(state, 404, 'not_found')
   const owner = roleOwnerScope(current, snapshot)
-  if (!owner || !canManageAssignment(snapshot, who.user.id, owner)) return fail(state, 403, 'forbidden')
+  if (!owner || !can(snapshot, who.user.id, 'roles', 'delete', owner)) return fail(state, 403, 'forbidden')
   const affected = state.assignments.filter((item) => item.roleId === current.id)
   if (affected.length > 0) {
     return fail(state, 409, 'role_in_use', {

@@ -1,5 +1,6 @@
 import { taskFixtures } from '../tasks/fixtures'
 import { FORM_DELEGATION_IDS, FORM_GRANT_DEFINITIONS } from './form-grants'
+import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
@@ -98,6 +99,7 @@ export function createSeed(): MockState {
       ...FORM_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...TABLE_VIEW_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {

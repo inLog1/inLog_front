@@ -1,11 +1,11 @@
 import {
   assignmentDenial,
   can,
+  issuedSetDenial,
   effectiveGrants,
   hasCorporateSuperadmin,
-  hasInstallationCapability,
   delegationGrantsFor,
-  installationCorporationId,
+  roleOwnerScope,
   scopeCovers,
 } from '../../../entities/access/model/grants'
 import type { AccessRole, AccessSnapshot, EffectiveGrant, SessionAccess } from '../../../entities/access/model/types'
@@ -401,24 +401,16 @@ export function reviseRoleGrants(
   const role = state.roles.find((item) => item.id === roleId)
   if (!role) return fail(state, 404, 'not_found')
   const snapshot = toSnapshot(state)
+  const owner = roleOwnerScope(role, snapshot)
+  if (!owner || !can(snapshot, user.id, 'roles', 'update', owner)) return fail(state, 403, 'forbidden')
   const nextRole = roleAfterRevision(role, grantIds, delegationGrantIds)
   const affected = state.assignments.filter((item) => item.roleId === roleId)
   if (affected.length === 0) {
-    const corporationId = installationCorporationId(snapshot)
-    if (corporationId == null || !hasInstallationCapability(snapshot, user.id, corporationId)) {
-      return fail(state, 403, 'forbidden')
-    }
-    const denial = assignmentDenial(
-      snapshot,
-      user.id,
-      nextRole,
-      { type: 'corporation', corporationId },
-      -1,
-    )
+    const denial = issuedSetDenial(snapshot, user.id, nextRole, owner, -1)
     if (denial) return fail(state, 403, denial === 'invalid_scope' ? denial : 'forbidden')
   }
   for (const assignment of affected) {
-    const denial = assignmentDenial(snapshot, user.id, nextRole, assignment.scope, assignment.userId)
+    const denial = issuedSetDenial(snapshot, user.id, nextRole, assignment.scope, assignment.userId)
     if (denial) return fail(state, 403, denial === 'invalid_scope' ? denial : 'forbidden')
   }
   const next: MockState = {

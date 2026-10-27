@@ -482,6 +482,9 @@
     },
     "access": {
         "lead": "Roles and assignments are checked when they are saved. A role name does not grant a system capability.",
+        "installation-superadmin": "Corporate superadmin — full access",
+        "installation-superadmin-note": "The installation sets this status. Editing an ordinary role does not remove or grant it. A role named Superadmin does not confer it.",
+        "create-denied": "Creating a role needs its own permission. Assigning an existing role does not replace that permission.",
         "unavailable-title": "Access management is unavailable",
         "unavailable-body": "The role and assignment contract is not connected to the server in this mode. No request is sent.",
         "choose-organization": "Choose an organization in the header to manage its roles and assignments.",
@@ -587,7 +590,11 @@
             },
             "access": {
                 "assignments": "Manage assignments",
-                "delegate": "Pass delegation onward"
+                "delegate": "Pass delegation onward",
+                "roles-read": "View role definitions",
+                "roles-create": "Create roles",
+                "roles-update": "Edit role definitions",
+                "roles-delete": "Delete roles"
             }
         },
         "dependencies": {
@@ -596,6 +603,7 @@
             "report": "Build report needs both report read and generate. Either one does not include the other.",
             "task": "The Create task shortcut needs both task read and task create.",
             "delegate": "Managing assignments does not allow an arbitrary set. A role can receive only permissions from your delegation.",
+            "roles": "Assigning a ready role and editing its definition are different permissions. Managing assignments does not create or change a role. Read, create, update and delete do not include one another.",
             "forms": "The Forms section opens with forms read only. The draft needs update, and publishing is a separate right. Filling needs the published schema and record create. The record list and record view need record read. None of these rights includes its neighbor or opens the old constructor.",
             "table-views": "The view list needs forms read and table-view read. The table and its rows also need record read. The published column catalog needs forms read. Create and update do not include read and do not open records. Preview needs create or update together with forms read and record read. Deleting a view does not delete the form or its records.",
             "sections": "Section read opens only published sections and does not show the draft. Create does not include update. Update does not grant publish. Publish does not grant rights to the form, the view, or records. The work page with a table also requires form, table-view, and record read. The create-record button also requires record submit and the action enabled in the published configuration."

@@ -56,6 +56,8 @@ export type AccessDirectory = {
   corporationId: number
   accessVersion: number
   canManageCorporation: boolean
+  /** Creating a role definition. Assigning an existing role uses assignments instead. */
+  canCreateRole: boolean
   offeredGrants: AccessGrantView[]
   delegableGrantIds: string[]
   canDelegateFurther: boolean

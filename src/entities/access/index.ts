@@ -8,6 +8,7 @@ export type {
 } from './model/types'
 export {
   assignmentDenial,
+  issuedSetDenial,
   can,
   canDelegate,
   canManageAssignment,

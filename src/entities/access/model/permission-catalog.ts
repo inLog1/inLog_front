@@ -3,6 +3,7 @@
  * Only capabilities the application already uses are listed.
  * Equipment, processes and other future domains are not invented here.
  * read, update, create, delete and delegate stay independent; this list does not imply one from another.
+ * Installation capability covers exactly this list. A resource or action that is not here is not granted by that capability.
  */
 export type PermissionGroupId =
   | 'tasks'
@@ -53,6 +54,10 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'sections', resource: 'sections', action: 'publish', labelKey: 'access.perm.sections.publish' },
   { group: 'access', resource: 'assignments', action: 'update', labelKey: 'access.perm.access.assignments' },
   { group: 'access', resource: 'delegations', action: 'delegate', labelKey: 'access.perm.access.delegate' },
+  { group: 'access', resource: 'roles', action: 'read', labelKey: 'access.perm.access.roles-read' },
+  { group: 'access', resource: 'roles', action: 'create', labelKey: 'access.perm.access.roles-create' },
+  { group: 'access', resource: 'roles', action: 'update', labelKey: 'access.perm.access.roles-update' },
+  { group: 'access', resource: 'roles', action: 'delete', labelKey: 'access.perm.access.roles-delete' },
 ]
 
 export function isOfferedPermission(resource: string, action: string): boolean {

@@ -111,11 +111,13 @@ describe('form mock service', () => {
     globalThis.indexedDB = indexedDB
   })
 
-  it('does not give form rights to existing roles and lets the coordinator delegate them', () => {
+  it('keeps form codes off stored roles and lets installation capability use and delegate them', () => {
     const seed = createSeed()
     const snapshot = toSnapshot(seed)
-    expect(can(snapshot, 1, 'forms', 'read', laboratory)).toBe(false)
-    expect(can(snapshot, 1, 'forms', 'publish', laboratory)).toBe(false)
+    expect(seed.roles.find((role) => role.id === 'role-owner')?.grantIds).not.toContain('g-forms-read')
+    expect(seed.roles.find((role) => role.id === 'role-lab-admin')?.grantIds).not.toContain('g-forms-read')
+    expect(can(snapshot, 1, 'forms', 'read', laboratory)).toBe(true)
+    expect(can(snapshot, 1, 'forms', 'publish', laboratory)).toBe(true)
     expect(can(snapshot, 2, 'forms', 'update', laboratory)).toBe(false)
     expect(can(snapshot, 3, 'form-records', 'create', laboratory)).toBe(false)
     expect(canDelegate(snapshot, 1, 'forms', 'publish', laboratory)).toBe(true)
@@ -378,7 +380,8 @@ describe('form mock service', () => {
     expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.grantIds).not.toContain('g-sections-read')
     expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).not.toContain('g-forms-publish')
     expect(migrated?.state.grants.some((grant) => grant.id === 'g-forms-read')).toBe(true)
-    expect(can(toSnapshot(migrated!.state), 1, 'forms', 'read', laboratory)).toBe(false)
+    expect(can(toSnapshot(migrated!.state), 1, 'forms', 'read', laboratory)).toBe(true)
+    expect(can(toSnapshot(migrated!.state), 2, 'forms', 'read', laboratory)).toBe(false)
   })
 
   it('keeps the previous document when a write throws and does not call forms from live pages', async () => {

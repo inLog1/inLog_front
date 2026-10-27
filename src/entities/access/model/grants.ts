@@ -1,3 +1,4 @@
+import { ACCESS_PERMISSION_CATALOG } from './permission-catalog'
 import type {
   AccessRole,
   AccessScope,
@@ -136,6 +137,24 @@ function grantCovered(
   )
 }
 
+/**
+ * Known catalog at the installation corporation.
+ * Stored roles are not rewritten. An unknown resource or action is absent from this list.
+ * The scope is only the installation's own corporation, so another corporation is not covered.
+ */
+function installationCatalogGrants(snapshot: AccessSnapshot, userId: number): EffectiveGrant[] {
+  if (!hasCorporateSuperadmin(snapshot, userId)) return []
+  const corporationId = installationCorporationId(snapshot)
+  if (corporationId == null) return []
+  const scope = { type: 'corporation' as const, corporationId }
+  return ACCESS_PERMISSION_CATALOG.map((item) => ({
+    id: `installation:${item.resource}:${item.action}`,
+    resource: item.resource,
+    action: item.action,
+    scope,
+  }))
+}
+
 export function effectiveGrants(snapshot: AccessSnapshot, userId: number): EffectiveGrant[] {
   const grants: EffectiveGrant[] = []
   for (const assignment of snapshot.assignments) {
@@ -149,7 +168,7 @@ export function effectiveGrants(snapshot: AccessSnapshot, userId: number): Effec
       grants.push({ ...grant, scope: assignment.scope })
     }
   }
-  return grants
+  return [...grants, ...installationCatalogGrants(snapshot, userId)]
 }
 
 export function roleDelegationGrants(snapshot: AccessSnapshot, userId: number): EffectiveGrant[] {
@@ -165,7 +184,7 @@ export function roleDelegationGrants(snapshot: AccessSnapshot, userId: number): 
       grants.push({ ...grant, scope: assignment.scope })
     }
   }
-  return grants
+  return [...grants, ...installationCatalogGrants(snapshot, userId)]
 }
 
 export function delegationGrantsFor(snapshot: AccessSnapshot, userId: number): EffectiveGrant[] {
@@ -251,10 +270,11 @@ export function hasInstallationCapability(
 }
 
 /**
- * Administrative gate for roles and assignments in one scope.
- * Installation capability covers the corporation and its organizations and projects.
- * It does not make can() true for ordinary resources.
+ * Administrative gate for assignments in one scope.
+ * Installation capability covers the corporation because the known catalog includes assignments.update.
+ * A corporation scope still requires that capability: an organization grant does not manage the corporation.
  * An organization administrator still needs assignments.update on that scope.
+ * Role definitions use roles.read, roles.create, roles.update and roles.delete, not this gate.
  */
 export function canManageAssignment(
   snapshot: AccessSnapshot,
@@ -276,7 +296,11 @@ export function roleOwnerScope(role: AccessRole, snapshot: AccessSnapshot): Acce
   return { type: 'corporation', corporationId }
 }
 
-export function assignmentDenial(
+/**
+ * Whether this actor may put this exact grant set on a role or assignment in this scope.
+ * It does not decide whether the actor may edit the role definition or create the assignment.
+ */
+export function issuedSetDenial(
   snapshot: AccessSnapshot,
   actorId: number,
   role: AccessRole,
@@ -284,7 +308,6 @@ export function assignmentDenial(
   assigneeId: number,
 ): AssignmentDenial | null {
   if (!scopeIsCanonical(scope, snapshot.projects, snapshot.organizations)) return 'invalid_scope'
-  if (!canManageAssignment(snapshot, actorId, scope)) return 'forbidden'
   const operational = grantsByIds(snapshot, role.grantIds)
   const delegated = grantsByIds(snapshot, role.delegationGrantIds ?? [])
   if (!operational || !delegated) return 'forbidden'
@@ -302,4 +325,16 @@ export function assignmentDenial(
     if (operational.some((grant) => !grantCovered(current, grant, scope, snapshot))) return 'self_elevation'
   }
   return null
+}
+
+export function assignmentDenial(
+  snapshot: AccessSnapshot,
+  actorId: number,
+  role: AccessRole,
+  scope: AccessScope,
+  assigneeId: number,
+): AssignmentDenial | null {
+  if (!scopeIsCanonical(scope, snapshot.projects, snapshot.organizations)) return 'invalid_scope'
+  if (!canManageAssignment(snapshot, actorId, scope)) return 'forbidden'
+  return issuedSetDenial(snapshot, actorId, role, scope, assigneeId)
 }

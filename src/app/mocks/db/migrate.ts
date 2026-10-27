@@ -1,6 +1,7 @@
 import { migrateCreatedAtFilters } from '../../../entities/table-view/model/created-at'
 import { taskFixturesForProjects } from '../tasks/fixtures'
 import { FORM_GRANT_DEFINITIONS } from './form-grants'
+import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
@@ -19,7 +20,7 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 7 has table views and no section collections. Version 8 adds those collections empty.
  * A created-at filter stored as a bare calendar day is rewritten to an explicit UTC day.
  * Other created-at strings stay exact timestamp comparisons.
- * Missing form, table-view and section catalog rows are added so the editor can offer them.
+ * Missing form, table-view, section and role-administration catalog rows are added so the editor can offer them.
  * Role grant lists already stored are not extended. ownerScope is not filled in.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
@@ -49,13 +50,15 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const daysChanged = withDays !== withViews
   const withSections = ensureSections(withDays)
   const sectionsChanged = withSections !== withDays
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged) {
+  const withRoleGrants = ensureRoleAdminGrants(withSections)
+  const roleGrantsChanged = withRoleGrants !== withSections
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withSections,
+      ...withRoleGrants,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
@@ -151,6 +154,19 @@ function ensureTableViews(record: MockState): MockState {
     grants,
     tableViews: Array.isArray(source.tableViews) ? source.tableViews : [],
   }
+}
+
+function ensureRoleAdminGrants(record: MockState): MockState {
+  const grants = Array.isArray(record.grants) ? [...record.grants] : []
+  let grantsChanged = false
+  for (const definition of ROLE_GRANT_DEFINITIONS) {
+    if (!grants.some((grant) => grant.id === definition.id)) {
+      grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
+      grantsChanged = true
+    }
+  }
+  if (!grantsChanged) return record
+  return { ...record, grants }
 }
 
 function ensureAccessAudit(record: MockState): MockState {

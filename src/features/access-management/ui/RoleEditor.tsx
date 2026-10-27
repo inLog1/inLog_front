@@ -45,6 +45,7 @@ function NewRole({ owner, organizationId, backHref }: { owner: 'organization' | 
   if (directory.isLoading || !directory.data || !ownerScope) {
     return <p className="p-4 text-sm text-muted-foreground">{directory.isError ? null : '…'}</p>
   }
+  if (!directory.data.canCreateRole) return <CreateDenied backHref={backHref} />
   return (
     <RoleForm
       backHref={backHref}
@@ -54,6 +55,7 @@ function NewRole({ owner, organizationId, backHref }: { owner: 'organization' | 
       offered={directory.data.offeredGrants}
       delegableIds={directory.data.delegableGrantIds}
       canDelegateFurther={directory.data.canDelegateFurther}
+      canEdit
       initial={null}
     />
   )
@@ -73,8 +75,22 @@ function ExistingRole({ roleId, backHref }: { roleId: string; backHref: string }
       offered={role.data.offeredGrants}
       delegableIds={role.data.delegableGrantIds}
       canDelegateFurther={role.data.canDelegateFurther}
+      canEdit={role.data.role.canEdit}
       initial={role.data.role}
     />
+  )
+}
+
+function CreateDenied({ backHref }: { backHref: string }) {
+  const { t } = useTranslation()
+  return (
+    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 md:p-6">
+      <Button asChild variant="ghost" className="w-fit px-0">
+        <Link to={backHref}>{t('access.back')}</Link>
+      </Button>
+      <p className="text-sm text-muted-foreground" role="status">{t('access.create-denied')}</p>
+      <p className="text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
+    </div>
   )
 }
 
@@ -92,6 +108,7 @@ function RoleForm({
   offered,
   delegableIds,
   canDelegateFurther,
+  canEdit,
   initial,
 }: {
   backHref: string
@@ -101,6 +118,7 @@ function RoleForm({
   offered: AccessGrantView[]
   delegableIds: string[]
   canDelegateFurther: boolean
+  canEdit: boolean
   initial: {
     id: string
     displayName: string
@@ -165,6 +183,7 @@ function RoleForm({
       <Button asChild variant="ghost" className="w-fit px-0">
         <Link to={backHref}>{t('access.back')}</Link>
       </Button>
+      <p className="text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
       <p className="text-sm text-muted-foreground">{t('access.owner')}: {scopeLabel(ownerScope, organizations, projects, t)}</p>
       {initial && initial.assignmentCount > 0 ? (
         <div className="rounded-lg border border-border bg-card p-4 text-sm" role="status">
@@ -182,6 +201,7 @@ function RoleForm({
         <li>{t('access.dependencies.report')}</li>
         <li>{t('access.dependencies.task')}</li>
         <li>{t('access.dependencies.delegate')}</li>
+        <li>{t('access.dependencies.roles')}</li>
         <li>{t('access.dependencies.forms')}</li>
         <li>{t('access.dependencies.table-views')}</li>
       </ul>
@@ -205,7 +225,7 @@ function RoleForm({
         onDelegation={setDelegationIds}
       />
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button type="button" disabled={createState.isLoading || updateState.isLoading} onClick={() => void save()}>
+        <Button type="button" disabled={!canEdit || createState.isLoading || updateState.isLoading} onClick={() => void save()}>
           {t('access.save')}
         </Button>
         {initial ? (
