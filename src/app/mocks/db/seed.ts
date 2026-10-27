@@ -1,4 +1,5 @@
 import { taskFixtures } from '../tasks/fixtures'
+import { FORM_DELEGATION_IDS, FORM_GRANT_DEFINITIONS } from './form-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
 import type { MockState } from './types'
 
@@ -87,6 +88,7 @@ export function createSeed(): MockState {
       { id: 'g-constructor-schema-delete', resource: 'constructor.schema', action: 'delete' },
       { id: 'g-constructor-records-create', resource: 'constructor.records', action: 'create' },
       { id: 'g-constructor-records-delete', resource: 'constructor.records', action: 'delete' },
+      ...FORM_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {
@@ -106,6 +108,7 @@ export function createSeed(): MockState {
           'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
           'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
           'g-reports-read', 'g-reports-generate',
+          ...FORM_DELEGATION_IDS,
         ],
       },
       {
@@ -170,6 +173,10 @@ export function createSeed(): MockState {
     constructorTabs: [],
     constructorFields: [],
     constructorRecords: [],
+    forms: [],
+    formDrafts: [],
+    formVersions: [],
+    formRecords: [],
     notifications: [],
     fault: null,
   }

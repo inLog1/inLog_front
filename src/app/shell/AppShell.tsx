@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, LayoutDashboard, ListTodo, PieChart, Shield, UserRound, Wrench } from 'lucide-react'
+import { Bell, FileText, LayoutDashboard, ListTodo, PieChart, Shield, UserRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router-dom'
@@ -21,6 +21,7 @@ const ICONS: Record<string, LucideIcon> = {
   home: LayoutDashboard,
   tasks: ListTodo,
   constructor: Wrench,
+  forms: FileText,
   reports: PieChart,
   profile: UserRound,
   notifications: Bell,

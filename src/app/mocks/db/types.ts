@@ -6,6 +6,7 @@ import type {
   RoleGrant,
   SystemCapability,
 } from '../../../entities/access/model/types'
+import type { FormAnswers, FormSchema } from '../../../entities/form/model/types'
 import type { AuthMode } from '../../../shared/config/runtime'
 import type { InstallationPhase } from '../../../entities/access/model/accessApi'
 
@@ -165,6 +166,45 @@ export type MockConstructorRecord = {
   values: MockConstructorValue[]
 }
 
+export type MockForm = {
+  id: string
+  organizationId: number
+  title: string
+  description: string
+  publishedVersionId: string | null
+  revision: number
+}
+
+export type MockFormDraft = {
+  formId: string
+  schema: FormSchema
+  baseVersionId: string | null
+  revision: number
+}
+
+export type MockFormVersion = {
+  id: string
+  formId: string
+  organizationId: number
+  number: number
+  title: string
+  description: string
+  schema: FormSchema
+  publishedAt: string
+  publishedBy: number
+  sourceDraftRevision: number
+}
+
+export type MockFormRecord = {
+  id: string
+  organizationId: number
+  formId: string
+  formVersionId: string
+  values: FormAnswers
+  createdBy: number
+  createdAt: string
+}
+
 export type MockNotificationRecord = {
   id: number
   userId: number
@@ -214,6 +254,10 @@ export type MockState = {
   constructorTabs: MockConstructorTab[]
   constructorFields: MockConstructorField[]
   constructorRecords: MockConstructorRecord[]
+  forms: MockForm[]
+  formDrafts: MockFormDraft[]
+  formVersions: MockFormVersion[]
+  formRecords: MockFormRecord[]
   notifications: MockNotificationRecord[]
   fault: MockFault
 }

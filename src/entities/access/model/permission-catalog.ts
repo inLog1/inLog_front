@@ -9,6 +9,7 @@ export type PermissionGroupId =
   | 'constructor-schema'
   | 'constructor-records'
   | 'reports'
+  | 'forms'
   | 'access'
 
 export type CatalogPermission = {
@@ -34,6 +35,12 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'constructor-records', resource: 'constructor.records', action: 'delete', labelKey: 'access.perm.records.delete' },
   { group: 'reports', resource: 'reports', action: 'read', labelKey: 'access.perm.reports.read' },
   { group: 'reports', resource: 'reports', action: 'generate', labelKey: 'access.perm.reports.generate' },
+  { group: 'forms', resource: 'forms', action: 'read', labelKey: 'access.perm.forms.read' },
+  { group: 'forms', resource: 'forms', action: 'create', labelKey: 'access.perm.forms.create' },
+  { group: 'forms', resource: 'forms', action: 'update', labelKey: 'access.perm.forms.update' },
+  { group: 'forms', resource: 'forms', action: 'publish', labelKey: 'access.perm.forms.publish' },
+  { group: 'forms', resource: 'form-records', action: 'create', labelKey: 'access.perm.forms.record-create' },
+  { group: 'forms', resource: 'form-records', action: 'read', labelKey: 'access.perm.forms.record-read' },
   { group: 'access', resource: 'assignments', action: 'update', labelKey: 'access.perm.access.assignments' },
   { group: 'access', resource: 'delegations', action: 'delegate', labelKey: 'access.perm.access.delegate' },
 ]

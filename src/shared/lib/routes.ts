@@ -40,6 +40,14 @@ export const routes = {
       roadmap: () => '/scheduler/roadmap',
     },
 
+    forms: {
+      list: () => '/forms',
+      editor: (formId: string) => `/forms/${formId}`,
+      fill: (formId: string) => `/forms/${formId}/fill`,
+      records: (formId: string) => `/forms/${formId}/records`,
+      record: (formId: string, recordId: string) => `/forms/${formId}/records/${recordId}`,
+    },
+
     admin: {
       list: () => '/admin',
       users: () => '/admin/users',

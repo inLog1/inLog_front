@@ -83,6 +83,26 @@ describe('navigation catalog', () => {
     expect(shouldLoadProjectTasks(otherProject)).toBe(false)
   })
 
+  it('does not let constructor schema read open forms, or forms read open the constructor', () => {
+    const schema = input({
+      grants: [grant('constructor.schema', 'read')],
+      organizationId: 101,
+    })
+    expect(visibleNavigation(schema).some((item) => item.id === 'forms')).toBe(false)
+    expect(visibleNavigation(schema).some((item) => item.id === 'constructor')).toBe(true)
+    const forms = input({
+      grants: [grant('forms', 'read')],
+      organizationId: 101,
+    })
+    expect(visibleNavigation(forms).some((item) => item.id === 'forms')).toBe(true)
+    expect(visibleNavigation(forms).some((item) => item.id === 'constructor')).toBe(false)
+    expect(visibleNavigation(forms).some((item) => item.id === 'reports')).toBe(false)
+    expect(sectionAccess(
+      visibleNavigation(forms).find((item) => item.id === 'forms')!,
+      input({ grants: [grant('forms', 'update')], organizationId: 101 }),
+    )).toBe('unavailable')
+  })
+
   it('does not treat constructor or report actions as substitutes for each other', () => {
     const schemaOnly = input({
       grants: [grant('constructor.schema', 'read'), grant('constructor.schema', 'update')],
@@ -123,7 +143,7 @@ describe('navigation catalog', () => {
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'constructor', 'reports', 'profile', 'notifications', 'access',
+      'home', 'tasks', 'constructor', 'forms', 'reports', 'profile', 'notifications', 'access',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)

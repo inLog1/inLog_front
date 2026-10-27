@@ -49,6 +49,7 @@ const TASKS_CREATE = { resource: 'tasks', action: 'create' }
 const SCHEMA_READ = { resource: 'constructor.schema', action: 'read' }
 const REPORTS_READ = { resource: 'reports', action: 'read' }
 const REPORTS_GENERATE = { resource: 'reports', action: 'generate' }
+const FORMS_READ = { resource: 'forms', action: 'read' }
 
 export const APP_SECTIONS: readonly AppSection[] = [
   {
@@ -74,6 +75,15 @@ export const APP_SECTIONS: readonly AppSection[] = [
     labelKey: 'nav.constructor',
     descriptionKey: 'nav.constructor-description',
     path: routes.admin.constructor(),
+    group: 'work',
+    context: 'organization',
+    surface: 'navigation',
+  },
+  {
+    id: 'forms',
+    labelKey: 'nav.forms',
+    descriptionKey: 'nav.forms-description',
+    path: routes.forms.list(),
     group: 'work',
     context: 'organization',
     surface: 'navigation',
@@ -238,6 +248,7 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.id === 'access') return accessSection(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
+  if (section.id === 'forms') return permissionAccess(input, FORMS_READ, 'organization')
   if (section.id === 'reports') return permissionAccess(input, REPORTS_READ, 'organization')
   return 'unavailable'
 }

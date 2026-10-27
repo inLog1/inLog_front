@@ -23,6 +23,7 @@ const ACTION_COVERS: Record<string, readonly string[]> = {
   assign: ['assign'],
   delegate: ['delegate'],
   generate: ['generate'],
+  publish: ['publish'],
 }
 
 export type AssignmentDenial = 'invalid_scope' | 'forbidden' | 'self_elevation'

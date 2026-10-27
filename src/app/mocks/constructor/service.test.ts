@@ -232,7 +232,12 @@ describe('constructor and report mocks', () => {
       roles: rest.roles.map((role) => role.id === 'role-owner' ? { ...role, grantIds: ['g-projects'] } : role),
     } as MockState
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(5)
+    expect(migrated?.state.schemaVersion).toBe(6)
+    expect(migrated?.state.forms).toEqual([])
+    expect(migrated?.state.formDrafts).toEqual([])
+    expect(migrated?.state.formVersions).toEqual([])
+    expect(migrated?.state.formRecords).toEqual([])
+    expect(migrated?.state.roles.every((role) => role.grantIds.every((id) => !id.startsWith('g-forms') && !id.startsWith('g-form-records')))).toBe(true)
     expect(migrated?.state.tasks.find((task) => task.projectId === 1001 && task.slug === 'shared-sample')?.name).toBe('Сохранено')
     expect(migrated?.state.assignments.find((item) => item.id === 'asg-employee-a')?.roleId).toBe('role-lab-admin')
     expect(migrated?.state.roles.find((role) => role.id === 'role-owner')?.grantIds).toEqual(['g-projects'])

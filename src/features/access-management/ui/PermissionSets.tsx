@@ -7,6 +7,7 @@ const GROUPS: PermissionGroupId[] = [
   'constructor-schema',
   'constructor-records',
   'reports',
+  'forms',
   'access',
 ]
 

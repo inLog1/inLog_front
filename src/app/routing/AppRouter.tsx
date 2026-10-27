@@ -12,6 +12,7 @@ import RecoveryMessagePage from '../../pages/auth/recovery-message'
 import RegisterPage from '../../pages/auth/register'
 import { HomePage } from '../home/HomePage'
 import { AccessPage, RoleEditorPage } from '../../pages/app/access'
+import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormsPage } from '../../pages/app/forms'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
 import SchedulerPage from '../../pages/dashboard/scheduler'
 import TasksPage from '../../pages/dashboard/scheduler/tasks'
@@ -85,6 +86,11 @@ export function AppRouter() {
                   <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
                 </Route>
               </Route>
+              <Route path="/forms/:formId/records/:recordId" element={<FormRecordPage />} />
+              <Route path="/forms/:formId/records" element={<FormRecordsPage />} />
+              <Route path="/forms/:formId/fill" element={<FormFillPage />} />
+              <Route path="/forms/:formId" element={<FormEditorPage />} />
+              <Route path={routes.forms.list()} element={<FormsPage />} />
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
               <Route path={routes.settings.access()} element={<AccessPage />} />
               <Route path={routes.settings.accessRoleNew()} element={<RoleEditorPage />} />

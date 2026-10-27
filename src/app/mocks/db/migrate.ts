@@ -1,4 +1,5 @@
 import { taskFixturesForProjects } from '../tasks/fixtures'
+import { FORM_GRANT_DEFINITIONS } from './form-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
 import type { MockState } from './types'
 import type { AccessRole } from '../../../entities/access/model/types'
@@ -10,6 +11,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 2 has no task catalog. Missing task arrays are filled once.
  * Version 3 has no constructor arrays. Missing arrays are added empty once.
  * Version 4 has no access audit. An empty audit is added once.
+ * Version 5 has no form collections. Empty collections are added once.
+ * Missing form catalog rows are added so the editor can offer them.
  * Role grant lists already stored are not extended. ownerScope is not filled in.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
@@ -31,17 +34,49 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const constructorChanged = withConstructor !== withTasks
   const withAudit = ensureAccessAudit(withConstructor)
   const auditChanged = withAudit !== withConstructor
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged) {
+  const withForms = ensureFormCatalog(withAudit)
+  const formsChanged = withForms !== withAudit
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withAudit,
+      ...withForms,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
     },
+  }
+}
+
+function ensureFormCatalog(record: MockState): MockState {
+  const source = record as MockState & {
+    forms?: unknown
+    formDrafts?: unknown
+    formVersions?: unknown
+    formRecords?: unknown
+  }
+  const arraysMissing = !Array.isArray(source.forms)
+    || !Array.isArray(source.formDrafts)
+    || !Array.isArray(source.formVersions)
+    || !Array.isArray(source.formRecords)
+  const grants = Array.isArray(record.grants) ? [...record.grants] : []
+  let grantsChanged = false
+  for (const definition of FORM_GRANT_DEFINITIONS) {
+    if (!grants.some((grant) => grant.id === definition.id)) {
+      grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
+      grantsChanged = true
+    }
+  }
+  if (!arraysMissing && !grantsChanged) return record
+  return {
+    ...record,
+    grants,
+    forms: Array.isArray(source.forms) ? source.forms : [],
+    formDrafts: Array.isArray(source.formDrafts) ? source.formDrafts : [],
+    formVersions: Array.isArray(source.formVersions) ? source.formVersions : [],
+    formRecords: Array.isArray(source.formRecords) ? source.formRecords : [],
   }
 }
 
