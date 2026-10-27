@@ -1,9 +1,9 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "../../../shared/api/clientApi";
 import type { TagsResponse, TaskCreate, TaskUpdate } from "../../../shared/types/dto/task";
-import type { Status, Task, TasksFilterParams } from "./types";
+import type { Status, Tag, Task, TasksFilterParams } from "./types";
 import { errorsHandler } from "../../../shared/lib/errors-handler";
-import { taskListQueryMatchesProject } from "./task-cache";
+import { applyClientTaskTypeFilter, applyOptimisticTaskPatch, projectTaskIdentity, reconcileTaskInList, taskListQueryMatchesProject } from "./task-cache";
 
 export const taskApi = createApi({
     reducerPath: 'taskApi',
@@ -26,31 +26,7 @@ export const taskApi = createApi({
                 next: string | null
                 previous: string | null
                 results: Task[]
-            }, _, arg) => {
-                const taskType = arg.params.taskType;
-
-                if (!taskType) {
-                    return response;
-                }
-
-                const filteredResults = response.results.filter(task => {
-                    if (taskType === 'parent') {
-                        return task.parent === null;
-                    } else if (taskType === 'child') {
-                        return task.parent !== null;
-                    } else if (taskType === 'completed') {
-                        return task.status.name_en === 'Closed';
-                    } else if (taskType === 'incomplete') {
-                        return task.status.name_en === 'No status';
-                    }
-                });
-
-                return {
-                    ...response,
-                    count: filteredResults.length,
-                    results: filteredResults,
-                };
-            },
+            }, _, arg) => applyClientTaskTypeFilter(response, arg.params.taskType),
         }),
 
         getTask: builder.query<Task, { projectId: number; taskSlug: string }>({
@@ -92,30 +68,52 @@ export const taskApi = createApi({
                 method: 'PATCH',
                 body: data,
             }),
-            async onQueryStarted({ projectId, taskSlug }, { dispatch, queryFulfilled, getState }) {
+            async onQueryStarted({ projectId, taskSlug, data }, { dispatch, queryFulfilled, getState }) {
+                const patches: { undo: () => void }[] = []
+                const queries = Object.values(getState().taskApi.queries)
+                for (const query of queries) {
+                    if (!query || query.endpointName !== 'getTasks') continue
+                    if (!taskListQueryMatchesProject(query.originalArgs, projectId)) continue
+                    const args = query.originalArgs as { projectId: number; params: Partial<TasksFilterParams> }
+                    const cached = query.data as { results?: Task[] } | undefined
+                    if (!cached?.results?.some((task) => projectTaskIdentity(task, projectId, taskSlug))) continue
+                    patches.push(dispatch(
+                        taskApi.util.updateQueryData('getTasks', args, (draft) => {
+                            applyOptimisticTaskPatch(draft, args.params, projectId, taskSlug, data, args.params?.ordering)
+                        }),
+                    ))
+                }
+                const detail = queries.find((query) => query?.endpointName === 'getTask'
+                    && taskListQueryMatchesProject(query.originalArgs, projectId)
+                    && (query.originalArgs as { taskSlug?: string }).taskSlug === taskSlug)
+                if (detail?.data) {
+                    const detailArgs = detail.originalArgs as { projectId: number; taskSlug: string }
+                    patches.push(dispatch(
+                        taskApi.util.updateQueryData('getTask', detailArgs, (draft) => {
+                            if (!projectTaskIdentity(draft, projectId, taskSlug)) return
+                            if (typeof data.name === 'string') draft.name = data.name
+                            if (typeof data.description === 'string') draft.description = data.description
+                            if (typeof data.priority === 'string') draft.priority = data.priority
+                            if (typeof data.due_date_start === 'string') draft.due_date_start = data.due_date_start
+                            if (typeof data.due_date_end === 'string') draft.due_date_end = data.due_date_end
+                            if (typeof data.status === 'number') draft.status = { ...draft.status, id: data.status }
+                            if (typeof data.status_position === 'number') draft.status_position = data.status_position
+                        }),
+                    ))
+                }
                 try {
-                    const { data: updatedTask } = await queryFulfilled;
-
-                    const state = getState();
-                    const allQueries = Object.values(state.taskApi.queries);
-
-                    const getTasksQueries = allQueries.filter(
-                        (query: any) => query?.endpointName === 'getTasks'
-                            && taskListQueryMatchesProject(query?.originalArgs, projectId)
-                    );
-
-                    getTasksQueries.forEach((query: any) => {
-                        dispatch(
-                            taskApi.util.updateQueryData('getTasks', query.originalArgs, (draft) => {
-                                const index = draft.results.findIndex(task => task.slug === taskSlug);
-                                if (index !== -1) {
-                                    draft.results[index] = updatedTask;
-                                }
-                            })
-                        );
-                    });
-                } catch (error) {
-                    console.error('Error:', error);
+                    const { data: updatedTask } = await queryFulfilled
+                    if (updatedTask.project !== projectId || updatedTask.slug !== taskSlug) return
+                    for (const query of queries) {
+                        if (!query || query.endpointName !== 'getTasks') continue
+                        if (!taskListQueryMatchesProject(query.originalArgs, projectId)) continue
+                        const args = query.originalArgs as { projectId: number; params: Partial<TasksFilterParams> }
+                        dispatch(taskApi.util.updateQueryData('getTasks', args, (draft) => {
+                            reconcileTaskInList(draft, args.params, projectId, updatedTask, args.params?.ordering)
+                        }))
+                    }
+                } catch {
+                    patches.forEach((patch) => patch.undo())
                 }
             },
             invalidatesTags: ['Task'],
@@ -192,7 +190,7 @@ export const taskApi = createApi({
                 }
             },
         }),
-        addTaskTag: builder.mutation<Task, { projectId: number, data: { name: string } }>({
+        addTaskTag: builder.mutation<Tag, { projectId: number, data: { name: string } }>({
             query: ({ projectId, data }) => ({
                 url: `projects/${projectId}/tasks/tag/`,
                 method: 'POST',
@@ -224,15 +222,7 @@ export const taskApi = createApi({
             invalidatesTags: ['Task'],
         }),
         createTaskFile: builder.mutation<Task['files'][number], { projectId: number, taskSlug: string, file: File }>({
-            query: ({ projectId, taskSlug, file }) => {
-                const formData = new FormData()
-                formData.append('file', file)
-                return {
-                    url: `projects/${projectId}/tasks/task/${taskSlug}/file/`,
-                    method: 'POST',
-                    body: formData,
-                }
-            },
+            query: ({ projectId, taskSlug, file }) => taskFileUploadRequest(projectId, taskSlug, file),
 
             // invalidatesTags: ['Task'],
         }),
@@ -245,6 +235,17 @@ export const taskApi = createApi({
         }),
     }),
 });
+
+/** The browser sets the multipart boundary. A manual Content-Type would drop it. */
+export function taskFileUploadRequest(projectId: number, taskSlug: string, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return {
+        url: `projects/${projectId}/tasks/task/${taskSlug}/file/`,
+        method: 'POST' as const,
+        body: formData,
+    }
+}
 
 export const {
     useGetTasksQuery,

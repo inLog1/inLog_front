@@ -28,6 +28,7 @@ interface SubTasksProps {
   isTemplate?: boolean
   subtasks?: SubTaskItem[]
   onAddSubtask?: (title: string) => void
+  addDisabledReason?: string
   onEditSubtask?: (slug: string, title: string, status?: 'completed' | 'incomplete') => void
   onDeleteSubtask?: (slug: string) => void
   onOpenSubtask?: (id: string | number) => void
@@ -39,6 +40,7 @@ const SubTasks = ({
   isTemplate = false,
   subtasks = [],
   onAddSubtask,
+  addDisabledReason,
   onEditSubtask,
   onDeleteSubtask,
   onOpenSubtask,
@@ -47,10 +49,15 @@ const SubTasks = ({
   const { t } = useTranslation()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  if (!onAddSubtask && isDialogOpen) setIsDialogOpen(false)
 
   const handleAddSubtask = () => {
+    if (!onAddSubtask) {
+      setIsDialogOpen(false)
+      return
+    }
     if (newSubtaskTitle.trim()) {
-      onAddSubtask?.(newSubtaskTitle.trim())
+      onAddSubtask(newSubtaskTitle.trim())
       setNewSubtaskTitle('')
       setIsDialogOpen(false)
     }
@@ -75,10 +82,14 @@ const SubTasks = ({
           )}
         </h3>
         <Button
-          onClick={() => setIsDialogOpen(true)}
+          onClick={() => {
+            if (onAddSubtask) setIsDialogOpen(true)
+          }}
           size="sm"
           variant="outline"
           className="gap-2"
+          disabled={!onAddSubtask}
+          title={onAddSubtask ? undefined : addDisabledReason}
         >
           <Plus className="h-4 w-4" />
           {t('buttons.add')}

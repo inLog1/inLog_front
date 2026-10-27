@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
 import { useGenerateReportMutation } from "../../../../entities/admin/model/adminSlice"
 import type { AdminPanelGroup, AdminPanelNode, AdminPanelNodeTab, AdminPanelReportRequest, AdminPanelReportTable } from "../../../../entities/admin/model/types"
 import { errorsHandler } from "../../../../shared/lib/errors-handler"
-import ReportTable from "./ReportTable"
+import { reportResponseIsCurrent } from "../model/report-request"
+import ReportTable, { type ReportViewStatus } from "./ReportTable"
 
 interface ReportDetailsProps {
+    organizationId: number
+    canGenerate: boolean
     selectedEntities: {
         nodes: AdminPanelNode[]
         tabs: AdminPanelNodeTab[]
@@ -14,13 +16,19 @@ interface ReportDetailsProps {
     }
 }
 
-const ReportDetails = ({ selectedEntities }: ReportDetailsProps) => {
+const ReportDetails = ({ selectedEntities, organizationId, canGenerate }: ReportDetailsProps) => {
     const { t } = useTranslation()
-    const [searchParams] = useSearchParams()
-    const organizationId = Number(searchParams.get('org'))
     const [generateReport] = useGenerateReportMutation()
     const [reportData, setReportData] = useState<AdminPanelReportTable>({})
-    const [isLoading, setIsLoading] = useState(false)
+    const [status, setStatus] = useState<ReportViewStatus>('idle')
+    const requestSerial = useRef(0)
+    const contextKey = `${organizationId}:${canGenerate ? 1 : 0}`
+    const [seenContext, setSeenContext] = useState(contextKey)
+    if (seenContext !== contextKey) {
+        setSeenContext(contextKey)
+        setReportData({})
+        setStatus(canGenerate ? 'idle' : 'forbidden')
+    }
 
     const getValidRequestBody = useCallback((): AdminPanelReportRequest[] => {
         const data: AdminPanelReportRequest[] = []
@@ -58,50 +66,61 @@ const ReportDetails = ({ selectedEntities }: ReportDetailsProps) => {
     }, [selectedEntities])
 
     const generateReportData = useCallback(async () => {
-        if (!organizationId) return
-        
-        setIsLoading(true)
-        try {
-            const requestBody = getValidRequestBody()
-            
-            if (requestBody.length === 0) {
-                setReportData({})
-                return
-            }
-
-            const { data: response } = await generateReport({ 
-                organizationId, 
-                body: requestBody 
-            })
-
-            if (!response) {
-                setReportData({})
-                return
-            }
-            setReportData(response)
-        } catch (error) {
-            console.error('Error generating report:', error)
-            errorsHandler(error, t)
+        const serial = ++requestSerial.current
+        const requestedOrganizationId = organizationId
+        if (!canGenerate) {
             setReportData({})
-        } finally {
-            setIsLoading(false)
+            setStatus('forbidden')
+            return
         }
-    }, [selectedEntities, organizationId, generateReport, getValidRequestBody])
+        const requestBody = getValidRequestBody()
+        if (requestBody.length === 0) {
+            setReportData({})
+            setStatus('idle')
+            return
+        }
+
+        setReportData({})
+        setStatus('loading')
+        try {
+            const response = await generateReport({
+                organizationId: requestedOrganizationId,
+                body: requestBody
+            }).unwrap()
+            if (!reportResponseIsCurrent(
+                { organizationId: requestedOrganizationId, serial },
+                { organizationId, serial: requestSerial.current },
+            )) return
+            const next = response ?? {}
+            setReportData(next)
+            setStatus(Object.keys(next).length === 0 ? 'empty' : 'ready')
+        } catch (error) {
+            if (!reportResponseIsCurrent(
+                { organizationId: requestedOrganizationId, serial },
+                { organizationId, serial: requestSerial.current },
+            )) return
+            const httpStatus = error && typeof error === 'object' && 'status' in error
+                ? Number((error as { status?: unknown }).status)
+                : 0
+            setReportData({})
+            setStatus(httpStatus === 403 ? 'forbidden' : 'error')
+            errorsHandler(error, t)
+        }
+    }, [organizationId, canGenerate, generateReport, getValidRequestBody, t])
 
     useEffect(() => {
-        generateReportData()
-    }, [generateReportData])
-
-    const handleRefresh = useCallback(() => {
-        generateReportData()
+        const timer = window.setTimeout(() => {
+            generateReportData()
+        }, 0)
+        return () => window.clearTimeout(timer)
     }, [generateReportData])
 
     return (
         <div className="h-full">
             <ReportTable 
                 data={reportData}
-                isLoading={isLoading}
-                onRefresh={handleRefresh}
+                status={status}
+                onRefresh={() => { void generateReportData() }}
             />
         </div>
     )

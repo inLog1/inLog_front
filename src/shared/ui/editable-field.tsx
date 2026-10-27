@@ -44,6 +44,8 @@ interface EditableFieldProps<
     placeholder?: string
     options?: { label: string; value: string }[]
     isVisible?: boolean
+    disabled?: boolean
+    disabledReason?: string
     onSave: (name: FieldPath<T>, value: any) => Promise<void>
     renderCustom?: (
         value: any,
@@ -65,6 +67,8 @@ export function EditableField<
     placeholder,
     options,
     isVisible = true,
+    disabled = false,
+    disabledReason,
     renderOption,
     renderValue,
     renderSelectedValue,
@@ -74,8 +78,13 @@ export function EditableField<
     const { t } = useTranslation()
     const [editing, setEditing] = useState(false)
     const [loading, setLoading] = useState(false)
+    if (disabled && editing) setEditing(false)
 
     const handleSave = async (value: any) => {
+        if (disabled) {
+            setEditing(false)
+            return
+        }
         try {
             setLoading(true)
             await onSave(name, value)
@@ -197,8 +206,14 @@ export function EditableField<
                             </>
                         ) : (
                             <div
-                                onClick={() => setEditing(true)}
-                                className="group cursor-pointer flex items-center justify-between gap-2 rounded-md py-1.5 px-2 bg-muted/50 transition-colors"
+                                onClick={() => {
+                                    if (!disabled) setEditing(true)
+                                }}
+                                title={disabled ? disabledReason : undefined}
+                                className={cn(
+                                    'group flex items-center justify-between gap-2 rounded-md py-1.5 px-2 bg-muted/50 transition-colors',
+                                    disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                                )}
                             >
                                 <span className="flex-1">
                                     {renderValue
@@ -215,7 +230,7 @@ export function EditableField<
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     )}
 
-                                    {!loading && (
+                                    {!loading && !disabled && (
                                         <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                                     )}
                                 </div>

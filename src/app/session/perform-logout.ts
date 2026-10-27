@@ -23,6 +23,7 @@ export async function performLogout(request: LogoutRequest) {
   if (request.reason === 'switch' || request.reason === 'preset') {
     store.dispatch(sessionActions.beginBootstrap())
   } else {
+    if (request.reason === 'user') store.dispatch(sessionActions.noteUserLogout())
     store.dispatch(sessionActions.setAnonymous())
   }
 

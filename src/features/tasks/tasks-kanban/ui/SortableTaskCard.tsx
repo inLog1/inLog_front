@@ -11,11 +11,13 @@ interface Props {
     task: Task
     onClick?: (task: Task | undefined) => void
     onDelete?: (task: Task | undefined) => void
+    canDrag?: boolean
+    updateDeniedReason?: string
     isActive?: boolean
     className?: string
 }
 
-const SortableTaskCard = ({ task, onClick, onDelete, isActive, className }: Props) => {
+const SortableTaskCard = ({ task, onClick, onDelete, canDrag = true, updateDeniedReason, isActive, className }: Props) => {
     const {
         attributes,
         listeners,
@@ -29,7 +31,7 @@ const SortableTaskCard = ({ task, onClick, onDelete, isActive, className }: Prop
             type: 'task',
             task: task,
         },
-        disabled: false, 
+        disabled: !canDrag, 
         animateLayoutChanges: () => true,
     })
 
@@ -50,10 +52,10 @@ const SortableTaskCard = ({ task, onClick, onDelete, isActive, className }: Prop
         <div
             ref={setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
+            {...(canDrag ? attributes : {})}
+            {...(canDrag ? listeners : {})}
             className={cn(
-                "cursor-grab active:cursor-grabbing",
+                canDrag && "cursor-grab active:cursor-grabbing",
                 isDragging && "pointer-events-none",
                 className
             )}
@@ -63,6 +65,7 @@ const SortableTaskCard = ({ task, onClick, onDelete, isActive, className }: Prop
                 task={task}
                 isDragging={isDragging}
                 deleteTask={onDelete}
+                updateDeniedReason={updateDeniedReason}
                 isActive={isActive}
             />
         </div>

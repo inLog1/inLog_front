@@ -1,3 +1,4 @@
+import { taskFixtures } from '../tasks/fixtures'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
 import type { MockState } from './types'
 
@@ -24,6 +25,7 @@ export function createSeed(): MockState {
       { id: 4, email: 'employee.b@example.test', name: 'Глеб', patronymic: 'Павлович', surname: 'Морозов', position: 'Сотрудник лаборатории', legacyRole: 'member', status: 'active' },
       { id: 5, email: 'customer@example.test', name: 'Нина', patronymic: 'Андреевна', surname: 'Орлова', position: 'Представитель заказчика', legacyRole: 'member', status: 'active' },
       { id: 6, email: 'pending@example.test', name: 'Павел', patronymic: 'Романович', surname: 'Ершов', position: 'Сотрудник без назначений', legacyRole: 'member', status: 'active' },
+      { id: 7, email: 'project.only@example.test', name: 'Марк', patronymic: 'Викторович', surname: 'Белов', position: 'Сотрудник одного проекта', legacyRole: 'member', status: 'active' },
     ],
     identities: [
       { id: 'idn-owner', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner', email: 'owner@example.test', userId: 1 },
@@ -32,6 +34,7 @@ export function createSeed(): MockState {
       { id: 'idn-employee-b', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-employee-b', email: 'employee.b@example.test', userId: 4 },
       { id: 'idn-customer', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-customer', email: 'customer@example.test', userId: 5 },
       { id: 'idn-pending', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-pending', email: 'pending@example.test', userId: 6 },
+      { id: 'idn-project-only', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-project-only', email: 'project.only@example.test', userId: 7 },
       { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
     ],
     organizations: [
@@ -41,6 +44,7 @@ export function createSeed(): MockState {
     ],
     projects: [
       { id: 1001, organizationId: 101, corporationId: 1, name: 'Проект А-1' },
+      { id: 1003, organizationId: 101, corporationId: 1, name: 'Проект А-2' },
       { id: 1002, organizationId: 102, corporationId: 1, name: 'Проект Б-1' },
     ],
     memberships: [
@@ -51,6 +55,7 @@ export function createSeed(): MockState {
       { id: 'mem-3-101', userId: 3, organizationId: 101, kind: 'laboratory' },
       { id: 'mem-4-102', userId: 4, organizationId: 102, kind: 'laboratory' },
       { id: 'mem-5-201', userId: 5, organizationId: 201, kind: 'customer' },
+      { id: 'mem-7-101', userId: 7, organizationId: 101, kind: 'laboratory' },
     ],
     grants: [
       { id: 'g-org-manage', resource: 'organizations', action: 'manage' },
@@ -60,27 +65,63 @@ export function createSeed(): MockState {
       { id: 'g-members-manage', resource: 'members', action: 'manage' },
       { id: 'g-members-read', resource: 'members', action: 'read' },
       { id: 'g-tasks', resource: 'tasks', action: 'read' },
+      { id: 'g-tasks-create', resource: 'tasks', action: 'create' },
+      { id: 'g-tasks-update', resource: 'tasks', action: 'update' },
+      { id: 'g-tasks-delete', resource: 'tasks', action: 'delete' },
+      { id: 'g-tasks-assign', resource: 'tasks', action: 'assign' },
       { id: 'g-requests-read', resource: 'requests', action: 'read' },
       { id: 'g-requests-create', resource: 'requests', action: 'create' },
       { id: 'g-delegate', resource: 'delegations', action: 'delegate' },
+      // Proposed section codes. Fresh seed only; migration does not copy them into a saved snapshot.
+      { id: 'g-constructor-schema-read', resource: 'constructor.schema', action: 'read' },
+      { id: 'g-constructor-schema-update', resource: 'constructor.schema', action: 'update' },
+      { id: 'g-constructor-records-read', resource: 'constructor.records', action: 'read' },
+      { id: 'g-constructor-records-update', resource: 'constructor.records', action: 'update' },
+      { id: 'g-reports-read', resource: 'reports', action: 'read' },
+      { id: 'g-reports-generate', resource: 'reports', action: 'generate' },
+      // Proposed. create and delete are not implied by update. Fresh seed only.
+      { id: 'g-constructor-schema-create', resource: 'constructor.schema', action: 'create' },
+      { id: 'g-constructor-schema-delete', resource: 'constructor.schema', action: 'delete' },
+      { id: 'g-constructor-records-create', resource: 'constructor.records', action: 'create' },
+      { id: 'g-constructor-records-delete', resource: 'constructor.records', action: 'delete' },
     ],
     roles: [
       {
         id: 'role-owner',
         displayName: 'Координатор',
-        grantIds: ['g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage'],
+        grantIds: [
+          'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage', 'g-tasks',
+          'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
+        ],
         delegationGrantIds: [
           'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage',
-          'g-members-read', 'g-tasks', 'g-requests-read', 'g-requests-create', 'g-delegate',
+          'g-members-read', 'g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign',
+          'g-requests-read', 'g-requests-create', 'g-delegate',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
         ],
       },
       {
         id: 'role-lab-admin',
         displayName: 'Администратор лаборатории',
-        grantIds: ['g-members-manage', 'g-assign', 'g-projects', 'g-test'],
+        grantIds: [
+          'g-members-manage', 'g-assign', 'g-projects', 'g-test',
+          'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
+          'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
+          'g-reports-read', 'g-reports-generate',
+        ],
         delegationGrantIds: ['g-members-read'],
       },
-      { id: 'role-employee', displayName: 'Сотрудник', grantIds: ['g-tasks', 'g-projects'], delegationGrantIds: [] },
+      {
+        id: 'role-employee',
+        displayName: 'Сотрудник',
+        grantIds: ['g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign', 'g-projects'],
+        delegationGrantIds: [],
+      },
       { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'], delegationGrantIds: [] },
       { id: 'role-decoy', displayName: 'corporate_superadmin', grantIds: [], delegationGrantIds: [] },
       { id: 'role-members-reader', displayName: 'Чтение состава', grantIds: ['g-members-read'], delegationGrantIds: [] },
@@ -91,6 +132,12 @@ export function createSeed(): MockState {
       { id: 'asg-employee-a', userId: 3, roleId: 'role-employee', scope: org(101) },
       { id: 'asg-employee-b', userId: 4, roleId: 'role-employee', scope: org(102) },
       { id: 'asg-customer', userId: 5, roleId: 'role-customer', scope: org(201) },
+      {
+        id: 'asg-project-only',
+        userId: 7,
+        roleId: 'role-employee',
+        scope: { type: 'project', projectId: 1001, organizationId: 101, corporationId: 1 },
+      },
     ],
     delegations: [
       {
@@ -107,6 +154,12 @@ export function createSeed(): MockState {
     ],
     systemCapabilities: [{ userId: 1, code: 'corporate_superadmin' }],
     sessions: [],
+    ...taskFixtures(),
+    constructorNodes: [],
+    constructorTabs: [],
+    constructorFields: [],
+    constructorRecords: [],
+    notifications: [],
     fault: null,
   }
 }

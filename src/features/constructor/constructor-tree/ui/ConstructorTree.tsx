@@ -33,6 +33,9 @@ interface Props {
     onEdit?: (node: AdminPanelNode, body: AdminPanelNodeRequest) => void
     onDelete?: (node: AdminPanelNode) => void
     onCreate?: (body: AdminPanelNodeRequest) => void
+    canCreate?: boolean
+    canUpdate?: boolean
+    canDelete?: boolean
     className?: string
 }
 
@@ -44,6 +47,9 @@ const ConstructorTree = ({
     onEdit,
     onDelete,
     onCreate,
+    canCreate = true,
+    canUpdate = true,
+    canDelete = true,
     className = '',
 }: Props) => {
     const { t, i18n } = useTranslation()
@@ -87,6 +93,16 @@ const ConstructorTree = ({
     }>({
         open: false,
     })
+
+    if (dialogState.open && dialogState.mode === 'create' && !canCreate) {
+        setDialogState({ open: false, mode: 'create' })
+    }
+    if (dialogState.open && dialogState.mode === 'edit' && !canUpdate) {
+        setDialogState({ open: false, mode: 'edit' })
+    }
+    if (deleteDialogState.open && !canDelete) {
+        setDeleteDialogState({ open: false })
+    }
 
     const handleOpenCreateDialog = useCallback((parentNode?: AdminPanelNode) => {
         setDialogState({
@@ -312,11 +328,18 @@ const ConstructorTree = ({
                 )}
 
                 {allNodesCount === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center py-12 text-center">
+                    <div className="h-full flex flex-col items-center justify-center gap-3 py-12 text-center">
                         <FolderTree className="h-12 w-12 text-muted-foreground/50 mb-3" />
                         <p className="text-muted-foreground">
                             {t('admin-page.no-nodes-available')}
                         </p>
+                        {canCreate ? (
+                            <Button type="button" variant="outline" onClick={() => handleOpenCreateDialog()}>
+                                {t('admin-page.create-node')}
+                            </Button>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">{t('admin-page.no-schema-create')}</p>
+                        )}
                     </div>
                 ) : (
                     <ScrollArea className="h-full overflow-y-auto max-h-[calc(100vh-180px)]">
@@ -335,9 +358,9 @@ const ConstructorTree = ({
                                         node={node}
                                         mode={mode}
                                         onToggle={handleToggle}
-                                        onEdit={() => handleOpenEditDialog(node)}
-                                        onDelete={level > 0 ? () => handleOpenDeleteDialog(node) : undefined}
-                                        onCreate={() => handleOpenCreateDialog(node)}
+                                        onEdit={canUpdate ? () => handleOpenEditDialog(node) : undefined}
+                                        onDelete={canDelete && level > 0 ? () => handleOpenDeleteDialog(node) : undefined}
+                                        onCreate={canCreate ? () => handleOpenCreateDialog(node) : undefined}
                                     />
                                 )
                             })}

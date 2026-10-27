@@ -55,6 +55,25 @@ import type { ColumnConfig } from '../model/types'
 import ConstructorTableEditingRow from './ConstructorTableEditingRow'
 import ConstructorTableFormDialog from './ConstructorTableFormDialog'
 
+function cellValue(fieldType: AdminPanelGroup['type'], field: unknown): string {
+  if (fieldType === 'integer') {
+    const numberValue = typeof field === 'number' ? field : Number(field)
+    return Number.isFinite(numberValue) ? String(numberValue) : ''
+  }
+  if (fieldType === 'date') {
+    if (field instanceof Date) return format(field, 'yyyy-MM-dd')
+    return typeof field === 'string' ? field.slice(0, 10) : ''
+  }
+  if (fieldType === 'file') {
+    if (field && typeof field === 'object' && 'name' in field) {
+      const name = String((field as { name?: unknown }).name ?? '')
+      return name.startsWith('blob:') ? '' : name
+    }
+    return typeof field === 'string' && !field.startsWith('blob:') ? field : ''
+  }
+  return field == null ? '' : String(field)
+}
+
 export interface ColumnFormData {
   titleEn: string
   titleRu: string
@@ -86,6 +105,14 @@ interface Props {
   onSaveRow?: (row: AdminPanelRowRequest['data']) => Promise<void>
   onEditRow?: (rowKey: string, body: AdminPanelRowRequest['data']) => Promise<void>
   onDeleteRow?: (rowId: string) => Promise<void>
+  permissions?: {
+    columnCreate?: boolean
+    columnUpdate?: boolean
+    columnDelete?: boolean
+    rowCreate?: boolean
+    rowUpdate?: boolean
+    rowDelete?: boolean
+  }
 }
 
 const ConstructorTable = (props: Props) => {
@@ -98,8 +125,15 @@ const ConstructorTable = (props: Props) => {
     onDataChange, 
     onSaveRow,
     onEditRow,
-    onDeleteRow
+    onDeleteRow,
+    permissions,
   } = props
+  const columnCreate = permissions?.columnCreate !== false
+  const columnUpdate = permissions?.columnUpdate !== false
+  const columnDelete = permissions?.columnDelete !== false
+  const rowCreate = permissions?.rowCreate !== false
+  const rowUpdate = permissions?.rowUpdate !== false
+  const rowDelete = permissions?.rowDelete !== false
   const { t, i18n } = useTranslation()
   const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
 
@@ -117,6 +151,16 @@ const ConstructorTable = (props: Props) => {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
   const [selectedColumn, setSelectedColumn] = useState<ColumnConfig | null>(null)
   const [isEditingColumn, setIsEditingColumn] = useState(false)
+
+  if (isColumnDialogOpen && ((isEditingColumn && !columnUpdate) || (!isEditingColumn && !columnCreate))) {
+    setIsColumnDialogOpen(false)
+  }
+  if (isDeleteAlertOpen && !columnDelete) setIsDeleteAlertOpen(false)
+  if (editingKey && !rowUpdate) {
+    setEditingKey(null)
+    setEditValues({})
+    setEditErrors({})
+  }
 
   const getDefaultValueForColumn = useCallback((inputType: AdminPanelGroup['type']): any => {
     switch (inputType) {
@@ -260,7 +304,7 @@ const ConstructorTable = (props: Props) => {
   }
 
   const validateEditValue = (column: ColumnConfig, value: any): string => {
-    if (value === '') {
+    if (value == null || value === '') {
       return t('validation.required')
     }
 
@@ -304,7 +348,6 @@ const ConstructorTable = (props: Props) => {
       )
       setColumns(updatedColumns)
 
-      onEdit?.(updatedColumn)
       try {
         await onEdit?.(updatedColumn)
       } catch {
@@ -382,20 +425,19 @@ const ConstructorTable = (props: Props) => {
     }
 
     try {
-      const fieldsKeys = Object.keys(editValues).filter((key) => key !== 'key')
+      const fieldsKeys = columns.map((column) => column.key)
       const body: AdminPanelRowRequest['data'] = {
       }
 
       for (const key of fieldsKeys) {
         const field = editValues[key]
         const targetColumn = columns.find(val => val.key === key)
-        const fieldType = targetColumn?.inputType || 'string'
-
-        if (field) {
-          body[`${targetColumn?.title.en || ''}`] = {
-            type: fieldType === 'dropdown' ? 'string' : fieldType,
-            value: fieldType ==='integer' ? Number(field) : field || ''
-          }
+        if (!targetColumn) continue
+        const fieldType = targetColumn.inputType || 'string'
+        const label = targetColumn.title.en || targetColumn.title.ru || key
+        body[label] = {
+          type: fieldType === 'dropdown' ? 'string' : fieldType,
+          value: cellValue(fieldType, field),
         }
       }
       const targetRowKey = initialRows?.find((item) => item.key === editingKey)?.key
@@ -666,6 +708,8 @@ const ConstructorTable = (props: Props) => {
                       </div>
                     </div>
                     <DropdownMenu>
+                      {(columnUpdate || columnDelete) && (
+                      <>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
@@ -676,24 +720,30 @@ const ConstructorTable = (props: Props) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {columnUpdate && (
                         <DropdownMenuItem className="" onClick={() => openEditColumnDialog(column)}>
                           <Edit className="h-3 w-3 mr-2" />
                           {t('buttons.edit')}
                         </DropdownMenuItem>
+                        )}
+                        {columnDelete && (
                         <DropdownMenuItem
                           onClick={() => openDeleteColumnAlert(column)}
                           className="text-destructive focus:text-destructive"
-                        // disabled={columns.length <= 1}
                         >
                           <Trash2 className="h-3 w-3 mr-2" />
                           {t('buttons.delete')}
                         </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
+                      </>
+                      )}
                     </DropdownMenu>
                   </div>
                 </TableHead>
               ))}
               <TableHead className="w-[100px] text-center">
+                {columnCreate ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -703,6 +753,9 @@ const ConstructorTable = (props: Props) => {
                   <Plus className="h-3 w-3 mr-1" />
                   {t('buttons.add-column')}
                 </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{t('admin-page.no-schema-create')}</span>
+                )}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -716,7 +769,7 @@ const ConstructorTable = (props: Props) => {
                   <div className="flex flex-col items-center gap-2">
                     <FileSpreadsheet className="h-8 w-8 opacity-50" />
                     <span>{t('errors.no-data')}</span>
-                    <Button variant="outline" size="sm" onClick={addRow} disabled={columns.length === 0 || !!editingKey}>
+                    <Button variant="outline" size="sm" onClick={addRow} disabled={!rowCreate || columns.length === 0 || !!editingKey} title={rowCreate ? undefined : t('admin-page.no-records-create')}>
                       <Plus className="h-3 w-3 mr-1" />
                       {t('buttons.add-row')}
                     </Button>
@@ -739,6 +792,8 @@ const ConstructorTable = (props: Props) => {
                     renderEditCell={renderEditCell}
                     renderViewCell={renderViewCell}
                     disabled={!!editingKey}
+                    canUpdate={rowUpdate}
+                    canDelete={rowDelete}
                   />
                 )
               })
@@ -752,7 +807,8 @@ const ConstructorTable = (props: Props) => {
           <Button
             variant="outline"
             onClick={addRow}
-            disabled={!!editingKey}
+            disabled={!rowCreate || !!editingKey}
+            title={rowCreate ? undefined : t('admin-page.no-records-create')}
             className="w-full border-dashed"
           >
             <Plus className="h-4 w-4 mr-2" />

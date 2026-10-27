@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { selectIsPlatformAdmin, selectUser, selectUserFullName, selectUserRole } from '../../entities/user/model/selectors'
+import { useWorkspaceHref } from '../../features/org-project-selector/model/useEnsureOrgProjectParams'
+import type { WorkspaceLinkScope } from '../../features/org-project-selector/model/workspace-context'
 import { isPlatformConsolePath, routes } from '../../shared/lib/routes'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../../shared/ui/button'
@@ -52,22 +54,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     : null
 
   const isPlatform = isPlatformConsolePath(location.pathname)
+  const href = useWorkspaceHref()
 
-  const clientItems = [
-    { label: t('sidebar.dashboard'), href: routes.dashboard(), icon: LayoutDashboard, end: true },
-    { label: t('admin-page.constructor'), href: routes.admin.constructor(), icon: Wrench, end: false },
-    { label: t('admin-page.reports'), href: routes.admin.reports(), icon: PieChart, end: false },
-    { label: t('sidebar.organizations-and-projects'), href: routes.settings.organizationsAndProjects(), icon: Folders, end: false },
-    { label: t('sidebar.scheduler'), href: routes.scheduler.list(), icon: FolderKanban, end: false },
-    { label: t('sidebar.geo-mechanics'), href: routes.geoMechanics.list(), icon: TowerControl, end: false },
-    { label: t('sidebar.settings'), href: routes.settings.notifications(), icon: Settings, end: false },
+  const clientItems: { label: string; path: string; scope: WorkspaceLinkScope; icon: typeof LayoutDashboard; end: boolean }[] = [
+    { label: t('sidebar.dashboard'), path: routes.dashboard(), scope: 'app', icon: LayoutDashboard, end: true },
+    { label: t('admin-page.constructor'), path: routes.admin.constructor(), scope: 'organization', icon: Wrench, end: false },
+    { label: t('admin-page.reports'), path: routes.admin.reports(), scope: 'organization', icon: PieChart, end: false },
+    { label: t('sidebar.organizations-and-projects'), path: routes.settings.organizationsAndProjects(), scope: 'app', icon: Folders, end: false },
+    { label: t('sidebar.scheduler'), path: routes.scheduler.list(), scope: 'project', icon: FolderKanban, end: false },
+    { label: t('sidebar.geo-mechanics'), path: routes.geoMechanics.list(), scope: 'app', icon: TowerControl, end: false },
+    { label: t('sidebar.settings'), path: routes.settings.notifications(), scope: 'app', icon: Settings, end: false },
   ]
 
-  const platformItems = [
-    { label: t('admin-page.users'), href: routes.admin.users(), icon: Users },
-    { label: t('admin-page.members'), href: routes.admin.members(), icon: UserCheck },
-    { label: t('sidebar.organizations-and-projects'), href: routes.admin.organizationsAndProjects(), icon: Folders },
-    { label: t('admin-page.tasks'), href: routes.admin.tasks(), icon: CheckSquare },
+  const platformItems: { label: string; path: string; scope: WorkspaceLinkScope; icon: typeof Users }[] = [
+    { label: t('admin-page.users'), path: routes.admin.users(), scope: 'app', icon: Users },
+    { label: t('admin-page.members'), path: routes.admin.members(), scope: 'app', icon: UserCheck },
+    { label: t('sidebar.organizations-and-projects'), path: routes.admin.organizationsAndProjects(), scope: 'app', icon: Folders },
+    { label: t('admin-page.tasks'), path: routes.admin.tasks(), scope: 'app', icon: CheckSquare },
   ]
 
   const itemClass = (active: boolean) =>
@@ -107,7 +110,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
         {isPlatformAdmin && (
           <button
             type="button"
-            onClick={() => navigate(isPlatform ? routes.dashboard() : routes.admin.list())}
+            onClick={() => navigate(href(isPlatform ? routes.dashboard() : routes.admin.list(), 'app'))}
             className="mt-3 flex w-full cursor-pointer items-center gap-2 rounded-lg bg-shell-subtle px-3 py-2 text-left text-sm hover:bg-shell-subtle-hover"
           >
             {isPlatform ? (
@@ -127,8 +130,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
         {isPlatform
           ? platformItems.map((item) => (
               <NavLink
-                key={item.href}
-                to={item.href}
+                key={item.path}
+                to={href(item.path, item.scope)}
                 className={({ isActive }) => itemClass(isActive)}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
@@ -137,8 +140,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
             ))
           : clientItems.map((item) => (
               <NavLink
-                key={item.href}
-                to={item.href}
+                key={item.path}
+                to={href(item.path, item.scope)}
                 end={item.end}
                 className={({ isActive }) => itemClass(isActive)}
               >

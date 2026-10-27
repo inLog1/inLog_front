@@ -16,6 +16,8 @@ interface ConstructorTableEditingRowProps {
     renderEditCell: (column: ColumnConfig, record: DataItem) => React.ReactNode
     renderViewCell: (column: ColumnConfig, record: DataItem) => React.ReactNode
     disabled: boolean
+    canUpdate?: boolean
+    canDelete?: boolean
 }
 
 const ConstructorTableEditingRow = (props: ConstructorTableEditingRowProps) => {
@@ -30,6 +32,8 @@ const ConstructorTableEditingRow = (props: ConstructorTableEditingRowProps) => {
         deleteRow, 
         renderEditCell, 
         renderViewCell,
+        canUpdate = true,
+        canDelete = true,
     } = props
     return (
         <TableRow
@@ -73,26 +77,28 @@ const ConstructorTableEditingRow = (props: ConstructorTableEditingRowProps) => {
                         </>
                     ) : (
                         <>
+                            {canUpdate && (
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => startEdit(record)}
                                 className="h-7 w-7"
                                 disabled={disabled}
-                                // disabled={!!editingKey}
                             >
                                 <Edit className="h-3.5 w-3.5" />
                             </Button>
+                            )}
+                            {canDelete && (
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => deleteRow(record.key)}
                                 className="h-7 w-7 text-destructive"
-                                // disabled={!!editingKey}
                                 disabled={disabled}
                             >
                                 <Trash2 className="h-3.5 w-3.5" />
                             </Button>
+                            )}
                         </>
                     )}
                 </div>

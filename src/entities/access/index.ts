@@ -10,6 +10,7 @@ export {
   assignmentDenial,
   can,
   canDelegate,
+  grantAllows,
   capabilityFromRoleDisplayName,
   effectiveGrants,
   hasCorporateSuperadmin,

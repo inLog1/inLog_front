@@ -15,6 +15,7 @@ interface TaskCardProps {
     deleteTask?: (task: Task) => void
     createTemplate?: (task: Task) => void
     changeStatus?: (slug: string, status: 'completed' | 'incomplete') => void
+    updateDeniedReason?: string
 }
 
 const TaskCard = ({
@@ -22,8 +23,9 @@ const TaskCard = ({
     className = '',
     isDragging = false,
     selectTask = () => { },
-    deleteTask = () => { },
-    changeStatus = () => { },
+    deleteTask,
+    changeStatus,
+    updateDeniedReason,
     isActive = false,
 }: TaskCardProps) => {
     const { t } = useTranslation()
@@ -36,6 +38,7 @@ const TaskCard = ({
     }, [task.due_date_end]);
 
     const handleChangeStatus = () => {
+        if (!changeStatus) return
         changeStatus(task.slug, isCompleted ? 'incomplete' : 'completed')
     }
 
@@ -60,11 +63,17 @@ const TaskCard = ({
             <div className="flex items-center gap-3 flex-1 pl-3">
                 {/* Статус иконка */}
                 <button
+                    type="button"
+                    disabled={!changeStatus}
+                    title={updateDeniedReason}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleChangeStatus()
                     }}
-                    className="flex-shrink-0 hover:scale-110 transition-transform cursor-pointer"
+                    className={cn(
+                        'flex-shrink-0 transition-transform',
+                        changeStatus ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-70',
+                    )}
                 >
                     {isCompleted ? (
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -93,7 +102,7 @@ const TaskCard = ({
             </div>
 
             <div className="flex items-center gap-2">
-                {!isDragging && (
+                {!isDragging && deleteTask && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

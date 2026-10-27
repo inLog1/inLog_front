@@ -11,6 +11,7 @@ const initialState: SessionState = {
   error: null,
   schemaMismatch: false,
   mockWriteLocked: false,
+  omitWorkspaceReturn: false,
 }
 
 const sessionSlice = createSlice({
@@ -22,6 +23,7 @@ const sessionSlice = createSlice({
       state.subjectId = null
       state.error = null
       state.mockWriteLocked = false
+      state.omitWorkspaceReturn = false
     },
     advanceGeneration(state) {
       state.generation += 1
@@ -37,6 +39,17 @@ const sessionSlice = createSlice({
       state.subjectId = action.payload.subjectId
       state.accessState = action.payload.accessState
       state.error = null
+      state.omitWorkspaceReturn = false
+    },
+    noteUserLogout(state) {
+      state.omitWorkspaceReturn = true
+    },
+    clearWorkspaceReturnOmission(state) {
+      state.omitWorkspaceReturn = false
+    },
+    setAccessState(state, action: PayloadAction<WorkspaceAccess>) {
+      if (state.phase !== 'authenticated') return
+      state.accessState = action.payload
     },
     setBootstrapError(state, action: PayloadAction<'network' | 'server'>) {
       state.phase = 'error'

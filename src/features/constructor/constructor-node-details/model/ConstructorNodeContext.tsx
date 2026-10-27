@@ -1,5 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useGenerateReportMutation, useGetAdminPanelGroupsQuery } from "../../../../entities/admin/model/adminSlice";
 import type { AdminPanelGroup, AdminPanelReportRequest, AdminPanelReportTable } from "../../../../entities/admin/model/types";
 import { errorsHandler } from "../../../../shared/lib/errors-handler";
@@ -8,7 +7,9 @@ import { useTranslation } from "react-i18next";
 interface Props {
   children: React.ReactNode
   nodeId: number
-  groups: AdminPanelGroup[],
+  groups: AdminPanelGroup[]
+  organizationId: number | null
+  canReadRecords: boolean
 }
 
 interface ProviderState {
@@ -30,52 +31,62 @@ const ConstructorNodeContext = createContext<ProviderState>(initialState)
 
 export function ConstructorNodeProvider({
   children,
-  nodeId
+  nodeId,
+  organizationId,
+  canReadRecords,
 }: Props) {
   const {t} = useTranslation()
-  const [searchParams] = useSearchParams()
-  const organizationId = Number(searchParams.get('org'))
 
   const [tableRowsData, setTableRowsData] = useState<AdminPanelReportTable>({})
+  const requestSerial = useRef(0)
 
   const { data: groups } = useGetAdminPanelGroupsQuery({
     group: nodeId,
-    organizationId: organizationId,
+    organizationId: organizationId ?? 0,
   }, {
-    skip: !nodeId
+    skip: !nodeId || organizationId == null || !canReadRecords
   })
 
   const [generateReport] = useGenerateReportMutation()
 
   const fetchTableRows = async () => {
+    const serial = requestSerial.current
+    const requestedOrganizationId = organizationId
+    const requestedNodeId = nodeId
     try {
-      if (!groups) return
+      if (!canReadRecords || !groups || organizationId == null) return
       const body: AdminPanelReportRequest[] = []
       body.push({
         group: nodeId,
         fields: groups.map((group) => Number(group.id))
       })
-      const { data: response } = await generateReport({
-        organizationId: organizationId,
+      const response = await generateReport({
+        organizationId,
         body
-      })
-      if(response){
-        setTableRowsData(response)
-      }
+      }).unwrap()
+      if (
+        serial !== requestSerial.current
+        || requestedOrganizationId !== organizationId
+        || requestedNodeId !== nodeId
+      ) return
+      setTableRowsData(response ?? {})
     } catch (error) {
+      if (serial !== requestSerial.current) return
+      setTableRowsData({})
       errorsHandler(error, t)
     }
   }
 
   useEffect(() => {
+    requestSerial.current += 1
     setTableRowsData({})
-  }, [nodeId])
+  }, [nodeId, organizationId])
 
   useEffect(() => {
-    if (groups && groups.length > 0) {
+    if (canReadRecords && groups && groups.length > 0) {
         fetchTableRows()
     }
-}, [groups])
+}, [groups, canReadRecords])
 
 
   return (

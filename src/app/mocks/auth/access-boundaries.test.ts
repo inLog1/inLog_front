@@ -95,7 +95,8 @@ describe('access boundaries', () => {
     const admin = tokenOf('admin.a@example.test')
     const denied = reviseRoleGrants(admin.login.state, admin.token, 'role-employee', ['g-tasks', 'g-projects', 'g-test'])
     expect(denied.status).toBe(403)
-    expect(denied.state.roles.find((item) => item.id === 'role-employee')?.grantIds).toEqual(['g-tasks', 'g-projects'])
+    expect(denied.state.roles.find((item) => item.id === 'role-employee')?.grantIds)
+      .toEqual(createSeed().roles.find((item) => item.id === 'role-employee')?.grantIds)
     expect(can(toSnapshot(denied.state), 3, 'test-resource', 'read', org(101))).toBe(false)
 
     const owner = tokenOf('owner@example.test')
@@ -109,7 +110,9 @@ describe('access boundaries', () => {
     const snapshot = toSnapshot(createSeed())
     expect(capabilityFromRoleDisplayName('corporate_superadmin')).toEqual([])
     expect(hasCorporateSuperadmin(snapshot, 1)).toBe(true)
-    expect(can(snapshot, 1, 'tasks', 'delete', { type: 'corporation', corporationId: 1 })).toBe(false)
+    expect(can(snapshot, 1, 'requests', 'create', { type: 'corporation', corporationId: 1 })).toBe(false)
+    expect(can(snapshot, 1, 'tasks', 'delete', { type: 'corporation', corporationId: 1 })).toBe(true)
+    expect(can(snapshot, 2, 'tasks', 'read', { type: 'organization', organizationId: 101, corporationId: 1 })).toBe(false)
 
     const admin = tokenOf('admin.a@example.test')
     const copied = {

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { BrowserRouter } from 'react-router-dom'
+import { preserveLocationSearch } from '../../features/org-project-selector/model/workspace-context'
 import AdminPage from '../../pages/admin'
 import { AdminConstructorPage } from '../../pages/admin/admin-constructor'
 import CheckEmailPage from '../../pages/auth/check-email'
@@ -30,6 +31,11 @@ import { RequireWorkspace } from '../session/RequireWorkspace'
 import { LoginBoundary } from '../session/LoginBoundary'
 import { SessionProvider } from '../session/SessionProvider'
 
+function RedirectKeepingSearch({ to }: { to: string }) {
+  const location = useLocation()
+  return <Navigate to={preserveLocationSearch(to, location.search)} replace />
+}
+
 const mockBuild = import.meta.env.VITE_API_MODE === 'mock'
 const MockProviderPage = mockBuild
   ? lazy(() => import('../../pages/auth/mock-provider'))
@@ -57,7 +63,7 @@ export function AppRouter() {
             <Route path={routes.dashboard()} element={<RootLayout />} >
               <Route index element={<DashboardPage />} />
               <Route path={routes.scheduler.list()} element={<SchedulerPage />} >
-                <Route index element={<Navigate to={routes.scheduler.tasks()} replace />} />
+                <Route index element={<RedirectKeepingSearch to={routes.scheduler.tasks()} />} />
                 <Route path={routes.scheduler.tasks()} element={<TasksPage />} />
                 <Route path={routes.scheduler.templates()} element={<TemplatesPage />} />
                 <Route path={routes.scheduler.statuses()} element={<div>Statuses</div>} />
@@ -69,19 +75,19 @@ export function AppRouter() {
               </Route>
               <Route path={routes.admin.list()} element={<AdminRoute />}>
                 <Route element={<AdminPage />}>
-                  <Route index element={<Navigate to={routes.admin.users()} replace />} />
+                  <Route index element={<RedirectKeepingSearch to={routes.admin.users()} />} />
                   <Route path={routes.admin.users()} element={<AdminUsersPage />} />
                   <Route path={routes.admin.members()} element={<AdminMembersPage />} />
                   <Route path={routes.admin.organizationsAndProjects()} element={<AdminOrganizationsPage />} />
-                  <Route path={routes.admin.organizations()} element={<Navigate to={routes.admin.organizationsAndProjects()} replace />} />
-                  <Route path={routes.admin.projects()} element={<Navigate to={routes.admin.organizationsAndProjects()} replace />} />
+                  <Route path={routes.admin.organizations()} element={<RedirectKeepingSearch to={routes.admin.organizationsAndProjects()} />} />
+                  <Route path={routes.admin.projects()} element={<RedirectKeepingSearch to={routes.admin.organizationsAndProjects()} />} />
                   <Route path={routes.admin.tasks()} element={<AdminTasksPage />} />
                 </Route>
               </Route>
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
               <Route path={routes.settings.organizationsAndProjects()} element={<OrganizationsAndProjectsPage />} />
               <Route path={routes.settings.list()} element={<SettingsPage />}>
-                <Route index element={<Navigate to={routes.settings.notifications()} replace />} />
+                <Route index element={<RedirectKeepingSearch to={routes.settings.notifications()} />} />
                 <Route path={routes.settings.notifications()} element={<NotificationsPage />} />
               </Route>
               <Route path={routes.geoMechanics.list()} element={<GeoMechanicsPage />} />

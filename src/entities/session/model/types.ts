@@ -11,4 +11,6 @@ export type SessionState = {
   error: 'network' | 'server' | null
   schemaMismatch: boolean
   mockWriteLocked: boolean
+  /** User logout must not copy the workspace query into the login return path. */
+  omitWorkspaceReturn: boolean
 }

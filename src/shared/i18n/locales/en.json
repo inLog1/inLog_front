@@ -422,6 +422,27 @@
         "tasks-description": "Manage tasks and statuses"
     },
 
+    "workspace": {
+        "loading": "Checking the organization and project",
+        "choose-organization": "Choose an organization. Nothing is selected automatically while several are available.",
+        "choose-project": "Choose a project. An open task from another project is not carried over.",
+        "empty-organizations": "No organization is assigned to you.",
+        "empty-projects": "This organization has no available projects. Organization sections still open without a project.",
+        "invalid-organization": "The organization id in the link is not valid.",
+        "invalid-project": "The project id in the link is not valid.",
+        "unknown-organization": "Organization not found.",
+        "unknown-project": "Project not found.",
+        "forbidden-organization": "You do not have access to this organization.",
+        "forbidden-project": "You do not have access to this project.",
+        "project-organization-mismatch": "This project belongs to another organization. The link is not replaced.",
+        "organizations-error": "Organizations could not be loaded.",
+        "projects-error": "Projects could not be loaded.",
+        "access-error": "Permissions could not be checked.",
+        "missing-permission": "This section needs a permission you do not have. Its data is not requested.",
+        "section-error": "The section data could not be loaded. This is not an empty list.",
+        "retry": "Retry"
+    },
+
     "scheduler-page": {
         "title": "Scheduler",
         "tasks": "Tasks",
@@ -527,6 +548,10 @@
         "title": "Tasks",
         "templates": "Templates",
         "create-task": "Create task",
+        "no-create": "Creating is unavailable without permission to create tasks.",
+        "no-update": "Editing is unavailable without permission to update tasks.",
+        "no-delete": "Deleting is unavailable without permission to delete tasks.",
+        "no-assign": "Assignment is unavailable without permission to assign tasks.",
         "delete-task": "Delete task",
         "edit-task": "Edit task",
         "filters": "Filters",
@@ -773,7 +798,19 @@
         "related-tabs": "Related tabs",
         "related-nodes": "Related nodes",
         "choose-related-tabs": "Choose related tabs",
-        "choose-related-nodes": "Choose related nodes"
+        "choose-related-nodes": "Choose related nodes",
+        "no-schema-create": "Creating the schema is unavailable without a separate create permission.",
+        "no-schema-update": "Changing the schema is unavailable without permission to update it.",
+        "no-schema-delete": "Deleting the schema is unavailable without a separate delete permission.",
+        "no-records-read": "Records are hidden: there is no permission to read constructor data.",
+        "no-records-create": "Adding a record is unavailable without permission to create records.",
+        "no-records-update": "Changing a record is unavailable without permission to update records.",
+        "no-records-delete": "Deleting a record is unavailable without permission to delete records.",
+        "no-report-generate": "Building a report is unavailable without permission to generate reports.",
+        "report-idle": "The report has not been built yet. Select data and choose Create report.",
+        "report-empty": "The report was built, and the selected fields have no saved values.",
+        "report-error": "The report could not be built. Try the request again.",
+        "report-forbidden": "You do not have permission to build this report."
     },
 
     "geo-mechanics-page": {

@@ -62,17 +62,27 @@ export const SubTask = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState(subtask.title)
-
-  const handleDelete = () => {
-    onDelete?.(subtask.slug || '')
-    setIsDeleteDialogOpen(false)
-  }
+  if (!onEdit && isEditDialogOpen) setIsEditDialogOpen(false)
+  if (!onDelete && isDeleteDialogOpen) setIsDeleteDialogOpen(false)
 
   const handleEdit = () => {
+    if (!onEdit) {
+      setIsEditDialogOpen(false)
+      return
+    }
     if (editTitle.trim()) {
-      onEdit?.(subtask.slug || '', editTitle.trim())
+      onEdit(subtask.slug || '', editTitle.trim())
       setIsEditDialogOpen(false)
     }
+  }
+
+  const handleDelete = () => {
+    if (!onDelete) {
+      setIsDeleteDialogOpen(false)
+      return
+    }
+    onDelete(subtask.slug || '')
+    setIsDeleteDialogOpen(false)
   }
 
   const getSubtaskLink = () => {
@@ -146,17 +156,21 @@ const handleCopyLink = () => {
               <Copy className="mr-2 h-4 w-4" />
               <span>{t('buttons.copy-link')}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              <span>{t('buttons.edit')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setIsDeleteDialogOpen(true)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>{t('buttons.delete')}</span>
-            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                <span>{t('buttons.edit')}</span>
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>{t('buttons.delete')}</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import RootPageLayout from '../../../widgets/root-page-layout'
 import { routes } from '../../../shared/lib/routes'
+import { useWorkspaceHref } from '../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { Outlet } from 'react-router-dom'
 
 interface NavItem {
@@ -11,15 +12,16 @@ interface NavItem {
 
 const SchedulerPage = () => {
     const { t } = useTranslation()
+    const href = useWorkspaceHref()
 
     const navItems: NavItem[] = [
         {
             label: t('scheduler-page.tasks'),
-            href: routes.scheduler.tasks(),
+            href: href(routes.scheduler.tasks(), 'project'),
         },
         {
             label: t('scheduler-page.tasks-template'),
-            href: routes.scheduler.templates(),
+            href: href(routes.scheduler.templates(), 'project'),
         },
         // {
         //     label: t('scheduler-page.tasks-statuses'),

@@ -22,26 +22,37 @@ const OrgProjectSelector = ({
         projectsLoading,
         currentOrgId,
         currentProjectId,
-        searchParams,
-        setSearchParams,
+        status,
+        reason,
+        selectOrganization,
+        selectProject,
+        refetch,
     } = useEnsureOrgProjectParams(type)
 
     const handleOrgChange = (value: string) => {
-        const params = new URLSearchParams(searchParams)
-        params.set('org', value)
-        params.delete('project')
-        params.delete('task')
-        setSearchParams(params, { replace: true })
+        const organizationId = Number(value)
+        if (!Number.isInteger(organizationId)) return
+        selectOrganization(organizationId)
     }
 
     const handleProjectChange = (value: string) => {
-        const params = new URLSearchParams(searchParams)
-        params.set('project', value)
-        params.delete('task')
-        setSearchParams(params, { replace: true })
+        const projectId = Number(value)
+        if (!Number.isInteger(projectId)) return
+        selectProject(projectId)
     }
 
-    if (orgsLoading || projectsLoading) {
+    if (status === 'error' && (reason === 'organizations-error' || reason === 'access-error')) {
+        return (
+            <div className="space-y-3 rounded-lg border border-border bg-card px-4 py-4" role="alert">
+                <p className="text-sm text-muted-foreground">{t('workspace.organizations-error')}</p>
+                <Button type="button" variant="outline" size="sm" className="w-full" onClick={refetch}>
+                    {t('workspace.retry')}
+                </Button>
+            </div>
+        )
+    }
+
+    if (orgsLoading) {
         return (
             <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -99,7 +110,18 @@ const OrgProjectSelector = ({
                         </span>
                     </div>
 
-                    {projects.length === 0 ? (
+                    {status === 'error' && reason === 'projects-error' ? (
+                        <div className="space-y-3 py-2" role="alert">
+                            <p className="text-sm text-muted-foreground">{t('workspace.projects-error')}</p>
+                            <Button type="button" variant="outline" size="sm" className="w-full" onClick={refetch}>
+                                {t('workspace.retry')}
+                            </Button>
+                        </div>
+                    ) : projectsLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                    ) : projects.length === 0 ? (
                         <div className="space-y-3 py-2">
                             <p className="text-sm text-muted-foreground">
                                 {currentOrgId

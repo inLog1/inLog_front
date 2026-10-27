@@ -12,12 +12,11 @@ import { CalendarIcon, CircleUserRoundIcon, EyeIcon, FlagIcon, Kanban, LayoutGri
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { SubTasks } from '../../../entities/subtasks'
 import { TaskComments } from '../../../entities/task-comments'
 import type { Status, Tag, Task, TaskPriority } from '../../../entities/task/model/types'
-import { DATE_VIEW_FORMAT, priorityTypes } from '../../../shared/config/constants'
+import { DATE_REQUEST_FORMAT, DATE_VIEW_FORMAT, priorityTypes } from '../../../shared/config/constants'
 import { errorsHandler } from '../../../shared/lib/errors-handler'
 import { cn, getPriorityColorStyle } from '../../../shared/lib/utils'
 import type { MemberResponse } from '../../../shared/types/dto/project'
@@ -32,6 +31,8 @@ import { ScrollArea } from '../../../shared/ui/scroll-area'
 import { TagsInput } from '../../../shared/ui/tags-input'
 import TaskDescription from './TaskDescription'
 import { Whiteboard } from '../../whiteboard'
+import { useTaskFileUrls } from '../model/task-file-url'
+import { mayChangeComment, useTaskOperations } from '../../org-project-selector/model/useWorkspaceSection'
 
 const taskSchema = z.object({
   name: z.string().min(1, 'Название обязательно'),
@@ -55,9 +56,11 @@ interface Props {
   taskSlug: string
   statuses: Status[]
   members: MemberResponse[]
+  projectId: number
+  organizationId: number
 }
 
-const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, members }: Props) => {
+const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, members, projectId, organizationId }: Props) => {
   const { t, i18n } = useTranslation()
   const [createTask] = useCreateTaskMutation()
   const [updateTask] = useUpdateTaskMutation()
@@ -72,12 +75,18 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   const [deleteTaskComment] = useDeleteTaskCommentMutation()
   const [createTaskFile] = useCreateTaskFileMutation()
   const [deleteTaskFile] = useDeleteTaskFileMutation()
-  const [searchParams] = useSearchParams()
-  const projectId = searchParams.get('project')
-
   const dispatch = useDispatch()
+  const operations = useTaskOperations(organizationId, projectId)
+  const actor = members.find((member) => member.user.id === operations.actorId)
+
+  const deny = (allowed: boolean, key: 'tasks-page.no-create' | 'tasks-page.no-update' | 'tasks-page.no-delete' | 'tasks-page.no-assign') => {
+    if (allowed) return false
+    toast.error(t(key))
+    return true
+  }
 
   const [subtasks, setSubtasks] = useState<Task[]>([])
+  const displayFiles = useTaskFileUrls(task.files)
   const [openSections, setOpenSections] = useState<string[]>(['task-details', 'description', 'subtasks', 'files', 'comments'])
   const isTemplate = task?.is_template ?? false
 
@@ -141,26 +150,30 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
     value: any,
   ) => {
     const previous = form.getValues(field)
-    const projectId = searchParams.get('project')
-
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
 
     let toastId: string | number | undefined;
 
     try {
+      const payload = field === 'status'
+        ? Number(value)
+        : value instanceof Date
+          ? format(value, DATE_REQUEST_FORMAT)
+          : value
+      if (field === 'status' && !Number.isFinite(payload)) {
+        toast.error(t('errors.status-not-found'))
+        return
+      }
       toastId = toast.loading(t('notice-list.saving-task-data'))
       await updateTask({
         projectId: Number(projectId),
         taskSlug: taskSlug || '',
         data: {
           id: task.id,
-          [field]:
-            value instanceof Date
-              ? value.toISOString()
-              : value,
+          [field]: payload,
         } as TaskUpdate,
       }).unwrap()
       toast.success(t('notice-list.task-data-saved-successfully'))
@@ -176,65 +189,47 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const changeSupervisor = async (value: number) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.assign, 'tasks-page.no-assign')) {
       return
     }
     const previousValue = form.getValues('supervisor')
     const currentSupervisorId = task.supervisor?.id
+    const userId = Number(value)
+    let removed = false
 
-    if (currentSupervisorId) {
-      try {
-
+    try {
+      if (currentSupervisorId) {
         await deleteTaskSupervisor({
           projectId: Number(projectId),
           taskSlug: taskSlug || '',
           supervisorId: currentSupervisorId,
         }).unwrap()
-
-        await addTaskSupervisor({
-          projectId: Number(projectId),
-          taskSlug: taskSlug || '',
-          data: {
-            user: value,
-          },
-        }).unwrap()
-
-        form.setValue('supervisor', value, {
-          shouldDirty: false,
-        })
-      } catch (error) {
-        errorsHandler(error, t)
-        form.setValue('supervisor', previousValue, {
-          shouldDirty: false,
-        })
+        removed = true
       }
-    } else {
-      try {
-        await addTaskSupervisor({
-          projectId: Number(projectId),
-          taskSlug: taskSlug || '',
-          data: {
-            user: value,
-          },
-        }).unwrap()
-        form.setValue('supervisor', value, {
-          shouldDirty: false,
-        })
-      } catch (error) {
-        errorsHandler(error, t)
-        form.setValue('supervisor', previousValue, {
-          shouldDirty: false,
-        })
-      }
+
+      await addTaskSupervisor({
+        projectId: Number(projectId),
+        taskSlug: taskSlug || '',
+        data: {
+          user: userId,
+        },
+      }).unwrap()
+
+      form.setValue('supervisor', userId, {
+        shouldDirty: false,
+      })
+    } catch (error) {
+      errorsHandler(error, t)
+      form.setValue('supervisor', removed ? undefined : previousValue, {
+        shouldDirty: false,
+      })
     }
   }
 
   const changeDoers = async (value: string[]) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.assign, 'tasks-page.no-assign')) {
       return
     }
 
@@ -308,10 +303,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const changeTags = async (value: string[]) => {
-    const projectId = searchParams.get('project')
-
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
 
@@ -405,9 +398,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const addSubtask = async (title: string) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.create, 'tasks-page.no-create')) {
       return
     }
     try {
@@ -424,26 +416,24 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
     }
   }
 
-  const editSubtask = async (_: string, title: string, status?: 'completed' | 'incomplete') => {
+  const editSubtask = async (slug: string, title: string, status?: 'completed' | 'incomplete') => {
     let targetStatus;
 
     if (status) {
       targetStatus = statuses?.find((st) => status === 'completed' ? st.name_en === 'Closed' : st.name_en === 'No status')?.id
     }
 
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
     try {
       const updatedSubtask = await updateTask({
         projectId: Number(projectId),
-        taskSlug: taskSlug || '',
+        taskSlug: slug,
         data: {
           name: title,
-          parent: task.id,
-          status: targetStatus,
+          ...(targetStatus != null ? { status: targetStatus } : {}),
         },
       }).unwrap()
       setSubtasks((prevSubtasks) => prevSubtasks.map((subtask) => subtask.slug === updatedSubtask?.slug ? updatedSubtask : subtask))
@@ -453,16 +443,15 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const deleteSubtask = async (slug: string) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.delete, 'tasks-page.no-delete')) {
       return
     }
 
     try {
       await deleteTask({
         projectId: Number(projectId),
-        taskSlug: taskSlug || '',
+        taskSlug: slug,
       }).unwrap()
 
       setSubtasks((prevSubtasks) => prevSubtasks.filter((subtask) => subtask.slug !== slug))
@@ -472,9 +461,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const addComment = async (text: string) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
 
@@ -490,9 +478,10 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const editComment = async (commentId: string | number, text: string) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    const authorId = task.comments?.find((comment) => comment.id === Number(commentId))?.user?.id
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update') || !mayChangeComment(true, authorId, operations.actorId)) {
+      if (isHasAccess && operations.update) toast.error(t('tasks-page.no-update'))
       return
     }
 
@@ -509,9 +498,10 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const deleteComment = async (commentId: string | number) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    const authorId = task.comments?.find((comment) => comment.id === Number(commentId))?.user?.id
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update') || !mayChangeComment(true, authorId, operations.actorId)) {
+      if (isHasAccess && operations.update) toast.error(t('tasks-page.no-update'))
       return
     }
 
@@ -527,13 +517,13 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const addFile = async (file: File) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
 
-    let toastId: string | number | undefined;
+    let toastId: string | number | undefined
+    let stored = false
 
     try {
       toastId = toast.loading(t('notice-list.adding-file'))
@@ -542,6 +532,7 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
         taskSlug: taskSlug || '',
         file: file,
       }).unwrap()
+      stored = true
 
       if (newFile) {
         await updateTask({
@@ -556,6 +547,7 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
       }
       dispatch(taskApi.util.invalidateTags(['Task']))
     } catch (error) {
+      if (stored) dispatch(taskApi.util.invalidateTags(['Task']))
       errorsHandler(error, t)
     } finally {
       toast.dismiss(toastId)
@@ -563,13 +555,13 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
   }
 
   const deleteFile = async (fileId: number) => {
-    const projectId = searchParams.get('project')
     const isHasAccess = await checkTaskAccess()
-    if (!isHasAccess) {
+    if (!isHasAccess || deny(operations.update, 'tasks-page.no-update')) {
       return
     }
 
-    let toastId: string | number | undefined;
+    let toastId: string | number | undefined
+    let removed = false
 
     try {
       toastId = toast.loading(t('notice-list.deleting-file'))
@@ -578,6 +570,7 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
         taskSlug: taskSlug || '',
         fileId: fileId,
       }).unwrap()
+      removed = true
 
       await updateTask({
         projectId: Number(projectId),
@@ -590,6 +583,7 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
       toast.success(t('notice-list.file-deleted-successfully'))
       dispatch(taskApi.util.invalidateTags(['Task']))
     } catch (error) {
+      if (removed) dispatch(taskApi.util.invalidateTags(['Task']))
       errorsHandler(error, t)
     } finally {
       toast.dismiss(toastId)
@@ -674,6 +668,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                 label={t('fields.name')}
                 control={form.control}
                 className="max-w-3xl"
+                disabled={!operations.update}
+                disabledReason={t('tasks-page.no-update')}
                 onSave={(name, value) => updateField(name as keyof FormValues, value)}
               />
 
@@ -710,6 +706,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         )}
 
                         className="max-w-3xl"
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(name, value) => updateField(name as keyof FormValues, value)}
                       />
                       {!!task?.creator && (
@@ -735,6 +733,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         control={form.control}
                         type="custom"
                         className="max-w-3xl"
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(name, value) => updateField(name as keyof FormValues, value)}
                         renderValue={(value) => (
                           <span>{value ? format(value, DATE_VIEW_FORMAT) : t('fields.not-specified')}</span>
@@ -759,6 +759,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         }))}
                         className="max-w-3xl"
                         isVisible={!isTemplate}
+                        disabled={!operations.assign}
+                        disabledReason={t('tasks-page.no-assign')}
                         onSave={(_, value: string[]) => changeDoers(value)}
                         renderValue={(value) => (
                           <div className="flex items-center gap-2">
@@ -772,6 +774,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         control={form.control}
                         type="custom"
                         className="max-w-3xl"
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(name, value) => updateField(name as keyof FormValues, value)}
                         renderValue={(value) => (
                           <span>{value ? format(value, DATE_VIEW_FORMAT) : t('fields.not-specified')}</span>
@@ -797,6 +801,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         }))}
                         className="max-w-3xl"
                         isVisible={!isTemplate}
+                        disabled={!operations.assign}
+                        disabledReason={t('tasks-page.no-assign')}
                         onSave={(_, value) => changeSupervisor(value as number)}
                         renderValue={(value) => (
                           <div className="flex items-center gap-2">
@@ -816,6 +822,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         }))}
                         className="max-w-3xl"
                         isVisible={!isTemplate}
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(name, value) => updateField(name as keyof FormValues, value)}
                         renderValue={(value) => (
                           <div className="flex items-center gap-2">
@@ -829,6 +837,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         control={form.control}
                         type="custom"
                         className="max-w-3xl"
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(_, value) => changeTags(value)}
                         renderValue={(value) => (
                           <div className="flex flex-wrap gap-2">
@@ -865,6 +875,8 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                         type="custom"
                         control={form.control}
                         className="max-w-3xl"
+                        disabled={!operations.update}
+                        disabledReason={t('tasks-page.no-update')}
                         onSave={(name, value) => updateField(name as keyof FormValues, value)}
                         renderValue={(value) => {
                           if (!value) {
@@ -910,9 +922,10 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                           completed: subtask?.status?.name_en === 'Closed'
                         }))}
                         isTemplate={isTemplate}
-                        onAddSubtask={addSubtask}
-                        onEditSubtask={editSubtask}
-                        onDeleteSubtask={deleteSubtask}
+                        onAddSubtask={operations.create ? addSubtask : undefined}
+                        addDisabledReason={operations.create ? undefined : t('tasks-page.no-create')}
+                        onEditSubtask={operations.update ? editSubtask : undefined}
+                        onDeleteSubtask={operations.delete ? deleteSubtask : undefined}
                       />
                     </AccordionContent>
                   </AccordionItem>
@@ -920,14 +933,12 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                 <AccordionItem className="w-full" value="files">
                   <AccordionTrigger>{t('fields.files')}</AccordionTrigger>
                   <AccordionContent>
-                    <FileAttachment files={task.files?.map((file) => ({
-                      id: file.id,
-                      file: file.file ?? '',
-                      filename: file.filename ?? '',
-                      size: file.size,
-                      created_at: file.created_at ?? '',
-                      mime_type: file.mime_type ?? '',
-                    }))} onUpload={addFile} onDelete={deleteFile} />
+                    <FileAttachment
+                      files={displayFiles}
+                      onUpload={operations.update ? addFile : undefined}
+                      uploadDisabledReason={operations.update ? undefined : t('tasks-page.no-update')}
+                      onDelete={operations.update ? deleteFile : undefined}
+                    />
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem className="w-full" value="comments">
@@ -935,14 +946,15 @@ const TaskDetails = ({ task, tasks, tags: existingTags, taskSlug, statuses, memb
                   <AccordionContent>
                     <TaskComments
                       comments={task.comments ?? []}
-                      currentUser={{
-                        id: task?.creator?.id ?? 0,
-                        name: task?.creator?.full_name || task?.creator?.email || t('fields.not-specified'),
-                        avatar: task?.creator?.avatar?.small,
+                      currentUser={operations.actorId == null ? undefined : {
+                        id: operations.actorId,
+                        name: actor?.user.full_name || actor?.user.email || '',
+                        avatar: actor?.user.avatar?.small,
                       }}
-                      onAddComment={addComment}
-                      onEditComment={editComment}
-                      onDeleteComment={deleteComment}
+                      onAddComment={operations.update ? addComment : undefined}
+                      addDisabledReason={operations.update ? undefined : t('tasks-page.no-update')}
+                      onEditComment={operations.update ? editComment : undefined}
+                      onDeleteComment={operations.update ? deleteComment : undefined}
                     />
                   </AccordionContent>
                 </AccordionItem>

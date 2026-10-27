@@ -14,11 +14,13 @@ import { routes } from '../../../shared/lib/routes'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { selectUser } from '../../../entities/user/model/selectors'
+import { useWorkspaceHref } from '../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui/avatar'
 
 export function UserMenu() {
   const { t } = useTranslation()
   const user = useSelector(selectUser)
+  const href = useWorkspaceHref()
 
   const handleLogout = async () => {
     await requestLogout({ reason: 'user', callApi: true })
@@ -49,13 +51,13 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to={routes.settings.profile()} className="flex items-center gap-2">
+          <Link to={href(routes.settings.profile(), 'app')} className="flex items-center gap-2">
             <User className="h-4 w-4" />
             {t('header.profile')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={routes.settings.notifications()} className="flex items-center gap-2">
+          <Link to={href(routes.settings.notifications(), 'app')} className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             {t('header.settings')}
           </Link>

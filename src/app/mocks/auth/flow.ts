@@ -6,8 +6,9 @@ import {
   hasInstallationCapability,
   delegationGrantsFor,
   installationCorporationId,
+  scopeCovers,
 } from '../../../entities/access/model/grants'
-import type { AccessRole, AccessSnapshot, SessionAccess } from '../../../entities/access/model/types'
+import type { AccessRole, AccessSnapshot, EffectiveGrant, SessionAccess } from '../../../entities/access/model/types'
 import type { User, UserSettings } from '../../../entities/user/model/types'
 import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import type { MockIdentity, MockState, MockUser } from '../db/types'
@@ -196,6 +197,16 @@ export function sessionAccess(state: MockState, token: string | null): FlowResul
   }
 }
 
+export function principal(state: MockState, token: string | null):
+  | { ok: true; user: MockUser }
+  | { ok: false; result: FlowResult } {
+  const denied = denyInactive(state, token)
+  if (denied) return { ok: false, result: denied }
+  const user = sessionUser(state, token)
+  if (!user) return { ok: false, result: fail(state, 401, 'expired') }
+  return { ok: true, user }
+}
+
 function denyInactive(state: MockState, token: string | null): FlowResult | null {
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
@@ -204,16 +215,68 @@ function denyInactive(state: MockState, token: string | null): FlowResult | null
   return null
 }
 
-function organizationScope(organizationId: number) {
-  return { type: 'organization' as const, organizationId, corporationId: 1 }
+function organizationScope(state: MockState, organizationId: number) {
+  return { type: 'organization' as const, organizationId, corporationId: state.corporation.id }
+}
+
+function canonicalOrganization(state: MockState, organizationId: number) {
+  const organization = state.organizations.find((item) => item.id === organizationId)
+  if (!organization || organization.corporationId !== state.corporation.id) return null
+  return organization
+}
+
+export function projectRecord(state: MockState, projectId: number) {
+  return canonicalProject(state, projectId)
+}
+
+function canonicalProject(state: MockState, projectId: number) {
+  const project = state.projects.find((item) => item.id === projectId)
+  if (!project || project.corporationId !== state.corporation.id) return null
+  if (!canonicalOrganization(state, project.organizationId)) return null
+  return project
+}
+
+function grantReachesOrganization(
+  grant: EffectiveGrant,
+  organization: { id: number; corporationId: number },
+  projects: AccessSnapshot['projects'],
+): boolean {
+  const target = { type: 'organization' as const, organizationId: organization.id, corporationId: organization.corporationId }
+  if (grant.scope.type !== 'own' && scopeCovers(grant.scope, target, projects, [organization])) return true
+  const scope = grant.scope
+  if (scope.type !== 'project') return false
+  if (scope.organizationId !== organization.id || scope.corporationId !== organization.corporationId) return false
+  const project = projects.find((item) => item.id === scope.projectId)
+  return project != null && project.organizationId === organization.id && project.corporationId === organization.corporationId
 }
 
 export function canReadOrganization(state: MockState, userId: number, organizationId: number): boolean {
+  const organization = canonicalOrganization(state, organizationId)
+  if (!organization) return false
   const snapshot = toSnapshot(state)
-  const scope = organizationScope(organizationId)
-  return can(snapshot, userId, 'projects', 'read', scope)
-    || can(snapshot, userId, 'organizations', 'manage', scope)
-    || state.memberships.some((item) => item.userId === userId && item.organizationId === organizationId)
+  return effectiveGrants(snapshot, userId).some((grant) => grantReachesOrganization(grant, organization, snapshot.projects))
+}
+
+function canReadProjectRecord(state: MockState, userId: number, project: { id: number; organizationId: number; corporationId: number }): boolean {
+  return can(toSnapshot(state), userId, 'projects', 'read', {
+    type: 'project',
+    projectId: project.id,
+    organizationId: project.organizationId,
+    corporationId: project.corporationId,
+  })
+}
+
+function projectDto(project: { id: number; name: string; organizationId: number }) {
+  return {
+    id: project.id,
+    name: project.name,
+    organization: project.organizationId,
+    role: null,
+    reservoir: '',
+    company_customer: '',
+    contractor: '',
+    country: '',
+  }
 }
 
 export function listOrganizations(state: MockState, token: string | null): FlowResult {
@@ -233,30 +296,54 @@ export function listOrganizations(state: MockState, token: string | null): FlowR
   return { state, status: 200, body: rows }
 }
 
+export function readOrganization(state: MockState, token: string | null, organizationId: number): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const organization = canonicalOrganization(state, organizationId)
+  if (!organization) return fail(state, 404, 'not_found')
+  if (!canReadOrganization(state, user.id, organization.id)) return fail(state, 403, 'forbidden')
+  return {
+    state,
+    status: 200,
+    body: {
+      id: organization.id,
+      full_name: organization.fullName,
+      short_name: organization.shortName,
+      address: organization.address,
+      role: null,
+    },
+  }
+}
+
 export function listProjects(state: MockState, token: string | null, organizationId: number | null): FlowResult {
   const denied = denyInactive(state, token)
   if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
-  const snapshot = toSnapshot(state)
   if (organizationId != null) {
-    const allowed = can(snapshot, user.id, 'projects', 'read', organizationScope(organizationId))
-    if (!allowed) return fail(state, 403, 'forbidden')
+    if (!Number.isInteger(organizationId) || organizationId <= 0) return fail(state, 400, 'invalid_organization')
+    if (!canonicalOrganization(state, organizationId)) return fail(state, 404, 'not_found')
+    if (!canReadOrganization(state, user.id, organizationId)) return fail(state, 403, 'forbidden')
   }
   const rows = state.projects
+    .filter((project) => canonicalProject(state, project.id) != null)
     .filter((project) => organizationId == null || project.organizationId === organizationId)
-    .filter((project) => can(snapshot, user.id, 'projects', 'read', organizationScope(project.organizationId)))
-    .map((project) => ({
-      id: project.id,
-      name: project.name,
-      organization: project.organizationId,
-      role: null,
-      reservoir: '',
-      company_customer: '',
-      contractor: '',
-      country: '',
-    }))
+    .filter((project) => canReadProjectRecord(state, user.id, project))
+    .map((project) => projectDto(project))
   return { state, status: 200, body: rows }
+}
+
+export function readProject(state: MockState, token: string | null, projectId: number): FlowResult {
+  const denied = denyInactive(state, token)
+  if (denied) return denied
+  const user = sessionUser(state, token)
+  if (!user) return fail(state, 401, 'expired')
+  const project = canonicalProject(state, projectId)
+  if (!project) return fail(state, 404, 'not_found')
+  if (!canReadProjectRecord(state, user.id, project)) return fail(state, 403, 'forbidden')
+  return { state, status: 200, body: projectDto(project) }
 }
 
 export function readTestResource(state: MockState, token: string | null, organizationId: number): FlowResult {
@@ -264,7 +351,7 @@ export function readTestResource(state: MockState, token: string | null, organiz
   if (denied) return denied
   const user = sessionUser(state, token)
   if (!user) return fail(state, 401, 'expired')
-  const allowed = can(toSnapshot(state), user.id, 'test-resource', 'read', organizationScope(organizationId))
+  const allowed = can(toSnapshot(state), user.id, 'test-resource', 'read', organizationScope(state, organizationId))
   if (!allowed) return fail(state, 403, 'forbidden')
   return { state, status: 200, body: { ok: true, organizationId, code: 'mock_test_resource' } }
 }

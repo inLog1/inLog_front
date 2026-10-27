@@ -3,7 +3,6 @@
 import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
 import type { AdminPanelNode, AdminPanelNodeTab } from '../../../../entities/admin/model/types'
 import {
     AlertDialog,
@@ -43,13 +42,21 @@ interface Props {
         related_structure_elements?: number[]
     }) => void
     deleteTab: (tabId: number) => void
+    organizationId: number
+    access: {
+        schemaCreate: boolean
+        schemaUpdate: boolean
+        schemaDelete: boolean
+        recordsRead: boolean
+        recordsCreate: boolean
+        recordsUpdate: boolean
+        recordsDelete: boolean
+    }
 }
 
-const ConstructorTabs = ({ node, addTab, updateTab, deleteTab }: Props) => {
+const ConstructorTabs = ({ node, addTab, updateTab, deleteTab, organizationId, access }: Props) => {
     const { t, i18n } = useTranslation()
     const currentLang = i18n.language === 'ru' ? 'ru' : 'en'
-    const [searchParams] = useSearchParams()
-    const organizationId = Number(searchParams.get('org'))
     const [tabs, setTabs] = useState<AdminPanelNodeTab[]>([])
 
     useEffect(() => {
@@ -67,6 +74,10 @@ const ConstructorTabs = ({ node, addTab, updateTab, deleteTab }: Props) => {
     const [selectedTab, setSelectedTab] = useState<AdminPanelNodeTab | null>(null)
 
     const [formData, setFormData] = useState({ ru: '', en: '' })
+
+    if (isCreateModalOpen && !access.schemaCreate) setIsCreateModalOpen(false)
+    if (isEditModalOpen && !access.schemaUpdate) setIsEditModalOpen(false)
+    if (isDeleteAlertOpen && !access.schemaDelete) setIsDeleteAlertOpen(false)
 
     const handleOpenCreateModal = () => {
         setFormData({ ru: '', en: '' })
@@ -143,9 +154,13 @@ const ConstructorTabs = ({ node, addTab, updateTab, deleteTab }: Props) => {
                     <p className="text-muted-foreground">
                         {t('admin-page.no-tabs-available')}
                     </p>
-                    <Button variant="outline" onClick={handleOpenCreateModal}>
-                        {t('admin-page.create-tab')}
-                    </Button>
+                    {access.schemaCreate ? (
+                        <Button variant="outline" onClick={handleOpenCreateModal}>
+                            {t('admin-page.create-tab')}
+                        </Button>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">{t('admin-page.no-schema-create')}</p>
+                    )}
                 </div>
             )}
 
@@ -174,38 +189,51 @@ const ConstructorTabs = ({ node, addTab, updateTab, deleteTab }: Props) => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onClick={() => handleOpenEditModal(tab)}>
-                                                <Pencil className="mr-2 h-4 w-4" />
-                                                <span>{t('buttons.edit')}</span>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => handleOpenDeleteAlert(tab)}
-                                                className="text-destructive focus:text-destructive"
-                                            >
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                <span>{t('buttons.delete')}</span>
-                                            </DropdownMenuItem>
+                                            {access.schemaUpdate && (
+                                                <DropdownMenuItem onClick={() => handleOpenEditModal(tab)}>
+                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                    <span>{t('buttons.edit')}</span>
+                                                </DropdownMenuItem>
+                                            )}
+                                            {access.schemaDelete && (
+                                                <DropdownMenuItem
+                                                    onClick={() => handleOpenDeleteAlert(tab)}
+                                                    className="text-destructive focus:text-destructive"
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>{t('buttons.delete')}</span>
+                                                </DropdownMenuItem>
+                                            )}
+                                            {!access.schemaUpdate && !access.schemaDelete && (
+                                                <DropdownMenuItem disabled>
+                                                    {t('admin-page.no-schema-update')}
+                                                </DropdownMenuItem>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
                             </div>
                         ))}
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleOpenCreateModal}
-                            className="h-9 px-3 gap-1 text-muted-foreground hover:text-foreground"
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">{t('admin-page.add-tab')}</span>
-                        </Button>
+                        {access.schemaCreate && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleOpenCreateModal}
+                                className="h-9 px-3 gap-1 text-muted-foreground hover:text-foreground"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="hidden sm:inline">{t('admin-page.add-tab')}</span>
+                            </Button>
+                        )}
                     </TabsList>
 
                     {tabs.map((tab) => (
                         <ConstructorTab
+                            key={tab.id}
                             tab={tab}
                             organizationId={organizationId}
+                            access={access}
                         />
                     ))}
                 </Tabs>

@@ -1,7 +1,9 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import { accessApi } from '../../entities/access/model/accessApi'
+import { accessApi, useGetSessionAccessQuery } from '../../entities/access/model/accessApi'
+import { organizationApi } from '../../entities/organization/model/organizationSlice'
+import { projectApi } from '../../entities/project/model/projectSlice'
 import { selectSession, sessionActions } from '../../entities/session'
 import { userApi } from '../../entities/user/model/userSlice'
 import { useVerifyTokenMutation } from '../../features/auth/model/authSlice'
@@ -25,7 +27,32 @@ function errorCode(error: unknown): string | null {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const dispatch = useDispatch<AppDispatch>()
   const epoch = useSelector(selectSession).epoch
+  const phase = useSelector(selectSession).phase
+  const accessState = useSelector(selectSession).accessState
   const [verifyToken] = useVerifyTokenMutation()
+  const sessionAccess = useGetSessionAccessQuery(undefined, {
+    skip: import.meta.env.VITE_API_MODE !== 'mock' || phase !== 'authenticated',
+  })
+  const seenAccessVersion = useRef<number | null>(null)
+
+  useEffect(() => {
+    const next = sessionAccess.data?.accessState
+    if (!next || phase !== 'authenticated' || next === accessState) return
+    dispatch(sessionActions.setAccessState(next))
+  }, [accessState, dispatch, phase, sessionAccess.data?.accessState])
+
+  useEffect(() => {
+    const version = sessionAccess.data?.accessVersion
+    if (version == null || phase !== 'authenticated') return
+    if (seenAccessVersion.current == null) {
+      seenAccessVersion.current = version
+      return
+    }
+    if (seenAccessVersion.current === version) return
+    seenAccessVersion.current = version
+    dispatch(organizationApi.util.invalidateTags(['Organization']))
+    dispatch(projectApi.util.invalidateTags(['Project']))
+  }, [dispatch, phase, sessionAccess.data?.accessVersion])
 
   useEffect(() => {
     registerLogoutHandler(performLogout)

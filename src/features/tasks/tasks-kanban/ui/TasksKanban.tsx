@@ -22,19 +22,23 @@ import {
 import { Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
 import { useGetStatusesQuery, useGetTaskByParamsMutation, useUpdateTaskMutation } from '../../../../entities/task/model/taskSlice'
 import type { Task } from '../../../../entities/task/model/types'
+import { useTaskOperations } from '../../../org-project-selector/model/useWorkspaceSection'
 import { errorsHandler } from '../../../../shared/lib/errors-handler'
 import { cn } from '../../../../shared/lib/utils'
 import type { LanguageType } from '../../../../shared/types/enums'
 import KanbanColumn from './KanbanColumn'
 import SortableTaskCard from './SortableTaskCard'
+import { toast } from 'sonner'
+import { Button } from '../../../../shared/ui/button'
 import { ScrollArea } from '../../../../shared/ui/scroll-area'
 
 const KANBAN_HEIGHT = 'h-[calc(100vh-64px-32px-32px-16px)]';
 
 interface Props {
+    projectId: number
+    organizationId: number
     isLoading?: boolean
     onTaskClick?: (task: Task | undefined) => void
     onTaskDelete?: (task: Task | undefined) => void
@@ -43,22 +47,20 @@ interface Props {
 }
 
 const TasksKanban = (props: Props) => {
-    const { isLoading, onTaskClick, onTaskDelete, selectedTaskSlug } = props
+    const { isLoading, onTaskClick, onTaskDelete, selectedTaskSlug, projectId, organizationId } = props
+    const operations = useTaskOperations(organizationId, projectId)
 
     const { t, i18n } = useTranslation()
     const [columns, setColumns] = useState<Record<number, Task[]>>({})
     const [activeTask, setActiveTask] = useState<Task | null>(null)
-
-    const [searchParams] = useSearchParams()
-    const projectId = searchParams.get('project')
 
     const [isTasksLoading, setIsTasksLoading] = useState(false)
 
     const [getTaskByParams] = useGetTaskByParamsMutation()
     const [updateTask] = useUpdateTaskMutation()
 
-    const { data: statuses, isLoading: statusesLoading } = useGetStatusesQuery(
-        { projectId: Number(projectId) },
+    const { data: statuses, isLoading: statusesLoading, isError: statusesError, refetch: refetchStatuses } = useGetStatusesQuery(
+        { projectId },
         { skip: !projectId }
     )
 
@@ -77,7 +79,7 @@ const TasksKanban = (props: Props) => {
             const results = await Promise.all(
                 statuses.map(status =>
                     getTaskByParams({
-                        projectId: Number(projectId),
+                        projectId,
                         params: {
                             status: status.id.toString(),
                             limit: 1000,
@@ -100,6 +102,11 @@ const TasksKanban = (props: Props) => {
             setIsTasksLoading(false)
         }
     }, [statuses, projectId, getTaskByParams, t])
+
+    useEffect(() => {
+        setColumns({})
+        setActiveTask(null)
+    }, [projectId])
 
     useEffect(() => {
         fetchTasksByStatuses()
@@ -184,6 +191,12 @@ const TasksKanban = (props: Props) => {
         const { active, over } = event;
     
         setActiveTask(null);
+
+        if (!operations.update) {
+            toast.error(t('tasks-page.no-update'))
+            void fetchTasksByStatuses()
+            return
+        }
     
         if (!over) return;
     
@@ -220,6 +233,17 @@ const TasksKanban = (props: Props) => {
         }
     };
     
+    if (statusesError) {
+        return (
+            <div className={cn("flex flex-col items-center justify-center gap-4", KANBAN_HEIGHT)} role="alert">
+                <p className="text-sm text-muted-foreground">{t('workspace.section-error')}</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => void refetchStatuses()}>
+                    {t('workspace.retry')}
+                </Button>
+            </div>
+        )
+    }
+
     if (isLoading || statusesLoading || isTasksLoading) {
         return (
             <div className={cn("flex items-center justify-center", KANBAN_HEIGHT)}>
@@ -260,7 +284,9 @@ const TasksKanban = (props: Props) => {
                                         key={task.id}
                                         task={task}
                                         onClick={onTaskClick}
-                                        onDelete={onTaskDelete}
+                                        onDelete={operations.delete ? onTaskDelete : undefined}
+                                        canDrag={operations.update}
+                                        updateDeniedReason={operations.update ? undefined : t('tasks-page.no-update')}
                                         isActive={selectedTaskSlug === task.slug}
                                         className={cn(taskIndex !== 0 && 'mt-2')}
                                     />

@@ -22,6 +22,7 @@ const ACTION_COVERS: Record<string, readonly string[]> = {
   manage: ['manage'],
   assign: ['assign'],
   delegate: ['delegate'],
+  generate: ['generate'],
 }
 
 export type AssignmentDenial = 'invalid_scope' | 'forbidden' | 'self_elevation'
@@ -177,6 +178,31 @@ export function delegationGrantsFor(snapshot: AccessSnapshot, userId: number): E
     ))
     .map((item) => item.grant)
   return [...roleDelegationGrants(snapshot, userId), ...received]
+}
+
+/**
+ * Operational check against grants the server already scoped.
+ * A project grant covers only that project inside its organization.
+ * An organization grant covers that organization, including a confirmed project of it.
+ * A corporation grant covers a target the server already accepted for this installation.
+ * The role display name is not an input.
+ */
+export function grantAllows(
+  grants: readonly EffectiveGrant[],
+  resource: string,
+  action: string,
+  target: { organizationId: number; projectId: number | null },
+): boolean {
+  return grants.some((grant) => {
+    if (grant.resource !== resource || !actionCovered(grant.action, action)) return false
+    if (grant.scope.type === 'project') {
+      return target.projectId != null
+        && grant.scope.projectId === target.projectId
+        && grant.scope.organizationId === target.organizationId
+    }
+    if (grant.scope.type === 'organization') return grant.scope.organizationId === target.organizationId
+    return grant.scope.type === 'corporation'
+  })
 }
 
 export function can(

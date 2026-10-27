@@ -33,12 +33,25 @@ interface Props {
         type: 'group' | 'structure_element'
     }
     isShowTitle?: boolean
+    access: {
+        schemaCreate: boolean
+        schemaUpdate: boolean
+        schemaDelete: boolean
+        recordsRead: boolean
+        recordsCreate: boolean
+        recordsUpdate: boolean
+        recordsDelete: boolean
+    }
 }
 
-const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) => {
+const ConstructorTableWrapper = ({ groups, data, isShowTitle = true, access }: Props) => {
     const { t } = useTranslation()
+    const visibleGroups = useMemo(
+        () => data.type === 'group' ? groups.filter((group) => !group.structure_element) : groups,
+        [data.type, groups],
+    )
 
-    const tableCoumns = useMemo(() => (groups || []).map((group: AdminPanelGroup) => ({
+    const tableCoumns = useMemo(() => (visibleGroups || []).map((group: AdminPanelGroup) => ({
         key: group.id.toString(),
         title: {
             en: group.name_en,
@@ -47,7 +60,7 @@ const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) =>
         inputType: group.type,
         dropdownOptions: group.dropdown_choices,
         width: 100,
-    })), [groups])
+    })), [visibleGroups])
 
     const [addAdminPanelGroupMutation] = useAddAdminPanelGroupMutation()
     const [updateAdminPanelRow] = useUpdateAdminPanelRowMutation()
@@ -154,7 +167,7 @@ const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) =>
                     group: nodeId ?? 0,
                     structure_element: data.type === 'structure_element' ? data.entityId : undefined
                 }
-            })
+            }).unwrap()
             await refetchRows()
             toast.success(t('notice-list.row-edited'))
         } catch (error) {
@@ -210,9 +223,20 @@ const ConstructorTableWrapper = ({ groups, data, isShowTitle = true }: Props) =>
     return (
         <div >
             {isShowTitle && <h4 className="text-sm font-semibold mb-2">{t('admin-page.table')}</h4>}
+            {!access.recordsRead && (
+                <p className="mb-2 text-sm text-muted-foreground">{t('admin-page.no-records-read')}</p>
+            )}
             <ConstructorTable
                 initialColumns={tableCoumns}
-                initialRows={tableRows}
+                initialRows={access.recordsRead ? tableRows : []}
+                permissions={{
+                    columnCreate: access.schemaCreate,
+                    columnUpdate: access.schemaUpdate,
+                    columnDelete: access.schemaDelete,
+                    rowCreate: access.recordsCreate,
+                    rowUpdate: access.recordsUpdate,
+                    rowDelete: access.recordsDelete,
+                }}
                 onCreate={onCreate}
                 onDelete={onDelete}
                 onEdit={onEdit}

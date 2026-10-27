@@ -20,11 +20,13 @@ interface Props {
     className?: string
     nodes: AdminPanelNode[]
     createReport: (data: { nodes: AdminPanelNode[], tabs: AdminPanelNodeTab[], columns: AdminPanelGroup[] }) => void
+    canGenerate?: boolean
 }
 
 const ReportTree = ({
     nodes = [],
     createReport,
+    canGenerate = true,
     className = '',
 }: Props) => {
     const { t, i18n } = useTranslation()
@@ -289,9 +291,10 @@ const ReportTree = ({
 
     return (
         <div className={cn("w-full h-full", className)}>
-            {(allNodesCount > 0 && hasFolders) && (
+            {allNodesCount > 0 && (
                 <div className="flex items-center justify-between gap-2 p-2 mb-2 border-b border-border/50">
                     <div className="flex items-center gap-2">
+                        {hasFolders && (
                         <Button
                             variant="ghost"
                             size="sm"
@@ -304,6 +307,7 @@ const ReportTree = ({
                                 {allExpanded ? t('buttons.collapse-all') : t('buttons.expand-all')}
                             </span>
                         </Button>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 cursor-pointer" onClick={handleSelectAllEntities}>
                         <Checkbox
@@ -319,11 +323,15 @@ const ReportTree = ({
                         size="sm"
                         onClick={handleCreateReport}
                         className="h-7 gap-1 text-xs"
-                        disabled={isDisabledCreateReport}
+                        disabled={!canGenerate || isDisabledCreateReport}
+                        title={canGenerate ? undefined : t('admin-page.no-report-generate')}
                     >
                         {t('buttons.create-report')}
                     </Button>
                 </div>
+            )}
+            {allNodesCount > 0 && !canGenerate && (
+                <p className="px-2 pb-2 text-xs text-muted-foreground">{t('admin-page.no-report-generate')}</p>
             )}
 
             {allNodesCount === 0 ? (

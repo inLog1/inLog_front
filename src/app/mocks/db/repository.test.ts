@@ -52,10 +52,15 @@ function legacySnapshot(namespace: string): MockState {
         status: 'active',
       },
     ],
-    grants: seed.grants.filter((grant) => grant.id !== 'g-delegate'),
+    grants: seed.grants.filter((grant) => grant.id !== 'g-delegate' && !grant.id.startsWith('g-tasks-')),
     roles: seed.roles.map((role) => {
       if (role.id === 'role-owner') {
         const next = { ...role, grantIds: ['g-projects'] }
+        delete next.delegationGrantIds
+        return next
+      }
+      if (role.id === 'role-employee') {
+        const next = { ...role, grantIds: ['g-tasks', 'g-projects'] }
         delete next.delegationGrantIds
         return next
       }
@@ -78,6 +83,12 @@ function legacySnapshot(namespace: string): MockState {
     }],
   }
   delete snapshot.recordRevision
+  const stored = snapshot as Partial<MockState>
+  delete stored.tasks
+  delete stored.taskStatuses
+  delete stored.taskTags
+  delete stored.taskComments
+  delete stored.taskFiles
   return snapshot
 }
 
@@ -197,6 +208,10 @@ describe('mock repository', () => {
     expect(owner?.delegationGrantIds).toEqual([])
     expect(admin?.delegationGrantIds).toEqual(['g-members-read'])
     expect(employee?.grantIds).toEqual(['g-tasks', 'g-projects'])
+    expect(migrated.state.grants.map((grant) => grant.id)).not.toContain('g-tasks-create')
+    expect(migrated.state.tasks.filter((task) => task.slug === 'shared-sample').map((task) => task.projectId).sort()).toEqual([1001, 1002])
+    expect(migrated.state.tasks.find((task) => task.projectId === 1001 && task.slug === 'shared-sample')?.name).toBe('Образец А-1')
+    expect(migrated.state.tasks.find((task) => task.projectId === 1002 && task.slug === 'shared-sample')?.name).toBe('Образец Б-1')
     const snapshot = toSnapshot(migrated.state)
     expect(can(snapshot, 1, 'projects', 'read', corporation)).toBe(true)
     expect(can(snapshot, 1, 'assignments', 'update', corporation)).toBe(false)
@@ -299,7 +314,8 @@ describe('mock repository', () => {
     await flushTasks()
     const after = await readMockState(namespace)
     expect(after.ok && after.state.accessVersion).toBe(1)
-    expect(after.ok && after.state.users).toHaveLength(6)
+    expect(after.ok && after.state.users).toHaveLength(7)
+    expect(after.ok && after.state.users.some((user) => user.email === 'project.only@example.test')).toBe(true)
     expect(deleteDatabase).not.toHaveBeenCalled()
     deleteDatabase.mockRestore()
   })
