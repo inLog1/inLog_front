@@ -1,4 +1,6 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { accessApi } from "../../access/model/accessApi";
+import { organizationApi } from "../../organization/model/organizationSlice";
 import { baseQuery } from "../../../shared/api/clientApi";
 import type { Project } from "./types";
 import type { MemberResponse, ProjectRequest } from "../../../shared/types/dto/project";
@@ -31,6 +33,37 @@ export const projectApi = createApi({
               body: data,
             }),
             invalidatesTags: ['Project'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess']))
+                dispatch(organizationApi.util.invalidateTags(['Organization']))
+              } catch {
+                // A rejected create stays rejected and is not sent again.
+              }
+            },
+          }),
+          reviseProject: builder.mutation<{ id: number; name: string; revision: number }, {
+            id: number
+            name: string
+            reservoir: string
+            expectedRevision: number
+          }>({
+            query: ({ id, name, reservoir, expectedRevision }) => ({
+              url: `projects/project/${id}/`,
+              method: 'PATCH',
+              body: { name, reservoir, expectedRevision },
+            }),
+            invalidatesTags: ['Project'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess']))
+                dispatch(organizationApi.util.invalidateTags(['Organization']))
+              } catch {
+                // A conflict or refusal is not retried and is not treated as a saved change.
+              }
+            },
           }),
 
           getProjectById: builder.query<Project, number>({
@@ -70,4 +103,4 @@ export const projectApi = createApi({
     }),
 })
 
-export const { useGetProjectsQuery, useAddProjectMutation, useGetProjectByIdQuery, useUpdateProjectMutation, useDeleteProjectMutation, useGetProjectMembersQuery } = projectApi
+export const { useGetProjectsQuery, useAddProjectMutation, useReviseProjectMutation, useGetProjectByIdQuery, useUpdateProjectMutation, useDeleteProjectMutation, useGetProjectMembersQuery } = projectApi

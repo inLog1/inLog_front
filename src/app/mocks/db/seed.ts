@@ -4,7 +4,7 @@ import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
-import { ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT } from './organization-grants'
+import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import type { MockState } from './types'
 
 const corporation = { type: 'corporation' as const, corporationId: 1 }
@@ -52,14 +52,14 @@ export function createSeed(): MockState {
       { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
     ],
     organizations: [
-      { id: 101, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория А', shortName: 'Лаб. А', address: 'Демо, корпус А' },
-      { id: 102, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория Б', shortName: 'Лаб. Б', address: 'Демо, корпус Б' },
-      { id: 201, corporationId: 1, kind: 'customer', fullName: 'Организация-заказчик', shortName: 'Заказчик', address: 'Демо, офис заказчика' },
+      { id: 101, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория А', shortName: 'Лаб. А', address: 'Демо, корпус А', revision: 1 },
+      { id: 102, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория Б', shortName: 'Лаб. Б', address: 'Демо, корпус Б', revision: 1 },
+      { id: 201, corporationId: 1, kind: 'customer', fullName: 'Организация-заказчик', shortName: 'Заказчик', address: 'Демо, офис заказчика', revision: 1 },
     ],
     projects: [
-      { id: 1001, organizationId: 101, corporationId: 1, name: 'Проект А-1' },
-      { id: 1003, organizationId: 101, corporationId: 1, name: 'Проект А-2' },
-      { id: 1002, organizationId: 102, corporationId: 1, name: 'Проект Б-1' },
+      { id: 1001, organizationId: 101, corporationId: 1, name: 'Проект А-1', revision: 1 },
+      { id: 1003, organizationId: 101, corporationId: 1, name: 'Проект А-2', revision: 1 },
+      { id: 1002, organizationId: 102, corporationId: 1, name: 'Проект Б-1', revision: 1 },
     ],
     memberships: [
       { id: 'mem-1-101', userId: 1, organizationId: 101, kind: 'laboratory' },
@@ -104,8 +104,7 @@ export function createSeed(): MockState {
       ...TABLE_VIEW_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
-      { id: ORGANIZATION_CREATE_GRANT.id, resource: ORGANIZATION_CREATE_GRANT.resource, action: ORGANIZATION_CREATE_GRANT.action },
-      { id: PROJECT_CREATE_GRANT.id, resource: PROJECT_CREATE_GRANT.resource, action: PROJECT_CREATE_GRANT.action },
+      ...DIRECTORY_CATALOG_GRANTS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {

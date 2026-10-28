@@ -61,6 +61,8 @@ export type MockOrganization = {
   fullName: string
   shortName: string
   address: string
+  /** Object version for this organization. Absent on older documents until migration writes 1. */
+  revision?: number
 }
 
 export type MockProject = {
@@ -69,6 +71,8 @@ export type MockProject = {
   corporationId: number
   name: string
   reservoir?: string
+  /** Object version for this project. Absent on older documents until migration writes 1. */
+  revision?: number
 }
 
 export type MockMembership = {

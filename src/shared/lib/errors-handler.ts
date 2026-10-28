@@ -11,8 +11,10 @@ interface BackendErrorResponse {
 
 // Проверяем, является ли ошибка от RTK Query
 function organizationFailure(code: string, translFunc: TFunction<["translation", ...string[]], undefined>): string | null {
-  if (code === 'forbidden') return translFunc('errors.organization-forbidden')
-  if (code === 'invalid_organization') return translFunc('errors.organization-invalid')
+  if (code === 'forbidden' || code === 'blocked' || code === 'pending') return translFunc('errors.organization-forbidden')
+  if (code === 'invalid_organization' || code === 'invalid_project' || code === 'invalid_revision') return translFunc('errors.organization-invalid')
+  if (code === 'invalid_identity') return translFunc('errors.organization-identity')
+  if (code === 'stale_write') return translFunc('errors.organization-stale')
   if (code === 'mock_writer_held' || code === 'writer_lock_unavailable') return translFunc('errors.writer-held')
   return null
 }

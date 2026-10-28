@@ -5,7 +5,7 @@ import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
-import { ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT } from './organization-grants'
+import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import type { MockState } from './types'
 import type { AccessRole } from '../../../entities/access/model/types'
 
@@ -21,7 +21,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 7 has table views and no section collections. Version 8 adds those collections empty.
  * Version 9 records the installation corporation, local password verifiers and the simulated directory.
  * Those collections start empty. Existing users without a verifier flag keep the demonstration password.
- * The organizations.create and projects.create catalog rows are added. Stored role grant lists are not extended.
+ * Organization and project catalog rows are added, including read and update.
+ * Stored role grant lists are not extended. A missing organization or project revision becomes 1.
  * A created-at filter stored as a bare calendar day is rewritten to an explicit UTC day.
  * Other created-at strings stay exact timestamp comparisons.
  * Missing form, table-view, section and role-administration catalog rows are added so the editor can offer them.
@@ -58,13 +59,15 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const roleGrantsChanged = withRoleGrants !== withSections
   const withInstallation = ensureInstallationRecord(withRoleGrants)
   const installationChanged = withInstallation !== withRoleGrants
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged) {
+  const withRevisions = ensureDirectoryRevisions(withInstallation)
+  const revisionsChanged = withRevisions !== withInstallation
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withInstallation,
+      ...withRevisions,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
@@ -162,6 +165,24 @@ function ensureTableViews(record: MockState): MockState {
   }
 }
 
+function ensureDirectoryRevisions(record: MockState): MockState {
+  const organizations = Array.isArray(record.organizations) ? record.organizations : []
+  const projects = Array.isArray(record.projects) ? record.projects : []
+  let changed = false
+  const nextOrganizations = organizations.map((organization) => {
+    if (typeof organization.revision === 'number' && organization.revision > 0) return organization
+    changed = true
+    return { ...organization, revision: 1 }
+  })
+  const nextProjects = projects.map((project) => {
+    if (typeof project.revision === 'number' && project.revision > 0) return project
+    changed = true
+    return { ...project, revision: 1 }
+  })
+  if (!changed) return record
+  return { ...record, organizations: nextOrganizations, projects: nextProjects }
+}
+
 function ensureInstallationRecord(record: MockState): MockState {
   const source = record as MockState & {
     localCredentials?: unknown
@@ -176,7 +197,7 @@ function ensureInstallationRecord(record: MockState): MockState {
   const directoryMissing = !Array.isArray(source.directoryEmployees)
   const identityMissing = source.installationCorporationId === undefined
   const grants = Array.isArray(record.grants) ? [...record.grants] : []
-  const catalogGrants = [ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT]
+  const catalogGrants = DIRECTORY_CATALOG_GRANTS
   let grantsChanged = false
   for (const definition of catalogGrants) {
     if (grants.some((grant) => grant.id === definition.id)) continue

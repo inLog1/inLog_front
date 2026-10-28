@@ -1,5 +1,10 @@
 const KEY = 'inlog:task-compose'
 
+/** A task compose request is only started when a project is already selected. */
+export function shouldComposeTask(projectId: number | null): boolean {
+  return typeof projectId === 'number' && Number.isInteger(projectId) && projectId > 0
+}
+
 export function requestCreateTask(): void {
   try {
     sessionStorage.setItem(KEY, 'create')

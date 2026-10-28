@@ -30,7 +30,9 @@ function MockAccessPage() {
   const [search, setSearch] = useSearchParams()
   const access = useGetSessionAccessQuery()
   const capable = access.data?.systemCapabilities.includes('corporate_superadmin') === true
-  const area = capable && search.get('owner') === 'corporation' ? 'corporation' : 'organization'
+  const workspaceBlocked = workspace.status === 'loading' || workspace.status === 'error' || workspace.status === 'forbidden' || workspace.status === 'not-found'
+  const corporateWithoutOrganization = capable && !workspaceBlocked && workspace.currentOrgId == null && search.get('owner') !== 'organization'
+  const area = ((capable && search.get('owner') === 'corporation') || corporateWithoutOrganization) ? 'corporation' : 'organization'
   const setArea = (next: 'organization' | 'corporation') => {
     setSearch((prev) => {
       const copy = new URLSearchParams(prev)

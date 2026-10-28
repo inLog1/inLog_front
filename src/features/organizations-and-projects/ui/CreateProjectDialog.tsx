@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
 import { Button } from "../../../shared/ui/button"
@@ -8,21 +7,22 @@ import { Input } from "../../../shared/ui/input"
 import { Label } from "../../../shared/ui/label"
 import { Loader2 } from "lucide-react"
 import { useAddProjectMutation } from "../../../entities/project/model/projectSlice"
-import { selectProjectParams } from "../../org-project-selector/model/workspace-context"
 import { errorsHandler } from "../../../shared/lib/errors-handler"
+import { useUnsavedSource } from "../../../shared/session/unsaved-work"
 
 interface CreateProjectDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     organizationId: number | null
+    onCreated?: (projectId: number) => void
 }
 
-export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: CreateProjectDialogProps) => {
+export const CreateProjectDialog = ({ open, onOpenChange, organizationId, onCreated }: CreateProjectDialogProps) => {
     const { t } = useTranslation()
     const [addProject, { isLoading }] = useAddProjectMutation()
-    const [, setSearchParams] = useSearchParams()
     const [projectName, setProjectName] = useState("")
     const [reservoir, setReservoir] = useState("")
+    useUnsavedSource('create-project', open && (projectName !== '' || reservoir !== ''))
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -37,9 +37,7 @@ export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: Crea
                 organization: organizationId ,
                 reservoir: reservoir,
             }).unwrap()
-            if (typeof created?.id === 'number') {
-                setSearchParams((current) => selectProjectParams(current, created.id), { replace: true })
-            }
+            if (typeof created?.id === 'number') onCreated?.(created.id)
             toast.success(t('notice-list.project-created'))
             onOpenChange(false)
             setProjectName("")

@@ -87,6 +87,7 @@ export function createOrganization(
     fullName,
     shortName,
     address,
+    revision: 1,
   }
   return { state: { ...state, organizations: [...state.organizations, organization] }, organization }
 }
@@ -116,6 +117,7 @@ export function createProject(
     corporationId,
     name,
     reservoir,
+    revision: 1,
   }
   return { state: { ...state, projects: [...state.projects, project] }, project }
 }

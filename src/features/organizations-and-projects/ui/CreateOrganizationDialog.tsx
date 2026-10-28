@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
 import { Button } from "../../../shared/ui/button"
@@ -8,19 +7,19 @@ import { Input } from "../../../shared/ui/input"
 import { Label } from "../../../shared/ui/label"
 import { Loader2 } from "lucide-react"
 import { useAddOrganizationMutation } from "../../../entities/organization/model/organizationSlice"
-import { selectOrganizationParams } from "../../org-project-selector/model/workspace-context"
 import { getApiMode } from "../../../shared/config/runtime"
 import { errorsHandler } from "../../../shared/lib/errors-handler"
+import { useUnsavedSource } from "../../../shared/session/unsaved-work"
 
 interface CreateOrganizationDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
+    onCreated?: (organizationId: number) => void
 }
 
-export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizationDialogProps) => {
+export const CreateOrganizationDialog = ({ open, onOpenChange, onCreated }: CreateOrganizationDialogProps) => {
     const { t } = useTranslation()
     const [addOrganization, { isLoading }] = useAddOrganizationMutation()
-    const [, setSearchParams] = useSearchParams()
     const mock = getApiMode() === 'mock'
     
     const [formData, setFormData] = useState({
@@ -29,6 +28,8 @@ export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizat
         address: "",
         kind: "laboratory" as "laboratory" | "customer",
     })
+    const dirty = open && (formData.fullName !== '' || formData.shortName !== '' || formData.address !== '')
+    useUnsavedSource('create-organization', dirty)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -42,9 +43,7 @@ export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizat
                 address: formData.address,
                 ...(mock ? { kind: formData.kind } : {}),
             }).unwrap()
-            if (typeof created?.id === 'number') {
-                setSearchParams((current) => selectOrganizationParams(current, created.id), { replace: true })
-            }
+            if (typeof created?.id === 'number') onCreated?.(created.id)
             toast.success(t('notice-list.organization-created'))
             onOpenChange(false)
             setFormData({ fullName: "", shortName: "", address: "", kind: "laboratory" })

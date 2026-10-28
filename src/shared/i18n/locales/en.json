@@ -410,6 +410,8 @@
         "network-error": "Network error",
         "organization-forbidden": "You do not have permission for this action.",
         "organization-invalid": "Check the filled-in fields.",
+        "organization-identity": "The identifier and links of an organization or project cannot be changed.",
+        "organization-stale": "The data has already changed. Refresh the page and try again. Nothing was saved.",
         "writer-held": "Another tab is already writing this data. Close it and try again.",
         "error-loading-node": "An error occurred while loading the node"
     },
@@ -491,6 +493,7 @@
         "sections": "Available sections",
         "no-sections": "There are no other working sections right now.",
         "create-task": "Create a task",
+        "create-task-needs-project": "Choose a project first. A task is not created without one.",
         "open-constructor": "Open constructor",
         "build-report": "Build a report",
         "project-tasks": "Project tasks",
@@ -728,11 +731,14 @@
                 "roles-delete": "Delete roles"
             },
             "organizations": {
-                "create": "Create organizations"
+                "read": "View organizations",
+                "create": "Create organizations",
+                "update": "Update organizations"
             },
             "projects": {
                 "read": "View projects",
-                "create": "Create projects"
+                "create": "Create projects",
+                "update": "Update projects"
             }
         },
         "dependencies": {
@@ -745,7 +751,8 @@
             "users": "Reading the user directory does not assign or remove roles and does not edit a role definition. Your own work permissions do not replace delegation.",
             "forms": "The Forms section opens with forms read only. The draft needs update, and publishing is a separate right. Filling needs the published schema and record create. The record list and record view need record read. Deleting a form is a separate right and does not follow from update or publish. None of these rights includes its neighbor or opens the old constructor.",
             "table-views": "The view list needs forms read and table-view read. The table and its rows also need record read. The published column catalog needs forms read. Create and update do not include read and do not open records. Preview needs create or update together with forms read and record read. Deleting a view does not delete the form or its records.",
-            "sections": "Section read opens only published sections and does not show the draft. Create does not include update. Update does not grant publish. Publish does not grant rights to the form, the view, or records. The work page with a table also requires form, table-view, and record read. The create-record button also requires record submit and the action enabled in the published configuration."
+            "sections": "Section read opens only published sections and does not show the draft. Create does not include update. Update does not grant publish. Publish does not grant rights to the form, the view, or records. The work page with a table also requires form, table-view, and record read. The create-record button also requires record submit and the action enabled in the published configuration.",
+            "organizations": "Reading an organization does not allow editing it. Editing does not allow creating another. Organization create is checked against the corporation, not against a future organization id. Project create is checked against the organization, not against a future project id."
         },
         "actions": {
             "role.create": "role created",
@@ -849,6 +856,20 @@
         "kind-laboratory": "Laboratory",
         "kind-customer": "Customer organization",
         "empty-projects-hint": "This organization has no projects yet.",
+        "owner-empty-title": "There are no organizations yet. Create the first organization",
+        "owner-empty-action": "Create organization",
+        "hidden-organizations": "You can create an organization. Existing organizations, if any, are not shown here.",
+        "no-accessible-organizations": "There are no organizations you can open.",
+        "focus-unavailable": "This link does not open an organization you can access. Another organization was not substituted.",
+        "search": "Search",
+        "edit-organization": "Edit organization",
+        "edit-project": "Edit project",
+        "organization-saved": "Organization saved",
+        "project-saved": "Project saved",
+        "context-minimum": "You can create a project. The full organization details are not shown.",
+        "project-context": "The projects you can open are shown. The full organization details are not shown.",
+        "projects-not-listed": "Projects you can open are not listed here.",
+        "directory-error": "Organizations and projects could not be loaded.",
         "create-first-project": "Create first project",
         "create-organization": "Create organization",
         "create-project": "Create project",

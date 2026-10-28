@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Wrench } from 'lucide-react'
+import { Bell, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
@@ -31,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   notifications: Bell,
   access: Shield,
   sections: PanelsTopLeft,
+  'organizations-settings': Building2,
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {

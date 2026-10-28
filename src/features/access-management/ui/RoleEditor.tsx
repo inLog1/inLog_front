@@ -305,6 +305,7 @@ function RoleForm({
           <li>{t('access.dependencies.users')}</li>
           <li>{t('access.dependencies.forms')}</li>
           <li>{t('access.dependencies.table-views')}</li>
+          <li>{t('access.dependencies.organizations')}</li>
         </ul>
       </details>
       {initial && initial.assignmentCount > 0 ? (

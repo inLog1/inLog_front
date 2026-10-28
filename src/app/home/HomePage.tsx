@@ -7,7 +7,7 @@ import { useGetSessionAccessQuery } from '../../entities/access'
 import { selectUser, selectUserIsLoading } from '../../entities/user/model/selectors'
 import { useEnsureOrgProjectParams } from '../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { workspaceHref, type WorkspaceLinkScope } from '../../features/org-project-selector/model/workspace-context'
-import { requestCreateTask } from '../../features/tasks/model/compose-task'
+import { requestCreateTask, shouldComposeTask } from '../../features/tasks/model/compose-task'
 import { sectionPath } from '../../entities/section'
 import { sectionIcon } from '../../features/section-builder/ui/icons'
 import { routes } from '../../shared/lib/routes'
@@ -43,6 +43,7 @@ const CARD_ICONS: Record<string, LucideIcon> = {
   sections: FileText,
   access: Shield,
   constructor: Wrench,
+  'organizations-settings': Building2,
 }
 
 const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--home-bg)]'
@@ -213,24 +214,29 @@ export function HomePage() {
             <div className="mt-3 flex flex-col gap-2">
               {actions.map((action) => {
                 const Icon = ACTION_ICONS[action]
-                const main = action === primary
+                const taskNeedsProject = action === 'create-task' && !shouldComposeTask(workspace.currentProjectId)
+                const main = action === primary && !taskNeedsProject
                 return (
-                  <Button
-                    key={action}
-                    type="button"
-                    variant={main ? 'default' : 'outline'}
-                    className={cn(
-                      'h-auto min-h-11 w-full justify-between whitespace-normal rounded-xl px-3.5 py-2.5 text-left',
-                      !main && 'border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-title)] hover:bg-[var(--home-bg)] hover:text-[var(--home-title)]',
-                    )}
-                    onClick={() => openAction(action, href, navigate)}
-                  >
-                    <span className="inline-flex min-w-0 items-center gap-2">
-                      <Icon className="h-4 w-4" aria-hidden />
-                      <span className="break-words">{t(actionLabel(action))}</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <div key={action} className="flex flex-col gap-1">
+                    <Button
+                      type="button"
+                      variant={main ? 'default' : 'outline'}
+                      className={cn(
+                        'h-auto min-h-11 w-full justify-between whitespace-normal rounded-xl px-3.5 py-2.5 text-left',
+                        !main && 'border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-title)] hover:bg-[var(--home-bg)] hover:text-[var(--home-title)]',
+                      )}
+                      onClick={() => openAction(action, href, navigate, workspace.currentProjectId)}
+                    >
+                      <span className="inline-flex min-w-0 items-center gap-2">
+                        <Icon className="h-4 w-4" aria-hidden />
+                        <span className="break-words">{t(actionLabel(action))}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Button>
+                    {taskNeedsProject ? (
+                      <p className="px-1 text-xs leading-snug text-[var(--home-secondary)]">{t('home.create-task-needs-project')}</p>
+                    ) : null}
+                  </div>
                 )
               })}
             </div>
@@ -436,8 +442,13 @@ function openAction(
   action: QuickActionId,
   href: (pathname: string, scope: WorkspaceLinkScope) => string,
   navigate: ReturnType<typeof useNavigate>,
+  projectId: number | null,
 ) {
   if (action === 'create-task') {
+    if (!shouldComposeTask(projectId)) {
+      focusContext()
+      return
+    }
     requestCreateTask()
     navigate(href(routes.scheduler.tasks(), 'project'))
     return

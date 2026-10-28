@@ -6,6 +6,7 @@ import { saveDirectoryEmployee, syncDirectory } from '../directory/service'
 import { releaseMockWriter, resetMockNamespace, updateMockState } from '../db/repository'
 import type { MockFault } from '../db/types'
 import { configureInstallation, createOrganization, createProject, InstallationSetupError, installationNeedsOwner } from '../installation/service'
+import { readDirectory, updateOrganizationRecord, updateProjectRecord } from '../organizations/service'
 import { bearer, commit, json, load, MOCK_PREFIX, persistenceFailure, positiveId, readJson, reply, writeSupport } from '../http'
 import { createSalt, digestPassword } from './password'
 import {
@@ -118,6 +119,23 @@ export const authHandlers: HttpHandler[] = [
     if (organization == null || organization === '') return reply(listProjects(ready, bearer(request), null))
     if (!/^[1-9]\d*$/.test(organization)) return json({ code: 'invalid_organization' }, 400)
     return reply(listProjects(ready, bearer(request), Number(organization)))
+  }),
+
+  http.patch(`${MOCK_PREFIX}/projects/project/:id/`, async ({ request, params }) => {
+    const ready = await load('projects/project/:id/')
+    if (ready instanceof Response) return ready
+    const id = positiveId(params.id)
+    if (id == null) return json({ code: 'not_found' }, 404)
+    const body = await readJson(request)
+    const token = bearer(request)
+    return commit((state) => updateProjectRecord(state, token, id, {
+      name: optionalText(body, 'name'),
+      reservoir: optionalText(body, 'reservoir'),
+      expectedRevision: optionalRevision(body.expectedRevision),
+      id: optionalField(body, 'id'),
+      corporationId: optionalField(body, 'corporation_id') ?? optionalField(body, 'corporationId'),
+      organizationId: optionalField(body, 'organization') ?? optionalField(body, 'organization_id') ?? optionalField(body, 'organizationId'),
+    }))
   }),
 
   http.post(`${MOCK_PREFIX}/projects/project/`, async ({ request }) => {
@@ -318,6 +336,31 @@ export const authHandlers: HttpHandler[] = [
     }
   }),
 
+  http.get(`${MOCK_PREFIX}/organizations/directory/`, async ({ request }) => {
+    const ready = await load('organizations/directory/')
+    if (ready instanceof Response) return ready
+    return reply(readDirectory(ready, bearer(request)))
+  }),
+
+  http.patch(`${MOCK_PREFIX}/organizations/organization/:id/`, async ({ request, params }) => {
+    const ready = await load('organizations/organization/:id/')
+    if (ready instanceof Response) return ready
+    const id = positiveId(params.id)
+    if (id == null) return json({ code: 'not_found' }, 404)
+    const body = await readJson(request)
+    const token = bearer(request)
+    return commit((state) => updateOrganizationRecord(state, token, id, {
+      fullName: optionalText(body, 'full_name'),
+      shortName: optionalText(body, 'short_name'),
+      address: optionalText(body, 'address'),
+      kind: optionalText(body, 'kind'),
+      expectedRevision: optionalRevision(body.expectedRevision),
+      id: optionalField(body, 'id'),
+      corporationId: optionalField(body, 'corporation_id') ?? optionalField(body, 'corporationId'),
+      organizationId: optionalField(body, 'organization_id') ?? optionalField(body, 'organizationId'),
+    }))
+  }),
+
   http.post(`${MOCK_PREFIX}/organizations/organization/`, async ({ request }) => {
     const ready = await load('organizations/organization/')
     if (ready instanceof Response) return ready
@@ -404,4 +447,18 @@ export const authHandlers: HttpHandler[] = [
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+function optionalField(body: Record<string, unknown>, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(body, key) ? body[key] : undefined
+}
+
+function optionalText(body: Record<string, unknown>, key: string): string | undefined {
+  const value = optionalField(body, key)
+  if (value === undefined) return undefined
+  return typeof value === 'string' ? value : ''
+}
+
+function optionalRevision(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null
 }

@@ -62,9 +62,12 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'access', resource: 'roles', action: 'create', labelKey: 'access.perm.access.roles-create' },
   { group: 'access', resource: 'roles', action: 'update', labelKey: 'access.perm.access.roles-update' },
   { group: 'access', resource: 'roles', action: 'delete', labelKey: 'access.perm.access.roles-delete' },
+  { group: 'organizations', resource: 'organizations', action: 'read', labelKey: 'access.perm.organizations.read' },
   { group: 'organizations', resource: 'organizations', action: 'create', labelKey: 'access.perm.organizations.create' },
+  { group: 'organizations', resource: 'organizations', action: 'update', labelKey: 'access.perm.organizations.update' },
   { group: 'projects', resource: 'projects', action: 'read', labelKey: 'access.perm.projects.read' },
   { group: 'projects', resource: 'projects', action: 'create', labelKey: 'access.perm.projects.create' },
+  { group: 'projects', resource: 'projects', action: 'update', labelKey: 'access.perm.projects.update' },
 ]
 
 export function isOfferedPermission(resource: string, action: string): boolean {

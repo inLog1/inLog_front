@@ -107,6 +107,15 @@ export const APP_SECTIONS: readonly AppSection[] = [
     surface: 'navigation',
   },
   {
+    id: 'organizations-settings',
+    labelKey: 'nav.organizations',
+    descriptionKey: 'nav.organizations-description',
+    path: routes.settings.organizationsAndProjects(),
+    group: 'settings',
+    context: 'none',
+    surface: 'navigation',
+  },
+  {
     id: 'access',
     labelKey: 'nav.access',
     descriptionKey: 'nav.access-description',
@@ -178,15 +187,6 @@ export const APP_SECTIONS: readonly AppSection[] = [
     context: 'project',
     surface: 'preserved',
   },
-  {
-    id: 'organizations-settings',
-    labelKey: 'nav.organizations',
-    descriptionKey: 'nav.organizations-description',
-    path: routes.settings.organizationsAndProjects(),
-    group: 'settings',
-    context: 'none',
-    surface: 'preserved',
-  },
 ]
 
 function hasOperational(
@@ -251,12 +251,35 @@ function sectionsDesk(input: NavigationInput): SectionAccess {
   return 'unavailable'
 }
 
+const DIRECTORY_PERMISSIONS = [
+  ['organizations', 'read'],
+  ['organizations', 'create'],
+  ['organizations', 'update'],
+  ['projects', 'read'],
+  ['projects', 'create'],
+  ['projects', 'update'],
+] as const
+
+/**
+ * The management screen does not need a selected organization.
+ * A delegation is not an operational grant, so it does not open the screen.
+ * The role display name is not an input.
+ */
+function organizationsSection(input: NavigationInput): SectionAccess {
+  if (!input.enforceGrants) return 'not-enforced'
+  if (input.grantsPending) return 'unavailable'
+  if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
+  const allowed = input.grants.some((grant) =>
+    DIRECTORY_PERMISSIONS.some(([resource, action]) => grant.resource === resource && grant.action === action)
+    && (grant.scope.type === 'project' || grant.scope.type === 'organization' || grant.scope.type === 'corporation'),
+  )
+  return allowed ? 'allowed' : 'unavailable'
+}
+
 function accessSection(input: NavigationInput): SectionAccess {
   if (!input.enforceGrants) return 'not-enforced'
   if (input.grantsPending) return 'unavailable'
-  if (input.systemCapabilities.includes('corporate_superadmin')) {
-    return input.organizationId == null ? 'needs-context' : 'allowed'
-  }
+  if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
   const manages = permissionAccess(input, { resource: 'assignments', action: 'update' }, 'organization')
   const readsUsers = permissionAccess(input, { resource: 'access-users', action: 'read' }, 'organization')
   const states = [manages, readsUsers]
@@ -270,6 +293,7 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.surface === 'preserved') return 'unavailable'
   if (section.id === 'home' || section.id === 'profile' || section.id === 'notifications') return 'allowed'
   if (section.id === 'access') return accessSection(input)
+  if (section.id === 'organizations-settings') return organizationsSection(input)
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')

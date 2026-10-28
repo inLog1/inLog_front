@@ -146,7 +146,7 @@ describe('navigation catalog', () => {
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'reports', 'forms', 'sections', 'constructor', 'access',
+      'home', 'tasks', 'reports', 'forms', 'sections', 'constructor', 'organizations-settings', 'access',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)
@@ -175,6 +175,27 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(input({ grants: [grant('access-users', 'read')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
     expect(sectionAccess(access, input({ grants: [grant('access-users', 'read', otherOrganization)], organizationId: 101 }))).toBe('denied-here')
     expect(visibleNavigation(input({ grants: [grant('access-users', 'read')], grantsPending: true, organizationId: 101 })).some((item) => item.id === 'access')).toBe(false)
+    expect(sectionAccess(access, input({ systemCapabilities: ['corporate_superadmin'] }))).toBe('allowed')
+  })
+
+  it('opens organizations from capability or an operational directory permission, not from a delegation or a title', () => {
+    const screen = APP_SECTIONS.find((item) => item.id === 'organizations-settings')!
+    expect(screen.context).toBe('none')
+    expect(screen.surface).toBe('navigation')
+    const owner = input({ systemCapabilities: ['corporate_superadmin'] })
+    expect(sectionAccess(screen, owner)).toBe('allowed')
+    expect(visibleNavigation(owner).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(owner).some((item) => item.id === 'tasks')).toBe(false)
+    expect(homeSetupCards(owner).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('organizations', 'create', { type: 'corporation', corporationId: 1 })] })).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('projects', 'read', project)] })).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('organizations', 'read', { type: 'own', userId: 3 })] })).some((item) => item.id === 'organizations-settings')).toBe(false)
+    expect(visibleNavigation(input({ grants: [grant('tasks', 'read')] })).some((item) => item.id === 'organizations-settings')).toBe(false)
+    expect(sectionAccess(screen, input({ grants: [grant('forms', 'read')], organizationId: 101 }))).toBe('unavailable')
+    const forms = APP_SECTIONS.find((item) => item.id === 'forms')!
+    expect(sectionAccess(forms, input({ grants: [grant('forms', 'read')], organizationId: 101, projectId: null }))).toBe('allowed')
+    const tasks = APP_SECTIONS.find((item) => item.id === 'tasks')!
+    expect(sectionAccess(tasks, input({ grants: [grant('tasks', 'read')], organizationId: 101, projectId: null }))).toBe('needs-context')
   })
 
   it('gives the fresh-seed reader records access without write actions or rights for saved employees', () => {
