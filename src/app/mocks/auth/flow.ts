@@ -461,6 +461,7 @@ export function describeAccounts(state: MockState) {
         scope: grant.scope,
       })),
       systemCapabilities: access.systemCapabilities,
+      password: PUBLIC_FIXTURE_PASSWORD,
     }
   })
 }

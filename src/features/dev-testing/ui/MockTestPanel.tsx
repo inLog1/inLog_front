@@ -1,3 +1,4 @@
+import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
@@ -6,6 +7,8 @@ import { selectSession, sessionActions } from '../../../entities/session'
 import { requestLogout } from '../../../shared/api/session-events'
 import { readAccessToken } from '../../../shared/api/session-storage'
 import { routes } from '../../../shared/lib/routes'
+import { cn } from '../../../shared/lib/utils'
+import { badgeVariants } from '../../../shared/ui/badge'
 import { Button } from '../../../shared/ui/button'
 import {
   useGetDevAccountsQuery,
@@ -29,6 +32,7 @@ export function MockTestPanel() {
   const [resetFixtures] = useResetDevFixturesMutation()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const refreshSession = () => {
     dispatch(sessionActions.beginBootstrap())
@@ -96,6 +100,34 @@ export function MockTestPanel() {
     navigate(routes.login())
   }
 
+  const copyValue = async (accountId: number, field: 'email' | 'password', value: string) => {
+    const key = `${accountId}:${field}`
+    const markCopied = () => {
+      setMessage(null)
+      setCopied(key)
+      window.setTimeout(() => setCopied((current) => (current === key ? null : current)), 1500)
+    }
+    try {
+      await navigator.clipboard.writeText(value)
+      markCopied()
+    } catch {
+      const area = document.createElement('textarea')
+      area.value = value
+      area.setAttribute('readonly', '')
+      area.style.position = 'fixed'
+      area.style.left = '0'
+      area.style.top = '0'
+      area.style.opacity = '0'
+      document.body.appendChild(area)
+      area.focus()
+      area.select()
+      const copiedNow = document.execCommand('copy')
+      area.remove()
+      if (copiedNow) markCopied()
+      else setMessage(t('dev-panel.copy-failed'))
+    }
+  }
+
   const addSwitchAuthor = async () => {
     await updateSettings({ ensureFormsSwitchAuthor: true }).unwrap()
     setMessage(t('dev-panel.switch-author-ready'))
@@ -119,26 +151,64 @@ export function MockTestPanel() {
 
   return (
     <aside className={MOCK_TEST_PANEL_OPEN}>
-      <div className="mb-2 flex items-center justify-between">
-        <strong>{t('dev-panel.title')}</strong>
-        <button type="button" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</button>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2">
+        <strong className="text-sm">{t('dev-panel.title')}</strong>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</Button>
       </div>
-      <p className="mb-2 text-muted-foreground">{t('dev-panel.caption')}</p>
-      {writesUnavailable && <p className="mb-2" role="status">{t('dev-panel.writes-unavailable')}</p>}
-      {writeLocked && <p className="mb-2" role="status">{t('dev-panel.reset-blocked')}</p>}
-      <div className="space-y-1">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <p className="mb-3 text-muted-foreground">{t('dev-panel.caption')}</p>
+      {writesUnavailable && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.writes-unavailable')}</p>}
+      {writeLocked && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.reset-blocked')}</p>}
+      <div className="space-y-2">
         {accounts.data?.map((account) => (
-          <button
+          <div
             key={account.id}
-            type="button"
-            className="block w-full rounded border px-2 py-1 text-left"
-            onClick={() => void quickSwitch(account.id)}
+            className="rounded-lg border border-border bg-background px-3 py-2 shadow-sm"
           >
-            <span className="block font-medium">{account.fullName || account.email}</span>
-            <span className="text-muted-foreground">
-              {account.email} · {account.accessState} · {account.systemCapabilities.join(', ') || t('dev-panel.no-capability')}
+            <button
+              type="button"
+              className="block w-full rounded-md text-left text-sm font-medium text-foreground hover:text-primary"
+              onClick={() => void quickSwitch(account.id)}
+            >
+              {account.fullName || account.email}
+            </button>
+            <div className="mt-1 flex items-center gap-1">
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">{account.email}</span>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 shrink-0"
+                aria-label={copied === `${account.id}:email` ? t('dev-panel.copied') : t('dev-panel.copy-email')}
+                onClick={() => void copyValue(account.id, 'email', account.email)}
+              >
+                {copied === `${account.id}:email` ? <Check /> : <Copy />}
+              </Button>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
+                {t('dev-panel.password')} {account.password}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 shrink-0"
+                aria-label={copied === `${account.id}:password` ? t('dev-panel.copied') : t('dev-panel.copy-password')}
+                onClick={() => void copyValue(account.id, 'password', account.password)}
+              >
+                {copied === `${account.id}:password` ? <Check /> : <Copy />}
+              </Button>
+            </div>
+            <span className="mt-2 flex flex-wrap gap-1">
+              <span className={cn(badgeVariants({ variant: 'secondary' }), 'font-normal')}>
+                {t(`dev-panel.access-${account.accessState}`)}
+              </span>
+              <span className={cn(badgeVariants({ variant: 'outline' }), 'font-normal')}>
+                {account.systemCapabilities.join(', ') || t('dev-panel.no-capability')}
+              </span>
             </span>
-          </button>
+          </div>
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-1">
@@ -179,6 +249,7 @@ export function MockTestPanel() {
         {t('dev-panel.reset')}
       </Button>
       {message && <p className="mt-2" role="status">{message}</p>}
+      </div>
     </aside>
   )
 }

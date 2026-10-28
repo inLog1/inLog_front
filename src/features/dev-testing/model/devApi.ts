@@ -15,6 +15,7 @@ export type DevAccount = {
   memberships: Array<{ organizationId: number }>
   grants: Array<{ resource: string; action: string }>
   systemCapabilities: string[]
+  password: string
 }
 
 export type DevSettingsBody = {
