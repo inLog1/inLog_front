@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
-import { ClipboardList, Info, MoreHorizontal, Pencil, Plus, Table2 } from 'lucide-react'
+import { ClipboardList, Info, MoreHorizontal, Pencil, Plus, Table2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { readFormError, useCreateFormMutation, useGetFormsQuery, type FormListItem, type FormStatus } from '../../../../entities/form'
+import { readFormError, useCreateFormMutation, useDeleteFormMutation, useGetFormsQuery, type FormListItem, type FormStatus } from '../../../../entities/form'
 import { useGetOrganizationsQuery } from '../../../../entities/organization/model/organizationSlice'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
@@ -13,7 +13,7 @@ import { cn } from '../../../../shared/lib/utils'
 import { Button } from '../../../../shared/ui/button'
 import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../../../shared/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../../shared/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../../../../shared/ui/dropdown-menu'
 import { Input } from '../../../../shared/ui/input'
 import { Label } from '../../../../shared/ui/label'
 import { Textarea } from '../../../../shared/ui/textarea'
@@ -47,6 +47,7 @@ function FormsList() {
   const organizationId = section.kind === 'ready' ? section.organizationId : null
   const canCreate = useHasOrganizationGrant('forms', 'create', organizationId)
   const canUpdate = useHasOrganizationGrant('forms', 'update', organizationId)
+  const canDelete = useHasOrganizationGrant('forms', 'delete', organizationId)
   const canRecords = useHasOrganizationGrant('form-records', 'read', organizationId)
   const canViews = useHasOrganizationGrant('table-views', 'read', organizationId)
   const href = useWorkspaceHref()
@@ -54,9 +55,11 @@ function FormsList() {
   const organizations = useGetOrganizationsQuery(undefined, { skip: organizationId == null })
   const forms = useGetFormsQuery({ organizationId: organizationId ?? 0 }, { skip: organizationId == null })
   const [createForm, createState] = useCreateFormMutation()
+  const [deleteForm, deleteState] = useDeleteFormMutation()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<FormListItem | null>(null)
   if (section.kind !== 'ready' || organizationId == null) {
     return (
       <WorkspaceStatus
@@ -126,7 +129,7 @@ function FormsList() {
                   <span className="text-sm text-muted-foreground">{row.version}</span>
                 </div>
                 <div className="mt-4">
-                  <FormRowActions form={row.form} primary={row.actions.primary} menu={row.actions.menu} />
+                  <FormRowActions form={row.form} primary={row.actions.primary} menu={row.actions.menu} canDelete={canDelete} onDelete={setPendingDelete} />
                 </div>
               </article>
             ))}
@@ -156,7 +159,7 @@ function FormsList() {
                     </td>
                     <td className="px-4 py-3 align-top text-foreground">{row.version}</td>
                     <td className="px-4 py-3 align-top">
-                      <FormRowActions form={row.form} primary={row.actions.primary} menu={row.actions.menu} />
+                      <FormRowActions form={row.form} primary={row.actions.primary} menu={row.actions.menu} canDelete={canDelete} onDelete={setPendingDelete} />
                     </td>
                   </tr>
                 ))}
@@ -173,6 +176,36 @@ function FormsList() {
           </div>
         </>
       ) : null}
+      <Dialog open={pendingDelete != null} onOpenChange={(next) => { if (!next && !deleteState.isLoading) setPendingDelete(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('forms.delete-title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('forms.delete-body', { title: pendingDelete?.title ?? '' })}</p>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={deleteState.isLoading} onClick={() => setPendingDelete(null)}>{t('forms.delete-cancel')}</Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteState.isLoading || pendingDelete == null}
+              onClick={() => {
+                if (pendingDelete == null) return
+                void deleteForm({ organizationId, formId: pendingDelete.id }).unwrap()
+                  .then(() => {
+                    setPendingDelete(null)
+                    toast.success(t('forms.deleted'))
+                  })
+                  .catch((error: unknown) => {
+                    const parsed = readFormError(error)
+                    toast.error(t(`forms.errors.${parsed.code ?? 'generic'}`, { defaultValue: t('forms.errors.generic') }))
+                  })
+              }}
+            >
+              {t('forms.delete-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -225,13 +258,17 @@ function FormRowActions({
   form,
   primary,
   menu,
+  canDelete,
+  onDelete,
 }: {
   form: FormListItem
   primary: FormListAction | null
   menu: FormListAction[]
+  canDelete: boolean
+  onDelete: (form: FormListItem) => void
 }) {
   const { t } = useTranslation()
-  if (!primary && menu.length === 0) return null
+  if (!primary && menu.length === 0 && !canDelete) return null
   return (
     <div className="flex flex-wrap items-center justify-start gap-2 md:justify-end">
       {primary ? (
@@ -239,7 +276,7 @@ function FormRowActions({
           <Link to={primary.href}>{t(ACTION_LABEL[primary.kind])}</Link>
         </Button>
       ) : null}
-      {menu.length > 0 ? (
+      {menu.length > 0 || canDelete ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="outline" size="icon" className="size-8" aria-label={t('forms.more-actions', { title: form.title })}>
@@ -255,6 +292,15 @@ function FormRowActions({
                 </Link>
               </DropdownMenuItem>
             ))}
+            {canDelete ? (
+              <>
+                {menu.length > 0 ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(form)}>
+                  <Trash2 aria-hidden />
+                  {t('forms.delete')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}

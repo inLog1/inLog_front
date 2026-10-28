@@ -29,6 +29,12 @@ function MockRoleEditor() {
   const owner = search.get('owner') === 'corporation' ? 'corporation' : 'organization'
   const roleId = params.roleId ?? null
   const backHref = href(routes.settings.access(), 'organization')
+  const listHref = owner === 'corporation' ? `${backHref}${backHref.includes('?') ? '&' : '?'}owner=corporation` : backHref
+  const savedHref = (nextRoleId: string) => {
+    const base = href(routes.settings.accessRole(nextRoleId), 'organization')
+    if (owner !== 'corporation') return base
+    return `${base}${base.includes('?') ? '&' : '?'}owner=corporation`
+  }
 
   if (owner === 'organization' && workspace.status !== 'ready') {
     return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
@@ -39,7 +45,8 @@ function MockRoleEditor() {
       roleId={roleId}
       owner={owner}
       organizationId={workspace.currentOrgId}
-      backHref={owner === 'corporation' ? `${backHref}${backHref.includes('?') ? '&' : '?'}owner=corporation` : backHref}
+      backHref={listHref}
+      savedHref={savedHref}
     />
   )
 }

@@ -17,6 +17,7 @@ import { persistenceFailure } from '../http'
 import {
   createForm,
   createRecord,
+  deleteForm,
   listForms,
   publishForm,
   readDraft,
@@ -410,5 +411,292 @@ describe('form mock service', () => {
     expect(handlers).not.toContain('preview')
     expect(formsMode('live')).toBe('unavailable')
     expect(formsMode('mock')).toBe('mock')
+  })
+
+  it('saves an empty draft, rejects an empty publication, and still reads an older empty record', () => {
+    let state = withGrants(createSeed(), 2, 101, authorPairs)
+    state = withGrants(state, 3, 101, employeePairs)
+    state = withGrants(state, 4, 102, [['forms', 'read'], ['form-records', 'read']])
+    const author = session('admin.a@example.test', state)
+    const created = createForm(author.state, author.token, {
+      organizationId: 101,
+      title: 'Пустая форма',
+      description: 'Без полей',
+    })
+    expect(created.status).toBe(201)
+    const formId = (created.body as { id: string }).id
+    const saved = saveDraft(created.state, author.token, formId, {
+      organizationId: 101,
+      title: 'Пустая форма',
+      description: 'Без полей',
+      schema: { schemaVersion: 1, fields: [] },
+      expectedFormRevision: 1,
+      expectedDraftRevision: 1,
+    })
+    expect(saved.status).toBe(200)
+    expect(saved.state.formVersions).toHaveLength(0)
+    const blocked = publishForm(saved.state, author.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: 2,
+      expectedDraftRevision: 2,
+    })
+    expect(blocked.status).toBe(400)
+    expect(codeOf(blocked)).toBe('empty_schema')
+    expect(blocked.state).toBe(saved.state)
+
+    const versionId = 'ver-empty-history'
+    const recordId = 'rec-empty-history'
+    const historical: MockState = {
+      ...saved.state,
+      forms: saved.state.forms.map((form) => form.id === formId ? { ...form, publishedVersionId: versionId } : form),
+      formVersions: [...saved.state.formVersions, {
+        id: versionId,
+        formId,
+        organizationId: 101,
+        number: 1,
+        title: 'Пустая форма',
+        description: 'Без полей',
+        schema: { schemaVersion: 1, fields: [] },
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        publishedBy: 2,
+        sourceDraftRevision: 2,
+      }],
+      formRecords: [...saved.state.formRecords, {
+        id: recordId,
+        organizationId: 101,
+        formId,
+        formVersionId: versionId,
+        values: {},
+        createdBy: 3,
+        createdAt: '2026-01-02T00:00:00.000Z',
+      }],
+    }
+    const employee = session('employee.a@example.test', historical)
+    const rejected = createRecord(employee.state, employee.token, formId, {
+      organizationId: 101,
+      formVersionId: versionId,
+      values: {},
+    })
+    expect(rejected.status).toBe(400)
+    expect(codeOf(rejected)).toBe('empty_schema')
+    expect(rejected.state.formRecords.map((item) => item.id)).toEqual([recordId])
+    const opened = readRecord(employee.state, employee.token, 101, formId, recordId)
+    expect(opened.status).toBe(200)
+    const openedBody = opened.body as { schema: FormSchema; values: Record<string, unknown>; title: string; versionNumber: number }
+    expect(openedBody.schema.fields).toEqual([])
+    expect(openedBody.values).toEqual({})
+    expect(openedBody.title).toBe('Пустая форма')
+    expect(openedBody.versionNumber).toBe(1)
+    const outsider = session('employee.b@example.test', employee.state)
+    const hidden = readRecord(outsider.state, outsider.token, 102, formId, recordId)
+    expect(hidden.status).toBe(404)
+    expect(JSON.stringify(hidden.body)).not.toContain('Пустая форма')
+    const sameRevision = publishForm(employee.state, author.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: 2,
+      expectedDraftRevision: 2,
+    })
+    expect(sameRevision.status).toBe(200)
+    expect(sameRevision.state.formVersions).toBe(employee.state.formVersions)
+    expect(sameRevision.state.formVersions[0]?.schema.fields).toEqual([])
+    const bumped = saveDraft(sameRevision.state, author.token, formId, {
+      organizationId: 101,
+      title: 'Пустая форма',
+      description: 'Без полей',
+      schema: { schemaVersion: 1, fields: [] },
+      expectedFormRevision: 2,
+      expectedDraftRevision: 2,
+    })
+    expect(bumped.status).toBe(200)
+    const again = publishForm(bumped.state, author.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: 3,
+      expectedDraftRevision: 3,
+    })
+    expect(again.status).toBe(400)
+    expect(codeOf(again)).toBe('empty_schema')
+    expect(again.state.formVersions).toHaveLength(1)
+    expect(again.state.formRecords).toHaveLength(1)
+    expect(again.state.formVersions[0]?.schema.fields).toEqual([])
+  })
+
+  it('publishes a normal form, keeps an empty optional answer, and refuses a missing required value', () => {
+    let state = withGrants(createSeed(), 2, 101, authorPairs)
+    state = withGrants(state, 3, 101, employeePairs)
+    const author = session('admin.a@example.test', state)
+    const created = createForm(author.state, author.token, {
+      organizationId: 101,
+      title: 'Образцы',
+      description: 'Учёт',
+    })
+    const formId = (created.body as { id: string }).id
+    const schema: FormSchema = {
+      schemaVersion: 1,
+      fields: [
+        field('field-number', 'text', 'Номер образца', { required: true }),
+        field('field-note', 'text', 'Примечание'),
+        field('field-mass', 'number', 'Масса'),
+        field('field-repeat', 'boolean', 'Повтор'),
+      ],
+    }
+    const saved = saveDraft(created.state, author.token, formId, {
+      organizationId: 101,
+      title: 'Образцы',
+      description: 'Учёт',
+      schema,
+      expectedFormRevision: 1,
+      expectedDraftRevision: 1,
+    })
+    expect(saved.status).toBe(200)
+    const published = publishForm(saved.state, author.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: 2,
+      expectedDraftRevision: 2,
+    })
+    expect(published.status).toBe(201)
+    const versionId = (published.body as { versionId: string }).versionId
+    const employee = session('employee.a@example.test', published.state)
+    const missing = createRecord(employee.state, employee.token, formId, {
+      organizationId: 101,
+      formVersionId: versionId,
+      values: { 'field-number': '', 'field-note': '', 'field-mass': null, 'field-repeat': false },
+    })
+    expect(missing.status).toBe(400)
+    expect(codeOf(missing)).toBe('invalid_payload')
+    expect(missing.state.formRecords).toHaveLength(0)
+    const stored = createRecord(employee.state, employee.token, formId, {
+      organizationId: 101,
+      formVersionId: versionId,
+      values: { 'field-number': 'ОБ-001', 'field-note': '', 'field-mass': 0, 'field-repeat': false },
+    })
+    expect(stored.status).toBe(201)
+    const recordId = (stored.body as { id: string }).id
+    const opened = readRecord(stored.state, employee.token, 101, formId, recordId)
+    const values = (opened.body as { values: Record<string, unknown>; schema: FormSchema }).values
+    const openedSchema = (opened.body as { schema: FormSchema }).schema
+    expect(values['field-number']).toBe('ОБ-001')
+    expect(values['field-note']).toBe('')
+    expect(values['field-mass']).toBe(0)
+    expect(values['field-repeat']).toBe(false)
+    expect(openedSchema.fields[0]?.label).toBe('Номер образца')
+    const renamed = saveDraft(stored.state, author.token, formId, {
+      organizationId: 101,
+      title: 'Образцы',
+      description: 'Учёт',
+      schema: {
+        ...schema,
+        fields: schema.fields.map((item) => item.id === 'field-number' ? { ...item, label: 'Код образца' } : item),
+      },
+      expectedFormRevision: 3,
+      expectedDraftRevision: 2,
+    })
+    expect(renamed.status).toBe(200)
+    const renamedBody = renamed.body as { form: { revision: number }; draft: { revision: number } }
+    const second = publishForm(renamed.state, author.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: renamedBody.form.revision,
+      expectedDraftRevision: renamedBody.draft.revision,
+    })
+    expect(second.status).toBe(201)
+    const oldRecord = readRecord(second.state, employee.token, 101, formId, recordId)
+    expect((oldRecord.body as { schema: FormSchema }).schema.fields[0]?.label).toBe('Номер образца')
+    expect((oldRecord.body as { values: Record<string, unknown> }).values['field-number']).toBe('ОБ-001')
+  })
+
+  it('deletes a form together with its records and keeps a form that a section still uses', () => {
+    const owner = session('owner@example.test')
+    expect(can(toSnapshot(owner.state), 1, 'forms', 'delete', laboratory)).toBe(true)
+    const created = createForm(owner.state, owner.token, { organizationId: 101, title: 'Лишняя', description: '' })
+    const formId = (created.body as { id: string }).id
+    const kept = createForm(created.state, owner.token, { organizationId: 101, title: 'Оставить', description: '' })
+    const keptId = (kept.body as { id: string }).id
+    const saved = saveDraft(kept.state, owner.token, formId, {
+      organizationId: 101,
+      title: 'Лишняя',
+      description: '',
+      schema: { schemaVersion: 1, fields: [field('field-number', 'text', 'Номер', { required: true })] },
+      expectedFormRevision: 1,
+      expectedDraftRevision: 1,
+    })
+    const published = publishForm(saved.state, owner.token, formId, {
+      organizationId: 101,
+      expectedFormRevision: 2,
+      expectedDraftRevision: 2,
+    })
+    const versionId = (published.body as { versionId: string }).versionId
+    const stored = createRecord(published.state, owner.token, formId, {
+      organizationId: 101,
+      formVersionId: versionId,
+      values: { 'field-number': 'ОБ-001' },
+    })
+    expect(stored.status).toBe(201)
+    const withView: MockState = {
+      ...stored.state,
+      tableViews: [...stored.state.tableViews, {
+        id: 'view-extra-delete',
+        organizationId: 101,
+        formId,
+        title: 'Таблица',
+        description: '',
+        columns: [],
+        filters: [],
+        sort: { columnId: 'createdAt', direction: 'asc' },
+        pageSize: 20,
+        schemaVersion: 1,
+        revision: 1,
+        createdBy: 1,
+        updatedBy: 1,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }],
+    }
+    const limited = withGrants(withView, 2, 101, [['forms', 'update'], ['forms', 'publish']])
+    const admin = session('admin.a@example.test', limited)
+    const denied = deleteForm(admin.state, admin.token, 101, formId)
+    expect(denied.status).toBe(403)
+    expect(codeOf(denied)).toBe('forbidden')
+    expect(denied.state.forms.some((form) => form.id === formId)).toBe(true)
+    const linked: MockState = {
+      ...denied.state,
+      sections: [...denied.state.sections, {
+        id: 'sec-form-use',
+        organizationId: 101,
+        publishedVersionId: null,
+        revision: 1,
+        active: true,
+      }],
+      sectionDrafts: [...denied.state.sectionDrafts, {
+        sectionId: 'sec-form-use',
+        schemaVersion: 1,
+        title: 'Раздел',
+        description: '',
+        iconKey: 'file',
+        formId,
+        tableViewId: '',
+        showCreate: false,
+        createLabel: '',
+        order: 1,
+        revision: 1,
+      }],
+    }
+    const blocked = deleteForm(linked, owner.token, 101, formId)
+    expect(blocked.status).toBe(409)
+    expect(codeOf(blocked)).toBe('form_in_use')
+    expect(blocked.state.forms.some((form) => form.id === formId)).toBe(true)
+    expect(blocked.state.formRecords.some((record) => record.formId === formId)).toBe(true)
+    const released: MockState = {
+      ...blocked.state,
+      sections: blocked.state.sections.filter((section) => section.id !== 'sec-form-use'),
+      sectionDrafts: blocked.state.sectionDrafts.filter((draft) => draft.sectionId !== 'sec-form-use'),
+    }
+    const removed = deleteForm(released, owner.token, 101, formId)
+    expect(removed.status).toBe(200)
+    expect(removed.state.forms.map((form) => form.id)).toEqual([keptId])
+    expect(removed.state.formDrafts.some((draft) => draft.formId === formId)).toBe(false)
+    expect(removed.state.formVersions.some((version) => version.formId === formId)).toBe(false)
+    expect(removed.state.formRecords.some((record) => record.formId === formId)).toBe(false)
+    expect(removed.state.tableViews.some((view) => view.formId === formId)).toBe(false)
+    const foreign = deleteForm(removed.state, owner.token, 102, keptId)
+    expect(foreign.status).toBe(404)
+    expect(foreign.state.forms.some((form) => form.id === keptId)).toBe(true)
   })
 })

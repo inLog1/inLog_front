@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatAnswer, showsRequiredMark } from '../model/display'
 import { FORM_SCHEMA_VERSION, type FormAnswer, type FormAnswers, type FormSchema } from '../model/types'
 import { Checkbox } from '../../../shared/ui/checkbox'
 import { Input } from '../../../shared/ui/input'
@@ -21,6 +22,29 @@ export function FormRenderer({ schema, values, errors, readOnly = false, present
   if (schema.schemaVersion !== FORM_SCHEMA_VERSION || !Array.isArray(schema.fields)) {
     return <p className="text-sm text-destructive">{t('forms.unknown-schema')}</p>
   }
+  const labels = {
+    blank: t('forms.value-blank'),
+    yes: t('forms.value-yes'),
+    no: t('forms.value-no'),
+  }
+  if (presentation) {
+    return (
+      <dl className="min-w-0">
+        {schema.fields.map((field) => (
+          <div key={field.id} className="min-w-0 border-b border-border py-3 last:border-b-0">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <dt className="text-sm text-muted-foreground">{field.label}</dt>
+              <dd className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground">
+                <span className="text-muted-foreground" aria-hidden="true">— </span>
+                {formatAnswer(field, values[field.id], labels)}
+              </dd>
+            </div>
+            {field.help ? <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{field.help}</p> : null}
+          </div>
+        ))}
+      </dl>
+    )
+  }
   return (
     <div className="space-y-4">
       {schema.fields.map((field) => {
@@ -30,52 +54,27 @@ export function FormRenderer({ schema, values, errors, readOnly = false, present
           <div key={field.id} className="min-w-0 space-y-1">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && field.type !== 'boolean' ? <span className="text-destructive"> *</span> : null}
+              {showsRequiredMark('edit', field) ? <span className="text-destructive"> *</span> : null}
             </Label>
             {field.help ? (
               <p id={`${field.id}-help`} className="text-xs text-muted-foreground whitespace-pre-wrap">{field.help}</p>
             ) : null}
-            {presentation ? (
-              <p id={field.id} className="whitespace-pre-wrap text-sm text-foreground" aria-describedby={described || undefined}>
-                {presentedValue(field.type, values[field.id], field.options, t)}
-              </p>
-            ) : (
-              <FieldControl
-                id={field.id}
-                type={field.type}
-                value={values[field.id]}
-                options={field.options}
-                readOnly={readOnly}
-                describedBy={described}
-                invalid={Boolean(error)}
-                onChange={(value) => onChange?.(field.id, value)}
-              />
-            )}
+            <FieldControl
+              id={field.id}
+              type={field.type}
+              value={values[field.id]}
+              options={field.options}
+              readOnly={readOnly}
+              describedBy={described}
+              invalid={Boolean(error)}
+              onChange={(value) => onChange?.(field.id, value)}
+            />
             {error ? <p id={`${field.id}-error`} className="text-xs text-destructive">{t(`forms.field-errors.${error}`, { defaultValue: error })}</p> : null}
           </div>
         )
       })}
     </div>
   )
-}
-
-function presentedValue(
-  type: FormSchema['fields'][number]['type'],
-  value: FormAnswer | undefined,
-  options: FormSchema['fields'][number]['options'],
-  t: (key: string) => string,
-): string {
-  if (value == null || value === '') return t('forms.value-empty')
-  if (type === 'boolean') return value === true ? t('forms.value-yes') : t('forms.value-no')
-  if (type === 'single_choice') {
-    const option = options.find((item) => item.id === value)
-    return option?.label ?? String(value)
-  }
-  if (type === 'date' && typeof value === 'string') {
-    const [year, month, day] = value.split('-')
-    if (year && month && day) return `${day}.${month}.${year}`
-  }
-  return String(value)
 }
 
 function FieldControl({

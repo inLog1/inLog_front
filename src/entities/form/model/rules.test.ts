@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayText, parseSchema } from './schema'
+import { displayText, hasInputFields, parseSchema } from './schema'
 import { formsMode } from './availability'
 import { publicationStatus, summarizeChanges } from './summary'
 import { isCalendarDate, persistsAnswers, storedDate, validateAnswers } from './values'
@@ -75,6 +75,23 @@ describe('form rules', () => {
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.issues.map((issue) => issue.code)).toContain('unknown_schema')
     expect(parseSchema({ schemaVersion: 1, fields: [], extra: true }, 'draft').ok).toBe(false)
+  })
+
+  it('saves an empty draft and rejects publication without an input field', () => {
+    const empty = { schemaVersion: 1, fields: [] }
+    expect(parseSchema(empty, 'draft').ok).toBe(true)
+    const published = parseSchema(empty, 'publish')
+    expect(published.ok).toBe(false)
+    if (!published.ok) expect(published.issues.map((issue) => issue.code)).toEqual(['empty_schema'])
+    expect(hasInputFields(empty)).toBe(false)
+    expect(hasInputFields({ fields: [{ type: 'heading' }] })).toBe(false)
+    expect(hasInputFields({ fields: [{ type: 'text' }, { type: 'heading' }] })).toBe(true)
+    expect(validateAnswers(empty, {}).ok).toBe(true)
+    const optional = validateAnswers({
+      schemaVersion: 1,
+      fields: [{ id: 'field-note', type: 'text', label: 'Примечание', help: '', required: false, minLength: null, maxLength: null, min: null, max: null, options: [] }],
+    }, { 'field-note': '' })
+    expect(optional.ok).toBe(true)
   })
 
   it('requires a label and a real choice only when publishing', () => {

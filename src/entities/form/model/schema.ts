@@ -17,6 +17,25 @@ export function emptySchema(): FormSchema {
   return { schemaVersion: FORM_SCHEMA_VERSION, fields: [] }
 }
 
+const INPUT_FIELD_TYPES = new Set<string>(FORM_FIELD_TYPES)
+
+/**
+ * Every supported field type stores an answer.
+ * A type outside that list is not an input, so a decorative block would not count.
+ * This check does not add a field type.
+ */
+export function isInputField(field: { type: string }): boolean {
+  return INPUT_FIELD_TYPES.has(field.type)
+}
+
+export function inputFieldCount(schema: { fields: ReadonlyArray<{ type: string }> }): number {
+  return schema.fields.reduce((count, field) => count + (isInputField(field) ? 1 : 0), 0)
+}
+
+export function hasInputFields(schema: { fields: ReadonlyArray<{ type: string }> }): boolean {
+  return inputFieldCount(schema) > 0
+}
+
 export function createField(type: FormFieldType, id = newId()): FormField {
   return {
     id,
@@ -165,6 +184,9 @@ export function parseSchema(
     fields.push(parsed.field)
   }
   if (issues.length > 0) return { ok: false, issues }
+  if (mode === 'publish' && !hasInputFields({ fields })) {
+    return { ok: false, issues: [{ code: 'empty_schema' }] }
+  }
   return { ok: true, schema: { schemaVersion: FORM_SCHEMA_VERSION, fields } }
 }
 

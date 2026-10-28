@@ -42,6 +42,7 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'forms', resource: 'forms', action: 'create', labelKey: 'access.perm.forms.create' },
   { group: 'forms', resource: 'forms', action: 'update', labelKey: 'access.perm.forms.update' },
   { group: 'forms', resource: 'forms', action: 'publish', labelKey: 'access.perm.forms.publish' },
+  { group: 'forms', resource: 'forms', action: 'delete', labelKey: 'access.perm.forms.delete' },
   { group: 'forms', resource: 'form-records', action: 'create', labelKey: 'access.perm.forms.record-create' },
   { group: 'forms', resource: 'form-records', action: 'read', labelKey: 'access.perm.forms.record-read' },
   { group: 'table-views', resource: 'table-views', action: 'read', labelKey: 'access.perm.table-views.read' },

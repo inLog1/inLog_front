@@ -1,5 +1,5 @@
 import { can } from '../../../entities/access/model/grants'
-import { parseSchema } from '../../../entities/form/model/schema'
+import { hasInputFields, parseSchema } from '../../../entities/form/model/schema'
 import { publicationStatus } from '../../../entities/form/model/summary'
 import { validateAnswers } from '../../../entities/form/model/values'
 import { principal, toSnapshot, type FlowResult } from '../auth/flow'
@@ -249,7 +249,11 @@ export function publishForm(state: MockState, token: string | null, formId: stri
   }
   if (form.revision !== expectedFormRevision || draft.revision !== expectedDraftRevision) return problem(state, 409, 'stale_write')
   const parsed = parseSchema(draft.schema, 'publish')
-  if (!parsed.ok) return problem(state, 400, parsed.issues.some((issue) => issue.code === 'unknown_schema') ? 'unknown_schema' : 'invalid_schema', { issues: parsed.issues })
+  if (!parsed.ok) {
+    const codes = parsed.issues.map((issue) => issue.code)
+    const code = codes.includes('unknown_schema') ? 'unknown_schema' : codes.includes('empty_schema') ? 'empty_schema' : 'invalid_schema'
+    return problem(state, 400, code, { issues: parsed.issues })
+  }
   const number = state.formVersions.filter((version) => version.formId === form.id).reduce((max, version) => Math.max(max, version.number), 0) + 1
   const version: MockFormVersion = {
     id: `ver-${crypto.randomUUID()}`,
@@ -298,6 +302,31 @@ export function readPublished(state: MockState, token: string | null, organizati
   return done(state, 200, body)
 }
 
+function formReferencedBySection(state: MockState, formId: string): boolean {
+  const viewIds = new Set(state.tableViews.filter((view) => view.formId === formId).map((view) => view.id))
+  const linked = (candidateFormId: string, tableViewId: string) =>
+    candidateFormId === formId || viewIds.has(tableViewId)
+  return state.sectionDrafts.some((draft) => linked(draft.formId, draft.tableViewId))
+    || state.sectionVersions.some((version) => linked(version.formId, version.tableViewId))
+}
+
+/** Removes the form, its draft, versions, records and table views. A section that still points at them blocks the delete. */
+export function deleteForm(state: MockState, token: string | null, organizationId: number, formId: string): FlowResult {
+  const access = enter(state, token, organizationId, [['forms', 'delete']])
+  if (!access.ok) return access.result
+  const form = formIn(state, organizationId, formId)
+  if (!form) return problem(state, 404, 'not_found')
+  if (formReferencedBySection(state, form.id)) return problem(state, 409, 'form_in_use')
+  return done({
+    ...state,
+    forms: state.forms.filter((item) => item.id !== form.id),
+    formDrafts: state.formDrafts.filter((item) => item.formId !== form.id),
+    formVersions: state.formVersions.filter((item) => item.formId !== form.id),
+    formRecords: state.formRecords.filter((item) => item.formId !== form.id),
+    tableViews: state.tableViews.filter((item) => item.formId !== form.id),
+  }, 200, { id: form.id })
+}
+
 export function listRecords(state: MockState, token: string | null, organizationId: number, formId: string): FlowResult {
   const access = enter(state, token, organizationId, [['form-records', 'read']])
   if (!access.ok) return access.result
@@ -329,6 +358,7 @@ export function createRecord(state: MockState, token: string | null, formId: str
   if (typeof body.formVersionId !== 'string' || !ID_PATTERN.test(body.formVersionId)) return problem(state, 400, 'invalid_version')
   const version = versionOf(state, body.formVersionId)
   if (!version || version.formId !== form.id || version.organizationId !== organizationId) return problem(state, 404, 'not_found')
+  if (!hasInputFields(version.schema)) return problem(state, 400, 'empty_schema')
   if (version.id !== form.publishedVersionId) return problem(state, 409, 'version_conflict')
   if (version.schema.schemaVersion !== 1) return problem(state, 400, 'unknown_schema')
   const reviewed = validateAnswers(version.schema, body.values)

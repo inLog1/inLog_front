@@ -3,6 +3,7 @@ import { bearer, commit, json, load, MOCK_PREFIX, positiveId, readJson, reply } 
 import {
   createForm,
   createRecord,
+  deleteForm,
   listForms,
   listRecords,
   publishForm,
@@ -38,6 +39,13 @@ export const formHandlers: HttpHandler[] = [
   http.put(`${MOCK_PREFIX}/forms/:formId/draft/`, async ({ request, params }) => {
     const body = await readJson(request)
     return commit((state) => saveDraft(state, bearer(request), String(params.formId), body))
+  }),
+  http.delete(`${MOCK_PREFIX}/forms/:formId/`, async ({ request, params }) => {
+    const ready = await load('forms/:formId/')
+    if (ready instanceof Response) return ready
+    const organizationId = organizationQuery(request)
+    if (organizationId == null) return json({ code: 'invalid_organization' }, 400)
+    return commit((state) => deleteForm(state, bearer(request), organizationId, String(params.formId)))
   }),
   http.post(`${MOCK_PREFIX}/forms/:formId/publish/`, async ({ request, params }) => {
     const body = await readJson(request)

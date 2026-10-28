@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormFill } from '../../../../features/form-fill/ui/FormFill'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
@@ -38,6 +38,7 @@ function FillGate() {
   const [lockedOrg, setLockedOrg] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
   const canCreate = useHasOrganizationGrant('form-records', 'create', lockedOrg ?? readyOrg)
+  const canUpdate = useHasOrganizationGrant('forms', 'update', lockedOrg ?? readyOrg)
   const urlOrg = Number(search.get('org'))
   if (readyOrg != null && lockedOrg == null) setLockedOrg(readyOrg)
   const switched = lockedOrg != null && Number.isInteger(urlOrg) && urlOrg > 0 && urlOrg !== lockedOrg
@@ -52,16 +53,18 @@ function FillGate() {
       />
     )
   }
+  const sectionBack = acceptReturnTo(search.get('returnTo'), lockedOrg)
+  const backHref = sectionBack ?? href(routes.forms.list(), 'organization')
   return (
     <div className="min-w-0">
-      <div className="px-4 pt-4">
-        <Link className="text-sm text-primary underline-offset-4 hover:underline" to={href(routes.forms.list(), 'organization')}>{t('forms.back-forms')}</Link>
-      </div>
       <FormFill
-        key={lockedOrg}
+        key={`${lockedOrg}:${formId}`}
         organizationId={lockedOrg}
         formId={formId}
         canCreate={canCreate}
+        backHref={backHref}
+        backLabel={sectionBack ? t('sections.back') : t('forms.back-forms')}
+        configureHref={canUpdate ? href(routes.forms.editor(formId), 'organization') : null}
         recordHref={(recordId) => {
           const path = href(routes.forms.record(formId, recordId), 'organization')
           const back = acceptReturnTo(search.get('returnTo'), lockedOrg)

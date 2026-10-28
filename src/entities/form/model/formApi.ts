@@ -58,6 +58,17 @@ export const formApi = platformApi.injectEndpoints({
       query: ({ formId, ...body }) => ({ url: `forms/${formId}/draft/`, method: 'PUT', body }),
       invalidatesTags: (_result, _error, arg) => [{ type: 'Forms', id: arg.formId }, { type: 'Forms', id: `org-${arg.organizationId}` }],
     }),
+    deleteForm: build.mutation<{ id: string }, { organizationId: number; formId: string }>({
+      query: ({ organizationId, formId }) => ({
+        url: `forms/${formId}/?organization=${organizationId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'Forms', id: arg.formId },
+        { type: 'Forms', id: `org-${arg.organizationId}` },
+        { type: 'TableViews', id: `list-${arg.formId}` },
+      ],
+    }),
     publishForm: build.mutation<{ versionId: string; versionNumber: number; formRevision: number; publishedAt: string }, PublishBody>({
       query: ({ formId, ...body }) => ({ url: `forms/${formId}/publish/`, method: 'POST', body }),
       invalidatesTags: (_result, _error, arg) => [
@@ -91,6 +102,7 @@ export const formApi = platformApi.injectEndpoints({
 export const {
   useGetFormsQuery,
   useCreateFormMutation,
+  useDeleteFormMutation,
   useGetFormDraftQuery,
   useSaveFormDraftMutation,
   usePublishFormMutation,

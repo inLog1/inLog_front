@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   useCreateAccessRoleMutation,
   useDeleteAccessRoleMutation,
@@ -24,14 +25,16 @@ type RoleEditorProps = {
   owner: 'organization' | 'corporation'
   organizationId: number | null
   backHref: string
+  savedHref: (roleId: string) => string
 }
 
-export function RoleEditor({ roleId, owner, organizationId, backHref }: RoleEditorProps) {
-  if (roleId) return <ExistingRole roleId={roleId} backHref={backHref} />
-  return <NewRole owner={owner} organizationId={organizationId} backHref={backHref} />
+export function RoleEditor({ roleId, owner, organizationId, backHref, savedHref }: RoleEditorProps) {
+  if (roleId) return <ExistingRole roleId={roleId} backHref={backHref} savedHref={savedHref} />
+  return <NewRole owner={owner} organizationId={organizationId} backHref={backHref} savedHref={savedHref} />
 }
 
-function NewRole({ owner, organizationId, backHref }: { owner: 'organization' | 'corporation'; organizationId: number | null; backHref: string }) {
+function NewRole({ owner, organizationId, backHref, savedHref }: { owner: 'organization' | 'corporation'; organizationId: number | null; backHref: string; savedHref: (roleId: string) => string }) {
+  const { t } = useTranslation()
   const skip = owner === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
     owner === 'corporation' ? { scope: 'corporation' } : { scope: 'organization', organizationId: organizationId ?? 0 },
@@ -44,13 +47,15 @@ function NewRole({ owner, organizationId, backHref }: { owner: 'organization' | 
       : directory.data.organizationId == null
         ? null
         : { type: 'organization', organizationId: directory.data.organizationId, corporationId: directory.data.corporationId }
+  if (directory.isError && !directory.data) return <EditorStatus error={directory.error} />
   if (directory.isLoading || !directory.data || !ownerScope) {
-    return <p className="p-4 text-sm text-muted-foreground">{directory.isError ? null : '…'}</p>
+    return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
   }
   if (!directory.data.canCreateRole) return <CreateDenied backHref={backHref} />
   return (
     <RoleForm
       backHref={backHref}
+      savedHref={savedHref}
       ownerScope={ownerScope}
       organizations={directory.data.organizations}
       projects={directory.data.projects}
@@ -63,7 +68,7 @@ function NewRole({ owner, organizationId, backHref }: { owner: 'organization' | 
   )
 }
 
-function ExistingRole({ roleId, backHref }: { roleId: string; backHref: string }) {
+function ExistingRole({ roleId, backHref, savedHref }: { roleId: string; backHref: string; savedHref: (roleId: string) => string }) {
   const role = useGetAccessRoleQuery(roleId)
   if (role.isLoading || !role.data) {
     return <EditorStatus error={role.isError ? role.error : null} />
@@ -71,6 +76,7 @@ function ExistingRole({ roleId, backHref }: { roleId: string; backHref: string }
   return (
     <RoleForm
       backHref={backHref}
+      savedHref={savedHref}
       ownerScope={role.data.role.ownerScope}
       organizations={role.data.organizations}
       projects={role.data.projects}
@@ -105,6 +111,7 @@ function EditorStatus({ error }: { error: unknown }) {
 
 function RoleForm({
   backHref,
+  savedHref,
   ownerScope,
   organizations,
   projects,
@@ -115,6 +122,7 @@ function RoleForm({
   initial,
 }: {
   backHref: string
+  savedHref: (roleId: string) => string
   ownerScope: AccessScope
   organizations: Array<{ id: number; shortName: string }>
   projects: Array<{ id: number; name: string; organizationId: number }>
@@ -135,6 +143,7 @@ function RoleForm({
   } | null
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [name, setName] = useState(initial?.displayName ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [operationalIds, setOperationalIds] = useState(initial?.operational.map((item) => item.id) ?? [])
@@ -153,20 +162,35 @@ function RoleForm({
   const save = async () => {
     setFailure(null)
     setNotice(null)
+    const displayName = name.trim()
+    if (displayName.length < 1) {
+      const message = t('access.errors.invalid-name')
+      setFailure(message)
+      toast.error(message)
+      return
+    }
     const body = {
-      displayName: name,
+      displayName,
       description,
       grantIds: operationalIds,
       delegationGrantIds: delegationIds,
       ownerScope,
     }
     try {
-      if (initial) await updateRole({ roleId: initial.id, body }).unwrap()
-      else await createRole(body).unwrap()
-      setNotice(t('access.role-saved'))
+      if (initial) {
+        await updateRole({ roleId: initial.id, body }).unwrap()
+        setNotice(t('access.role-saved'))
+        toast.success(t('access.role-saved'))
+      } else {
+        const created = await createRole(body).unwrap()
+        toast.success(t('access.role-saved'))
+        navigate(savedHref(created.role.id), { replace: true })
+      }
     } catch (error) {
       const parsed = accessFailure(error)
-      setFailure(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 }))
+      const message = t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 })
+      setFailure(message)
+      toast.error(message)
     }
   }
 
@@ -176,7 +200,8 @@ function RoleForm({
     setNotice(null)
     try {
       await deleteRole({ roleId: initial.id }).unwrap()
-      setNotice(t('access.role-deleted'))
+      toast.success(t('access.role-deleted'))
+      navigate(backHref, { replace: true })
     } catch (error) {
       const parsed = accessFailure(error)
       setFailure(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 }))
@@ -184,6 +209,22 @@ function RoleForm({
   }
 
   const scopeText = scopeLabel(ownerScope, organizations, projects, t)
+  const busy = !canEdit || createState.isLoading || updateState.isLoading
+  const actionButtons = () => (
+    <>
+      <Button asChild variant="outline">
+        <Link to={backHref}>{t('access.cancel')}</Link>
+      </Button>
+      {initial ? (
+        <Button type="button" variant="outline" disabled={deleteState.isLoading || !initial.canDelete} onClick={() => void remove()}>
+          {t('access.delete-role')}
+        </Button>
+      ) : null}
+      <Button type="button" disabled={busy} onClick={() => void save()}>
+        {t('access.save-changes')}
+      </Button>
+    </>
+  )
   return (
     <WorkPage>
       <PageHeader
@@ -193,7 +234,10 @@ function RoleForm({
           { label: t('nav.access'), to: backHref },
           { label: initial ? initial.displayName : t('access.create-role') },
         ]}
+        actions={actionButtons()}
       />
+      {notice ? <p className="text-sm" role="status">{notice}</p> : null}
+      {failure ? <p className="text-sm text-destructive" role="alert">{failure}</p> : null}
       {operatorOwner ? (
         <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
           <span className="font-medium">{t('access.installation-superadmin')}</span>
@@ -202,17 +246,27 @@ function RoleForm({
       ) : (
         <p className="text-sm text-muted-foreground">{t('access.role-not-capability')}</p>
       )}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid max-w-xl gap-3">
         <label className="grid min-w-0 gap-1 text-sm">
           {t('access.name')}
-          <Input value={name} disabled={!canEdit} onChange={(event) => setName(event.target.value)} maxLength={80} />
+          <Input
+            value={name}
+            disabled={!canEdit}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+              event.preventDefault()
+              void save()
+            }}
+            maxLength={80}
+          />
         </label>
         <div className="grid min-w-0 gap-1 text-sm">
           <span>{t('access.owner')}</span>
           <p className="flex h-9 items-center rounded-md border border-border bg-card px-3">{scopeText}</p>
           {ownerScope.type === 'corporation' ? <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p> : null}
         </div>
-        <label className="grid min-w-0 gap-1 text-sm md:col-span-1">
+        <label className="grid min-w-0 gap-1 text-sm">
           {t('access.description')}
           <Textarea value={description} disabled={!canEdit} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
         </label>
@@ -271,17 +325,7 @@ function RoleForm({
           </>
         )}
       >
-        <Button asChild variant="outline">
-          <Link to={backHref}>{t('access.cancel')}</Link>
-        </Button>
-        {initial ? (
-          <Button type="button" variant="outline" disabled={deleteState.isLoading || !initial.canDelete} onClick={() => void remove()}>
-            {t('access.delete-role')}
-          </Button>
-        ) : null}
-        <Button type="button" disabled={!canEdit || createState.isLoading || updateState.isLoading} onClick={() => void save()}>
-          {t('access.save-changes')}
-        </Button>
+        {actionButtons()}
       </EditorActions>
     </WorkPage>
   )

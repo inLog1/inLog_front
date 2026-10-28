@@ -7,6 +7,7 @@ import {
   createField,
   emptyAnswers,
   FormRenderer,
+  hasInputFields,
   moveField,
   readFormError,
   summarizeChanges,
@@ -148,6 +149,11 @@ function EditorBody({
       }
       current = saved
     }
+    if (!hasInputFields(current.schema)) {
+      toast.error(t('forms.errors.empty_schema'))
+      setBusy(null)
+      return
+    }
     try {
       const result = await publishForm({
         organizationId,
@@ -179,7 +185,8 @@ function EditorBody({
   const showList = hasFields && (wide || pane === 'fields')
   const showPreview = pane === 'preview'
   const showEmpty = !hasFields && pane !== 'preview'
-  const mobilePanes = (['fields', 'preview'] as const).concat(hasFields ? ['field'] : [])
+  const mobilePanes: Array<'fields' | 'field' | 'preview'> = ['fields', 'preview']
+  if (hasFields) mobilePanes.push('field')
   const addField = () => {
     const field = createField('text' satisfies FormFieldType)
     updateSchema({ ...buffer.schema, fields: [...buffer.schema.fields, field] })
@@ -367,6 +374,7 @@ function EditorBody({
             {summary.renamed.slice(0, 5).map((item) => <li key={item}>{item}</li>)}
           </ul>
           {buffer.dirty ? <p className="text-sm text-muted-foreground">{t('forms.publish-save-first')}</p> : null}
+          {!hasInputFields(buffer.schema) ? <p className="text-sm text-destructive" role="alert">{t('forms.errors.empty_schema')}</p> : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPublishOpen(false)}>{t('forms.leave-stay')}</Button>
             <Button type="button" disabled={busy != null} onClick={() => void publish()}>

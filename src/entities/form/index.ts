@@ -11,7 +11,9 @@ export type {
   PublishedFormResponse,
 } from './model/types'
 export { FORM_FIELD_TYPES, FORM_SCHEMA_VERSION } from './model/types'
-export { canonicalSchema, changeFieldType, createField, displayText, emptySchema, moveField, parseSchema } from './model/schema'
+export { canonicalSchema, changeFieldType, createField, displayText, emptySchema, hasInputFields, inputFieldCount, isInputField, moveField, parseSchema } from './model/schema'
+export { createdRecordId, fillAllowsSubmit, formatAnswer, publishedFormScreen, showsRequiredMark } from './model/display'
+export type { AnswerLabels, PublishedScreen } from './model/display'
 export { emptyAnswers, isCalendarDate, persistsAnswers, storedDate, validateAnswers } from './model/values'
 export { publicationStatus, summarizeChanges } from './model/summary'
 export type { ChangeSummary } from './model/summary'
@@ -20,6 +22,7 @@ export { readFormError } from './model/formApi'
 export {
   useCreateFormMutation,
   useCreateFormRecordMutation,
+  useDeleteFormMutation,
   useGetFormDraftQuery,
   useGetFormRecordQuery,
   useGetFormRecordsQuery,
