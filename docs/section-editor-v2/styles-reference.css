@@ -1,0 +1,9 @@
+/* Справочник размеров, не готовый patch. Применять только внутри локального root редактора. */
+.section-editor-v2 { width:100%; max-width:1240px; margin-inline:auto; padding:24px; min-width:0; }
+.section-editor-v2__grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:24px; align-items:start; }
+.section-editor-v2__card { min-width:0; padding:24px; border:1px solid hsl(var(--border)); border-radius:14px; background:hsl(var(--card)); color:hsl(var(--card-foreground)); }
+.section-editor-v2__stack { display:flex; flex-direction:column; gap:20px; min-width:0; }
+.section-editor-v2__actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+/* Формат токенов hsl(var(--...)) проверить по версии Tailwind проекта; не вставлять вслепую. */
+@media (max-width:1099px) { .section-editor-v2__grid { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:639px) { .section-editor-v2 { padding:16px; } .section-editor-v2__card { padding:16px; } }

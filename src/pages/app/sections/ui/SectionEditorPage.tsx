@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { isSectionId } from '../../../../entities/section'
+import { isSectionId, type SectionStatus } from '../../../../entities/section'
 import { SectionEditor } from '../../../../features/section-builder/ui/SectionEditor'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useHasOrganizationGrant, useOrganizationAccessReady, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
+import { Badge } from '../../../../shared/ui/badge'
 import { Button } from '../../../../shared/ui/button'
 import { PageHeader, WorkPage } from '../../../../shared/ui/page'
 import {
@@ -55,6 +57,15 @@ function EditorGate({ sectionId }: { sectionId: string | null }) {
     mounted.current = true
     return () => { mounted.current = false }
   }, [])
+  const editorKey = `${lockedOrg ?? 'pending'}:${sectionId ?? 'new'}`
+  const [reported, setReported] = useState<{ key: string; status: SectionStatus | null }>({ key: editorKey, status: null })
+  if (reported.key !== editorKey) setReported({ key: editorKey, status: null })
+  const documentStatus = reported.key === editorKey ? reported.status : null
+  const reportStatus = useCallback((status: SectionStatus | null) => {
+    setReported((current) => (
+      current.key === editorKey && current.status === status ? current : { key: editorKey, status }
+    ))
+  }, [editorKey])
   const grantOrg = lockedOrg ?? readyOrg
   const accessReady = useOrganizationAccessReady(grantOrg)
   const canCreate = useHasOrganizationGrant('sections', 'create', grantOrg)
@@ -101,25 +112,39 @@ function EditorGate({ sectionId }: { sectionId: string | null }) {
     setDirty(false)
     after()
   }
+  const pageTitle = sectionId == null ? t('sections.create') : t('sections.configure')
   return (
     <WorkPage>
-      <PageHeader
-        title={sectionId == null ? t('sections.create') : t('nav.sections')}
-        breadcrumbs={[{ label: t('nav.sections'), to: href(routes.settings.sections(), 'organization') }, { label: sectionId == null ? t('sections.create') : t('sections.open') }]}
-      />
-      <SectionEditor
-        key={`${lockedOrg}:${sectionId ?? 'new'}`}
-        organizationId={lockedOrg}
-        sectionId={sectionId}
-        canPublish={canPublish}
-        previewHref={sectionId ? href(routes.settings.sectionPreview(sectionId), 'organization') : null}
-        saveRef={saveRef}
-        onDirty={setDirty}
-        onSaved={(id) => {
-          setDirty(false)
-          navigate(href(routes.settings.section(id), 'organization'))
-        }}
-      />
+      <div className="mx-auto flex w-full min-w-0 max-w-[1240px] flex-col gap-4">
+        <PageHeader
+          title={pageTitle}
+          description={t('sections.lead')}
+          breadcrumbs={[{ label: t('nav.sections'), to: href(routes.settings.sections(), 'organization') }, { label: pageTitle }]}
+          actions={documentStatus ? (
+            <div className="flex max-w-full flex-wrap items-center gap-2">
+              <Badge variant="outline" className="h-auto max-w-full gap-1.5 py-1 font-medium whitespace-normal">
+                <FileText className="size-3.5 shrink-0" aria-hidden />
+                {t(`sections.status.${documentStatus}`)}
+              </Badge>
+              {dirty ? <span className="max-w-full text-sm text-muted-foreground">{t('sections.unsaved')}</span> : null}
+            </div>
+          ) : null}
+        />
+        <SectionEditor
+          key={editorKey}
+          organizationId={lockedOrg}
+          sectionId={sectionId}
+          canPublish={canPublish}
+          previewHref={sectionId ? href(routes.settings.sectionPreview(sectionId), 'organization') : null}
+          saveRef={saveRef}
+          onDirty={setDirty}
+          onSaved={(id) => {
+            setDirty(false)
+            navigate(href(routes.settings.section(id), 'organization'))
+          }}
+          onStatus={reportStatus}
+        />
+      </div>
       <AlertDialog open={leave.nextUrl != null}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -7,7 +7,7 @@ import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../featur
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
-import { PageHeader, WorkPage } from '../../../../shared/ui/page'
+import { WorkPage } from '../../../../shared/ui/page'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -50,6 +50,7 @@ function EditorGate() {
   const canPublish = useHasOrganizationGrant('forms', 'publish', grantOrg)
   const canRecords = useHasOrganizationGrant('form-records', 'read', grantOrg)
   const canRead = useHasOrganizationGrant('forms', 'read', grantOrg)
+  const canViews = useHasOrganizationGrant('table-views', 'read', grantOrg)
   const urlOrg = Number(search.get('org'))
   if (readyOrg != null && lockedOrg == null) {
     setLockedOrg(readyOrg)
@@ -96,20 +97,20 @@ function EditorGate() {
   }
   return (
     <WorkPage>
-      <PageHeader
-        title={t('forms.edit')}
-        breadcrumbs={[{ label: t('nav.forms'), to: href(routes.forms.list(), 'organization') }, { label: t('forms.edit') }]}
-      />
+      <div className="flex w-full min-w-0 max-w-[1200px] flex-col gap-4">
       <FormEditor
         key={lockedOrg}
         organizationId={lockedOrg}
         formId={formId}
         canPublish={canPublish}
+        listHref={href(routes.forms.list(), 'organization')}
         recordsHref={canRecords ? href(routes.forms.records(formId), 'organization') : null}
+        viewsHref={canViews ? href(routes.forms.views(formId), 'organization') : null}
         fillHref={canRead ? href(routes.forms.fill(formId), 'organization') : null}
         saveRef={saveRef}
         onDirty={setDirty}
       />
+      </div>
       <AlertDialog open={leave.nextUrl != null}>
         <AlertDialogContent>
           <AlertDialogHeader>
