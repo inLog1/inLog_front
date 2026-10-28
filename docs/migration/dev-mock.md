@@ -8,7 +8,7 @@
 npm run dev:mock
 ```
 
-Это `vite --mode mock` и читает `.env.mock`: `VITE_API_MODE=mock`, `VITE_AUTH_MODE=mixed`. Обычный `npm run dev` остаётся live. Пока `npm run build` тоже собирается с `--mode mock`: в бандл входят worker, мок-API и кнопка «Тестирование». Живая прод-сборка без мока — `npm run build:live`. Существующий `.env` не перезаписывается и в mock не используется как адрес API.
+Это `vite --mode mock` и читает `.env.mock`: `VITE_API_MODE=mock`, `VITE_AUTH_MODE=mixed`. Обычный `npm run dev` остаётся live. Пока `npm run build` тоже собирается с `--mode mock`: в бандл входят worker, мок-API и кнопка «Тестирование». Для этого режима Vite принудительно ставит `VITE_API_MODE=mock` и `VITE_AUTH_MODE=mixed`, даже если Railway уже передал `live` или Docker не скопировал `.env.mock` (его отрезает `.dockerignore`). Живая прод-сборка без мока — `npm run build:live`. Существующий `.env` не перезаписывается и в mock не используется как адрес API.
 
 ## Два независимых переключателя
 

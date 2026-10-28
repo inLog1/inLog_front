@@ -24,6 +24,11 @@ ARG VITE_WSS_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_WSS_BASE_URL=$VITE_WSS_BASE_URL
 
+# npm run build is Vite mode mock. .env.mock is not in the image (.dockerignore),
+# so set the mode here. Remove these two lines together with a switch to build:live.
+ENV VITE_API_MODE=mock
+ENV VITE_AUTH_MODE=mixed
+
 # Build the app.
 RUN npm run build
 

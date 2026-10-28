@@ -71,7 +71,7 @@ API этих доменов не переписывались. Единстве�
 
 ### Как включить режимы
 
-- `apiMode`: `VITE_API_MODE=mock|live`. Для `npm run dev` по умолчанию live. Mock в разработке: `npm run dev:mock` (`vite --mode mock`, файл `.env.mock`). Пока `npm run build` тоже собирается с `--mode mock`: worker, мок-API и кнопка «Тестирование» попадают в бандл. Живая прод-сборка без мока — `npm run build:live`. Mock ходит на `/mock-api/` и не подставляет `VITE_API_BASE_URL`.
+- `apiMode`: `VITE_API_MODE=mock|live`. Для `npm run dev` по умолчанию live. Mock в разработке: `npm run dev:mock` (`vite --mode mock`, файл `.env.mock`). Пока `npm run build` тоже собирается с `--mode mock`: worker, мок-API и кнопка «Тестирование» попадают в бандл. На Railway `.dockerignore` не копирует `.env.mock`, а сервисная переменная `VITE_API_MODE=live` иначе перекрывает файл: сборка mock-режима принудительно вшивает `mock` и `mixed`. Живая прод-сборка без мока — `npm run build:live`. Mock ходит на `/mock-api/` и не подставляет `VITE_API_BASE_URL`.
 - `authMode`: `local|sso|mixed`. В live это `VITE_AUTH_MODE`, при пустом значении — `local`. В mock начальный сид — `mixed`; панель меняет режим только в mock-базе и завершает текущую сессию.
 - Live SSO — переход на `VITE_SSO_START_URL`, если адрес задан. Пустой адрес показывает, что провайдер не настроен.
 

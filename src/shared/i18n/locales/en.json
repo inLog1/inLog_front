@@ -488,7 +488,7 @@
         "organizations-description": "The previous page. Creating and editing organizations is not part of this stage.",
         "access": "Access and roles",
         "access-description": "Roles, permissions and assignments in the selected area",
-        "sections": "Sections",
+        "sections": "Section builder",
         "sections-description": "Organization work sections: a form and a table by reference",
         "section-page": "Section"
     },
