@@ -35,6 +35,8 @@ export function accessErrorKey(code: string): string {
     case 'invalid_role':
     case 'invalid_version':
     case 'invalid_organization':
+    case 'invalid_page':
+    case 'invalid_query':
     case 'network':
     case 'server':
       return `access.errors.${code.replaceAll('_', '-')}`

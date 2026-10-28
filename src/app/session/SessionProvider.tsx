@@ -2,10 +2,6 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import { accessApi, useGetSessionAccessQuery } from '../../entities/access/model/accessApi'
-import { adminApi } from '../../entities/admin/model/adminSlice'
-import { organizationApi } from '../../entities/organization/model/organizationSlice'
-import { projectApi } from '../../entities/project/model/projectSlice'
-import { taskApi } from '../../entities/task/model/taskSlice'
 import { selectSession, sessionActions } from '../../entities/session'
 import { userApi } from '../../entities/user/model/userSlice'
 import { useVerifyTokenMutation } from '../../features/auth/model/authSlice'
@@ -13,6 +9,7 @@ import { registerLogoutHandler, requestLogout } from '../../shared/api/session-e
 import { readAccessToken, writeSessionSubject } from '../../shared/api/session-storage'
 import type { AppDispatch } from '../store/store'
 import { store } from '../store/store'
+import { invalidateAfterAccessVersion } from './access-refresh'
 import { performLogout } from './perform-logout'
 import { releaseQuerySubscriptions, type QuerySubscription } from './query-subscriptions'
 
@@ -52,10 +49,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     if (seenAccessVersion.current === version) return
     seenAccessVersion.current = version
-    dispatch(organizationApi.util.invalidateTags(['Organization']))
-    dispatch(projectApi.util.invalidateTags(['Project']))
-    dispatch(taskApi.util.invalidateTags(['Tasks', 'Task']))
-    dispatch(adminApi.util.invalidateTags(['Nodes', 'Node', 'NodeTabs', 'NodeGroups']))
+    invalidateAfterAccessVersion(dispatch)
   }, [dispatch, phase, sessionAccess.data?.accessVersion])
 
   useEffect(() => {

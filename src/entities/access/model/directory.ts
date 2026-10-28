@@ -94,3 +94,60 @@ export type AssignmentWrite = {
   scope: AccessScope
   expectedAccessVersion?: number
 }
+
+export type AccessUserStatus = 'active' | 'blocked'
+
+export type AccessUserAssignment = AccessAssignmentView
+
+export type AccessUserRow = {
+  id: number
+  fullName: string
+  email: string
+  status: AccessUserStatus
+  corporateSuperadmin: boolean
+  organizations: Array<{ id: number; shortName: string }>
+  assignments: AccessUserAssignment[]
+}
+
+export type AccessUsersQueryEcho = {
+  organization: number | 'all'
+  q: string
+  page: number
+  pageSize: number
+}
+
+/**
+ * Proposed read model for people in the caller's area.
+ * `organization: all` is a review filter. It is not an assignment scope.
+ * `coverage: granted` means assignments outside the caller's area are omitted.
+ */
+export type AccessUsersPage = {
+  accessVersion: number
+  corporationId: number
+  coverage: 'corporation' | 'granted'
+  organizations: Array<{ id: number; shortName: string }>
+  projects: Array<{ id: number; name: string; organizationId: number }>
+  query: AccessUsersQueryEcho
+  count: number
+  users: AccessUserRow[]
+}
+
+export type AccessUserRoleChoice = {
+  id: string
+  displayName: string
+  ownerScope: AccessScope
+  operational: AccessGrantView[]
+  hasDelegation: boolean
+  scopes: Array<{ scope: AccessScope; assignable: boolean; reason: 'invalid_scope' | 'forbidden' | 'self_elevation' | 'scope_expansion' | null }>
+}
+
+export type AccessUserDetail = {
+  accessVersion: number
+  corporationId: number
+  coverage: 'corporation' | 'granted'
+  organizations: Array<{ id: number; shortName: string }>
+  projects: Array<{ id: number; name: string; organizationId: number }>
+  user: AccessUserRow
+  canAssign: boolean
+  roleChoices: AccessUserRoleChoice[]
+}

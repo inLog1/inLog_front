@@ -53,6 +53,7 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'sections', resource: 'sections', action: 'create', labelKey: 'access.perm.sections.create' },
   { group: 'sections', resource: 'sections', action: 'update', labelKey: 'access.perm.sections.update' },
   { group: 'sections', resource: 'sections', action: 'publish', labelKey: 'access.perm.sections.publish' },
+  { group: 'access', resource: 'access-users', action: 'read', labelKey: 'access.perm.access.users-read' },
   { group: 'access', resource: 'assignments', action: 'update', labelKey: 'access.perm.access.assignments' },
   { group: 'access', resource: 'delegations', action: 'delegate', labelKey: 'access.perm.access.delegate' },
   { group: 'access', resource: 'roles', action: 'read', labelKey: 'access.perm.access.roles-read' },

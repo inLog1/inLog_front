@@ -349,7 +349,7 @@ export function readDirectory(
       roleId: item.roleId,
       roleName: state.roles.find((role) => role.id === item.roleId)?.displayName ?? item.roleId,
       scope: item.scope,
-      canRevoke: true,
+      canRevoke: assignmentCanBeRevoked(state, who.user.id, item.scope),
     })),
     candidates,
     projects,
@@ -566,7 +566,7 @@ export function createAssignment(state: MockState, token: string | null, write: 
       roleId: existing.roleId,
       roleName: role.displayName,
       scope: existing.scope,
-      canRevoke: true,
+      canRevoke: assignmentCanBeRevoked(state, who.user.id, existing.scope),
     }
     return { state, status: 200, body: { assignment: view, idempotent: true } }
   }
@@ -598,11 +598,16 @@ export function createAssignment(state: MockState, token: string | null, write: 
         roleId: assignment.roleId,
         roleName: role.displayName,
         scope: assignment.scope,
-        canRevoke: true,
+        canRevoke: assignmentCanBeRevoked(saved, who.user.id, assignment.scope),
       },
       idempotent: false,
     },
   }
+}
+
+/** Same check the revoke service uses. A row is not revocable merely because it was returned. */
+export function assignmentCanBeRevoked(state: MockState, actorId: number, scope: AccessScope): boolean {
+  return canManageAssignment(toSnapshot(state), actorId, scope)
 }
 
 export function revokeAssignment(
@@ -613,10 +618,9 @@ export function revokeAssignment(
 ): FlowResult {
   const who = staleOrActor(state, token, expectedAccessVersion)
   if (!who.ok) return who.result
-  const snapshot = toSnapshot(state)
   const current = state.assignments.find((item) => item.id === assignmentId)
   if (!current) return fail(state, 404, 'not_found')
-  if (!canManageAssignment(snapshot, who.user.id, current.scope)) return fail(state, 403, 'forbidden')
+  if (!assignmentCanBeRevoked(state, who.user.id, current.scope)) return fail(state, 403, 'forbidden')
   const saved = withAudit(state, {
     actorId: who.user.id,
     action: 'assignment.revoke',

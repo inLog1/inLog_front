@@ -72,6 +72,7 @@ export const routes = {
       access: () => '/settings/access',
       accessRoleNew: () => '/settings/access/roles/new',
       accessRole: (roleId: string) => `/settings/access/roles/${roleId}`,
+      accessUser: (userId: number | string) => `/settings/access/users/${userId}`,
       sections: () => '/settings/sections',
       sectionNew: () => '/settings/sections/new',
       section: (sectionId: string) => `/settings/sections/${sectionId}`,

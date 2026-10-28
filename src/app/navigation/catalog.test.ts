@@ -146,7 +146,7 @@ describe('navigation catalog', () => {
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'reports', 'forms', 'sections', 'access', 'constructor',
+      'home', 'tasks', 'reports', 'forms', 'sections', 'constructor', 'access',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)
@@ -171,6 +171,10 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(input({ grants: [grant('assignments', 'update', otherOrganization)], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
     expect(sectionAccess(access, input({ grants: [grant('assignments', 'update', otherOrganization)], organizationId: 101 }))).toBe('denied-here')
     expect(visibleNavigation(input({ grants: [grant('tasks', 'read')] })).some((item) => item.id === 'access')).toBe(false)
+    expect(sectionAccess(access, input({ grants: [grant('access-users', 'read')], organizationId: 101 }))).toBe('allowed')
+    expect(visibleNavigation(input({ grants: [grant('access-users', 'read')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
+    expect(sectionAccess(access, input({ grants: [grant('access-users', 'read', otherOrganization)], organizationId: 101 }))).toBe('denied-here')
+    expect(visibleNavigation(input({ grants: [grant('access-users', 'read')], grantsPending: true, organizationId: 101 })).some((item) => item.id === 'access')).toBe(false)
   })
 
   it('gives the fresh-seed reader records access without write actions or rights for saved employees', () => {

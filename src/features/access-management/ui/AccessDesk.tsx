@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   useCreateAccessAssignmentMutation,
   useGetAccessDirectoryQuery,
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/tab
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { permissionSummary } from './permission-summary'
 import { scopeLabel } from './scope-label'
+import { UserDirectory } from './UserDirectory'
 
 type AccessDeskProps = {
   area: 'organization' | 'corporation'
@@ -22,15 +23,28 @@ type AccessDeskProps = {
   installationSuperadmin: boolean
   onArea: (area: 'organization' | 'corporation') => void
   roleHref: (roleId: string | 'new') => string
+  userHref: (userId: number) => string
 }
 
-export function AccessDesk({ area, organizationId, canManageCorporation, installationSuperadmin, onArea, roleHref }: AccessDeskProps) {
+export function AccessDesk({ area, organizationId, canManageCorporation, installationSuperadmin, onArea, roleHref, userHref }: AccessDeskProps) {
   const { t } = useTranslation()
+  const [search, setSearch] = useSearchParams()
+  const requestedTab = search.get('tab')
+  const tab = requestedTab === 'users' || requestedTab === 'assignments' ? requestedTab : 'roles'
   const skip = area === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
     area === 'corporation' ? { scope: 'corporation' } : { scope: 'organization', organizationId: organizationId ?? 0 },
     { skip },
   )
+  const directoryView = directory.currentData
+  const setTab = (value: string) => {
+    setSearch((prev) => {
+      const copy = new URLSearchParams(prev)
+      if (value === 'roles') copy.delete('tab')
+      else copy.set('tab', value)
+      return copy
+    }, { replace: true })
+  }
 
   return (
     <WorkPage>
@@ -58,24 +72,48 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
       {area === 'organization' && organizationId == null ? (
         <p className="text-sm text-muted-foreground">{t('access.choose-organization')}</p>
       ) : null}
-      {directory.isError ? <PageState kind="error" description={t(accessErrorKey(accessFailure(directory.error).code))} /> : null}
-      {directory.isLoading ? <PageState kind="loading" description={t('access.loading')} /> : null}
-      {directory.data ? (
-        <Tabs defaultValue="roles" className="min-w-0">
-          <TabsList className="flex h-auto w-full flex-wrap justify-start">
-            <TabsTrigger value="roles">{t('access.tabs.roles')}</TabsTrigger>
-            <TabsTrigger value="assignments">{t('access.tabs.assignments')}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="roles" className="min-w-0">
-            <RoleList directory={directory.data} roleHref={roleHref} />
-          </TabsContent>
-          <TabsContent value="assignments" className="min-w-0">
-            <AssignmentDesk directory={directory.data} />
-          </TabsContent>
-        </Tabs>
-      ) : null}
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="roles">{t('access.tabs.roles')}</TabsTrigger>
+          <TabsTrigger value="users">{t('access.tabs.users')}</TabsTrigger>
+          <TabsTrigger value="assignments">{t('access.tabs.assignments')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="roles" className="min-w-0">
+          <DirectoryGate query={directory} empty={skip}>
+            {directoryView ? <RoleList directory={directoryView} roleHref={roleHref} /> : null}
+          </DirectoryGate>
+        </TabsContent>
+        <TabsContent value="users" className="min-w-0">
+          <UserDirectory userHref={userHref} />
+        </TabsContent>
+        <TabsContent value="assignments" className="min-w-0">
+          <DirectoryGate query={directory} empty={skip}>
+            {directoryView ? (
+              <AssignmentDesk key={`${directoryView.scope}:${directoryView.organizationId ?? ''}`} directory={directoryView} />
+            ) : null}
+          </DirectoryGate>
+        </TabsContent>
+      </Tabs>
     </WorkPage>
   )
+}
+
+function DirectoryGate({
+  query,
+  empty,
+  children,
+}: {
+  query: { isError: boolean; currentData?: AccessDirectory; error?: unknown }
+  empty: boolean
+  children: ReactNode
+}) {
+  const { t } = useTranslation()
+  if (empty) return null
+  if (query.isError && !query.currentData) {
+    return <PageState kind="error" description={t(accessErrorKey(accessFailure(query.error).code))} />
+  }
+  if (!query.currentData) return <PageState kind="loading" description={t('access.loading')} />
+  return children
 }
 
 function RoleList({ directory, roleHref }: { directory: AccessDirectory; roleHref: (roleId: string | 'new') => string }) {

@@ -302,6 +302,7 @@ function RoleForm({
           <li>{t('access.dependencies.task')}</li>
           <li>{t('access.dependencies.delegate')}</li>
           <li>{t('access.dependencies.roles')}</li>
+          <li>{t('access.dependencies.users')}</li>
           <li>{t('access.dependencies.forms')}</li>
           <li>{t('access.dependencies.table-views')}</li>
         </ul>

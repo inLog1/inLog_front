@@ -54,6 +54,7 @@ function MockAccessPage() {
       installationSuperadmin={capable}
       onArea={setArea}
       roleHref={(roleId) => roleLink(href, roleId, area)}
+      userHref={(userId) => href(routes.settings.accessUser(userId), 'organization')}
     />
   )
 }

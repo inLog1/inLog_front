@@ -1,5 +1,5 @@
 import { platformApi } from '../../../shared/api/platformApi'
-import type { AccessDirectory, AccessRoleDetail, AccessRoleView, AssignmentWrite, RoleWrite } from './directory'
+import type { AccessDirectory, AccessRoleDetail, AccessRoleView, AccessUserDetail, AccessUsersPage, AssignmentWrite, RoleWrite } from './directory'
 import type { SessionAccess } from './types'
 
 export type InstallationPhase = 'uninitialized' | 'owner-assigned' | 'configuring' | 'ready'
@@ -41,6 +41,22 @@ export const accessApi = platformApi.injectEndpoints({
     /**
      * Proposed mock contract. The page calls these hooks only when apiMode is mock.
      */
+    getAccessUsers: build.query<AccessUsersPage, { organization: number | 'all'; q: string; page: number; pageSize: number }>({
+      query: (arg) => {
+        const params = new URLSearchParams({
+          organization: String(arg.organization),
+          q: arg.q,
+          page: String(arg.page),
+          pageSize: String(arg.pageSize),
+        })
+        return `access/users/?${params.toString()}`
+      },
+      providesTags: ['AccessControl'],
+    }),
+    getAccessUser: build.query<AccessUserDetail, number>({
+      query: (userId) => `access/users/${userId}/`,
+      providesTags: ['AccessControl'],
+    }),
     getAccessDirectory: build.query<AccessDirectory, { scope: 'organization'; organizationId: number } | { scope: 'corporation' }>({
       query: (arg) => arg.scope === 'corporation'
         ? 'access/directory/?scope=corporation'
@@ -89,6 +105,8 @@ export const {
   useGetInstallationStatusQuery,
   useGetAuthCapabilitiesQuery,
   useGetAccessDirectoryQuery,
+  useGetAccessUserQuery,
+  useGetAccessUsersQuery,
   useGetAccessRoleQuery,
   useCreateAccessRoleMutation,
   useUpdateAccessRoleMutation,

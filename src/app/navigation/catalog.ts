@@ -98,19 +98,19 @@ export const APP_SECTIONS: readonly AppSection[] = [
     surface: 'navigation',
   },
   {
-    id: 'access',
-    labelKey: 'nav.access',
-    descriptionKey: 'nav.access-description',
-    path: routes.settings.access(),
+    id: 'constructor',
+    labelKey: 'nav.constructor',
+    descriptionKey: 'nav.constructor-description',
+    path: routes.admin.constructor(),
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
   },
   {
-    id: 'constructor',
-    labelKey: 'nav.constructor',
-    descriptionKey: 'nav.constructor-description',
-    path: routes.admin.constructor(),
+    id: 'access',
+    labelKey: 'nav.access',
+    descriptionKey: 'nav.access-description',
+    path: routes.settings.access(),
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
@@ -254,12 +254,16 @@ function sectionsDesk(input: NavigationInput): SectionAccess {
 function accessSection(input: NavigationInput): SectionAccess {
   if (!input.enforceGrants) return 'not-enforced'
   if (input.grantsPending) return 'unavailable'
-  const capable = input.systemCapabilities.includes('corporate_superadmin')
-  const manages = hasOperational(input.grants, 'assignments', 'update')
-  if (!capable && !manages) return 'unavailable'
-  if (input.organizationId == null) return 'needs-context'
-  if (capable) return 'allowed'
-  return permissionAccess(input, { resource: 'assignments', action: 'update' }, 'organization')
+  if (input.systemCapabilities.includes('corporate_superadmin')) {
+    return input.organizationId == null ? 'needs-context' : 'allowed'
+  }
+  const manages = permissionAccess(input, { resource: 'assignments', action: 'update' }, 'organization')
+  const readsUsers = permissionAccess(input, { resource: 'access-users', action: 'read' }, 'organization')
+  const states = [manages, readsUsers]
+  if (states.includes('allowed')) return 'allowed'
+  if (states.includes('needs-context')) return 'needs-context'
+  if (states.includes('denied-here')) return 'denied-here'
+  return 'unavailable'
 }
 
 export function sectionAccess(section: AppSection, input: NavigationInput): SectionAccess {

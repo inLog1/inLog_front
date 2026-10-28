@@ -11,12 +11,33 @@ import {
   revokeAssignment,
   updateRole,
 } from './service'
+import { readUser, readUsers } from './users'
 
 /**
  * Proposed access API. Registered only with the mock worker.
  * These paths are not a production backend.
  */
 export const accessHandlers: HttpHandler[] = [
+  http.get(`${MOCK_PREFIX}/access/users/`, async ({ request }) => {
+    const ready = await load('access/users/')
+    if (ready instanceof Response) return ready
+    const url = new URL(request.url)
+    return reply(readUsers(ready, bearer(request), {
+      organization: url.searchParams.get('organization'),
+      q: url.searchParams.get('q'),
+      page: url.searchParams.get('page'),
+      pageSize: url.searchParams.get('pageSize'),
+    }))
+  }),
+
+  http.get(`${MOCK_PREFIX}/access/users/:userId/`, async ({ request, params }) => {
+    const ready = await load('access/users/:userId/')
+    if (ready instanceof Response) return ready
+    const userId = typeof params.userId === 'string' && /^[1-9]\d*$/.test(params.userId) ? Number(params.userId) : null
+    if (userId == null) return json({ code: 'not_found' }, 404)
+    return reply(readUser(ready, bearer(request), userId))
+  }),
+
   http.get(`${MOCK_PREFIX}/access/directory/`, async ({ request }) => {
     const ready = await load('access/directory/')
     if (ready instanceof Response) return ready
