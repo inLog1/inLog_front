@@ -232,7 +232,7 @@ describe('constructor and report mocks', () => {
       roles: rest.roles.map((role) => role.id === 'role-owner' ? { ...role, grantIds: ['g-projects'] } : role),
     } as MockState
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(8)
+    expect(migrated?.state.schemaVersion).toBe(9)
     expect(migrated?.state.forms).toEqual([])
     expect(migrated?.state.formDrafts).toEqual([])
     expect(migrated?.state.formVersions).toEqual([])

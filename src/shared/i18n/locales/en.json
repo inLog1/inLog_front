@@ -114,7 +114,36 @@
         "fault-armed": "The error is armed only for {{path}}",
         "switch-failed": "The switch did not create a session",
         "switch-author": "Author of laboratories A and B",
-        "switch-author-ready": "The two-laboratory author was added if missing. Form rights were not granted."
+        "switch-author-ready": "The two-laboratory author was added if missing. Form rights were not granted.",
+        "scenario-current": "Current scenario",
+        "scenario-demo": "Demonstration",
+        "scenario-personal": "My test installation",
+        "open-personal": "Open my test installation",
+        "back-demo": "Return to the demonstration",
+        "restart-personal": "Start my installation over",
+        "personal-reset-confirm": "Users and data of my test installation will be deleted. Demonstration data will be kept",
+        "personal-reset-done": "The personal installation was reset. The demonstration was not changed.",
+        "switch-scenario": "End the current session and open the selected scenario?",
+        "unsaved-switch": "There are unsaved changes. End the session and switch scenario? Unsaved edits on this page will be lost.",
+        "scenario-switch-failed": "The scenario was not switched. The previous database stays open.",
+        "directory-title": "Corporate directory — simulation",
+        "directory-note": "This imitates an external personnel source in mock. It is not a 1C connection.",
+        "directory-hr-id": "Identifier in the personnel source",
+        "directory-subject": "External sign-in identity",
+        "directory-organization": "Organization",
+        "directory-add": "Add an employee to the source",
+        "directory-sync": "Synchronize employees",
+        "directory-saved": "The source row was saved. The employee appears after synchronization.",
+        "directory-synced": "Created {{created}}, updated {{updated}}.",
+        "directory-failed": "The operation did not finish. Success was not confirmed."
+    },
+    "installation": {
+        "title": "inLog primary setup",
+        "lead": "The wizard creates the corporation and the first administrator once. After it is saved, setup cannot be repeated.",
+        "corporation": "Corporation name",
+        "submit": "Create installation",
+        "invalid": "Check the name, given name, surname, work email, and password.",
+        "failed": "Setup was not saved."
     },
     "validation": {
         "required": "Required field",
@@ -379,6 +408,9 @@
         "no-data": "No data",
         "something-went-wrong": "Something went wrong",
         "network-error": "Network error",
+        "organization-forbidden": "You do not have permission for this action.",
+        "organization-invalid": "Check the filled-in fields.",
+        "writer-held": "Another tab is already writing this data. Close it and try again.",
         "error-loading-node": "An error occurred while loading the node"
     },
 
@@ -493,7 +525,7 @@
         "roadmap": "Roadmap",
         "roadmap-description": "The separate roadmap route is not implemented. The chart opens on the tasks page.",
         "organizations": "Organizations and projects",
-        "organizations-description": "The previous page. Creating and editing organizations is not part of this stage.",
+        "organizations-description": "Organizations and projects of the current installation.",
         "access": "Access and roles",
         "access-description": "Roles, permissions and assignments in the selected area",
         "sections": "Section builder",
@@ -561,6 +593,10 @@
         "users-area-caption": "Assignments in the available area",
         "users-none-here": "No assignments in the available area",
         "users-none": "No assignments",
+        "no-access-badge": "Access is not assigned",
+        "copy-login": "Copy the sign-in address",
+        "login-shared": "Access has been granted. Give the employee the application address. They sign in with the corporate account.",
+        "copy-failed": "Could not copy the address",
         "user-title": "User access",
         "user-lead": "This person's assignments. The corporate superadmin capability is not granted or removed here.",
         "user-missing-title": "User unavailable",
@@ -633,7 +669,9 @@
             "forms": "Forms",
             "table-views": "Table views",
             "sections": "Sections",
-            "access": "Access management"
+            "access": "Access management",
+            "organizations": "Organizations",
+            "projects": "Projects"
         },
         "perm": {
             "tasks": {
@@ -688,6 +726,13 @@
                 "roles-create": "Create roles",
                 "roles-update": "Edit role definitions",
                 "roles-delete": "Delete roles"
+            },
+            "organizations": {
+                "create": "Create organizations"
+            },
+            "projects": {
+                "read": "View projects",
+                "create": "Create projects"
             }
         },
         "dependencies": {
@@ -800,6 +845,9 @@
         "new-organization": "New organization", 
         "select-organization-first": "Select organization first",
         "empty-organizations-hint": "Create an organization first. Projects live inside it.",
+        "organization-kind": "Type",
+        "kind-laboratory": "Laboratory",
+        "kind-customer": "Customer organization",
         "empty-projects-hint": "This organization has no projects yet.",
         "create-first-project": "Create first project",
         "create-organization": "Create organization",

@@ -14,6 +14,8 @@ export type InstallationStatus = {
    * It is not the same as another tab holding the lease.
    */
   writesUnavailable?: boolean
+  /** Mock only. True when the installation has no corporation and no owner yet. */
+  needsOwner?: boolean
 }
 
 export type AuthCapabilities = {

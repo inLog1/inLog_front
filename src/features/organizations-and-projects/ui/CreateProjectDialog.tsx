@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
 import { Button } from "../../../shared/ui/button"
@@ -7,6 +8,7 @@ import { Input } from "../../../shared/ui/input"
 import { Label } from "../../../shared/ui/label"
 import { Loader2 } from "lucide-react"
 import { useAddProjectMutation } from "../../../entities/project/model/projectSlice"
+import { selectProjectParams } from "../../org-project-selector/model/workspace-context"
 import { errorsHandler } from "../../../shared/lib/errors-handler"
 
 interface CreateProjectDialogProps {
@@ -18,6 +20,7 @@ interface CreateProjectDialogProps {
 export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: CreateProjectDialogProps) => {
     const { t } = useTranslation()
     const [addProject, { isLoading }] = useAddProjectMutation()
+    const [, setSearchParams] = useSearchParams()
     const [projectName, setProjectName] = useState("")
     const [reservoir, setReservoir] = useState("")
 
@@ -29,14 +32,18 @@ export const CreateProjectDialog = ({ open, onOpenChange, organizationId }: Crea
         let toastId: string | undefined
         try {
             toastId = toast.loading(t('notice-list.creating-project'))
-            await addProject({ 
+            const created = await addProject({ 
                 name: projectName,
                 organization: organizationId ,
                 reservoir: reservoir,
             }).unwrap()
+            if (typeof created?.id === 'number') {
+                setSearchParams((current) => selectProjectParams(current, created.id), { replace: true })
+            }
             toast.success(t('notice-list.project-created'))
             onOpenChange(false)
             setProjectName("")
+            setReservoir("")
         } catch (error) {
             errorsHandler(error, t)
         } finally {

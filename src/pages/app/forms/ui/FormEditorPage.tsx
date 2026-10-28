@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../../../shared/ui/alert-dialog'
+import { useUnsavedSource } from '../../../../shared/session/unsaved-work'
 import { settleSavedLeave } from '../model/leave-guard'
 import { useLeaveGuard } from '../model/use-leave-guard'
 import { FormsBoundary } from './FormsBoundary'
@@ -58,6 +59,7 @@ function EditorGate() {
   const switched = lockedOrg != null && Number.isInteger(urlOrg) && urlOrg > 0 && urlOrg !== lockedOrg
   if (switched && !dirty) setLockedOrg(urlOrg)
   const leave = useLeaveGuard(dirty)
+  useUnsavedSource(`form-editor:${formId}`, dirty)
   if (lockedOrg == null) {
     return (
       <WorkspaceStatus

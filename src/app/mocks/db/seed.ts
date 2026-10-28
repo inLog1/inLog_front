@@ -4,6 +4,7 @@ import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
+import { ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT } from './organization-grants'
 import type { MockState } from './types'
 
 const corporation = { type: 'corporation' as const, corporationId: 1 }
@@ -14,7 +15,7 @@ const org = (organizationId: number) => ({
 })
 
 export function createSeed(): MockState {
-  return {
+  const state: MockState = {
     schemaVersion: MOCK_SCHEMA_VERSION,
     recordRevision: 1,
     namespace: MOCK_NAMESPACE,
@@ -22,6 +23,9 @@ export function createSeed(): MockState {
     authMode: 'mixed',
     accessVersion: 1,
     corporation: { id: 1, name: 'Демо-корпорация' },
+    installationCorporationId: 1,
+    localCredentials: [],
+    directoryEmployees: [],
     users: [
       { id: 1, email: 'owner@example.test', name: 'Алина', patronymic: 'Сергеевна', surname: 'Власова', position: 'Координатор установки', legacyRole: 'super_admin', status: 'active' },
       { id: 2, email: 'admin.a@example.test', name: 'Борис', patronymic: 'Ильич', surname: 'Лебедев', position: 'Администратор лаборатории', legacyRole: 'member', status: 'active' },
@@ -100,6 +104,8 @@ export function createSeed(): MockState {
       ...TABLE_VIEW_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      { id: ORGANIZATION_CREATE_GRANT.id, resource: ORGANIZATION_CREATE_GRANT.resource, action: ORGANIZATION_CREATE_GRANT.action },
+      { id: PROJECT_CREATE_GRANT.id, resource: PROJECT_CREATE_GRANT.resource, action: PROJECT_CREATE_GRANT.action },
     ],
     roles: [
       {
@@ -196,5 +202,9 @@ export function createSeed(): MockState {
     sectionVersions: [],
     notifications: [],
     fault: null,
+  }
+  return {
+    ...state,
+    users: state.users.map((user) => ({ ...user, fixturePassword: true })),
   }
 }

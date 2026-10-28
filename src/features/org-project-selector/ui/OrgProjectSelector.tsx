@@ -2,6 +2,7 @@ import { Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+import { useGetSessionAccessQuery } from '../../../entities/access'
 import { routes } from '../../../shared/lib/routes'
 import { cn } from '../../../shared/lib/utils'
 import { Button } from '../../../shared/ui/button'
@@ -20,6 +21,11 @@ const OrgProjectSelector = ({
     persist = true,
 }: Props) => {
     const { t } = useTranslation()
+    const mock = import.meta.env.VITE_API_MODE === 'mock'
+    const access = useGetSessionAccessQuery(undefined, { skip: !mock })
+    const canCreateOrganization = !mock || access.data?.effectiveGrants.some((grant) =>
+      grant.resource === 'organizations' && grant.action === 'create' && grant.scope.type !== 'own',
+    ) === true
     const {
         organizations,
         projects,
@@ -62,7 +68,14 @@ const OrgProjectSelector = ({
         }
         return (
             <div id="workspace-context" className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-2">
-                {showOrganization && (
+                {showOrganization && organizations.length === 0 && canCreateOrganization ? (
+                    <Button asChild variant="outline" size="sm" className="h-8 max-w-full">
+                        <Link to={routes.settings.organizationsAndProjects()}>
+                            {t('scheduler-page.create-first-organization')}
+                        </Link>
+                    </Button>
+                ) : null}
+                {showOrganization && organizations.length > 0 && (
                     <Select value={currentOrgId ? String(currentOrgId) : undefined} onValueChange={handleOrgChange}>
                         <SelectTrigger className="h-8 w-auto min-w-0 max-w-[11rem] flex-1 bg-background sm:w-[11rem] sm:flex-none" aria-label={t('scheduler-page.organization')}>
                             <SelectValue placeholder={t('scheduler-page.select-organization-first')} />
@@ -132,12 +145,14 @@ const OrgProjectSelector = ({
                             <p className="text-sm text-muted-foreground">
                                 {t('scheduler-page.no-organizations-yet')}
                             </p>
-                            <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                <Link to={routes.settings.organizationsAndProjects()}>
-                                    <Plus className="h-4 w-4 shrink-0" />
-                                    {t('scheduler-page.create-first-organization')}
-                                </Link>
-                            </Button>
+                            {canCreateOrganization ? (
+                                <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
+                                    <Link to={routes.settings.organizationsAndProjects()}>
+                                        <Plus className="h-4 w-4 shrink-0" />
+                                        {t('scheduler-page.create-first-organization')}
+                                    </Link>
+                                </Button>
+                            ) : null}
                         </div>
                     ) : (
                         <Select

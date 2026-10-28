@@ -139,6 +139,9 @@ export function HomePage() {
               organizationReady={organizationReady}
               projectReady={workspace.currentProjectId != null}
               showChooseAction={contextKind === 'choose' && !workShowsChoose}
+              canCreateOrganization={!mockMode || (ready && access.data?.effectiveGrants.some((grant) =>
+                grant.resource === 'organizations' && grant.action === 'create' && grant.scope.type !== 'own',
+              ) === true)}
             />
           </div>
           {owner ? (
@@ -340,6 +343,7 @@ function WelcomeContext({
   organizationReady,
   projectReady,
   showChooseAction,
+  canCreateOrganization,
 }: {
   status: string
   reason: string | null
@@ -348,11 +352,21 @@ function WelcomeContext({
   organizationReady: boolean
   projectReady: boolean
   showChooseAction: boolean
+  canCreateOrganization: boolean
 }) {
   const { t } = useTranslation()
   const message = contextMessage(status, reason, t)
   if (message) {
-    return <p className="mt-4 max-w-2xl break-words text-sm leading-relaxed text-white">{message}</p>
+    return (
+      <div className="mt-4">
+        <p className="max-w-2xl break-words text-sm leading-relaxed text-white">{message}</p>
+        {canCreateOrganization && reason === 'organizations-empty' ? (
+          <Button asChild variant="outline" size="sm" className="mt-3 border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+            <Link to={routes.settings.organizationsAndProjects()}>{t('scheduler-page.create-first-organization')}</Link>
+          </Button>
+        ) : null}
+      </div>
+    )
   }
   if (!organizationReady || !organization) {
     return (

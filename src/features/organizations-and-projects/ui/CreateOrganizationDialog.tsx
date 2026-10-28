@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/ui/dialog"
 import { Button } from "../../../shared/ui/button"
@@ -7,6 +8,8 @@ import { Input } from "../../../shared/ui/input"
 import { Label } from "../../../shared/ui/label"
 import { Loader2 } from "lucide-react"
 import { useAddOrganizationMutation } from "../../../entities/organization/model/organizationSlice"
+import { selectOrganizationParams } from "../../org-project-selector/model/workspace-context"
+import { getApiMode } from "../../../shared/config/runtime"
 import { errorsHandler } from "../../../shared/lib/errors-handler"
 
 interface CreateOrganizationDialogProps {
@@ -17,11 +20,14 @@ interface CreateOrganizationDialogProps {
 export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizationDialogProps) => {
     const { t } = useTranslation()
     const [addOrganization, { isLoading }] = useAddOrganizationMutation()
+    const [, setSearchParams] = useSearchParams()
+    const mock = getApiMode() === 'mock'
     
     const [formData, setFormData] = useState({
         fullName: "",
         shortName: "",
-        address: ""
+        address: "",
+        kind: "laboratory" as "laboratory" | "customer",
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -30,14 +36,18 @@ export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizat
         let toastId: string | undefined
         try {
             toastId = toast.loading(t('notice-list.creating-organization'))
-            await addOrganization({
+            const created = await addOrganization({
                 full_name: formData.fullName,
                 short_name: formData.shortName,
                 address: formData.address,
+                ...(mock ? { kind: formData.kind } : {}),
             }).unwrap()
+            if (typeof created?.id === 'number') {
+                setSearchParams((current) => selectOrganizationParams(current, created.id), { replace: true })
+            }
             toast.success(t('notice-list.organization-created'))
             onOpenChange(false)
-            setFormData({ fullName: "", shortName: "", address: "" })
+            setFormData({ fullName: "", shortName: "", address: "", kind: "laboratory" })
         } catch (error) {
             errorsHandler(error, t)
         } finally {
@@ -70,6 +80,20 @@ export const CreateOrganizationDialog = ({ open, onOpenChange }: CreateOrganizat
                             required
                         />
                     </div>
+                    {mock ? (
+                        <div className="space-y-2">
+                            <Label htmlFor="organization-kind">{t('settings-page.organization-kind')}</Label>
+                            <select
+                                id="organization-kind"
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                value={formData.kind}
+                                onChange={(event) => setFormData({ ...formData, kind: event.target.value === 'customer' ? 'customer' : 'laboratory' })}
+                            >
+                                <option value="laboratory">{t('settings-page.kind-laboratory')}</option>
+                                <option value="customer">{t('settings-page.kind-customer')}</option>
+                            </select>
+                        </div>
+                    ) : null}
                     <div className="space-y-2">
                         <Label htmlFor="address">{t('fields.address')}</Label>
                         <Input

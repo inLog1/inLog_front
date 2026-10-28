@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { useGetInstallationStatusQuery } from '../../entities/access'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
@@ -64,8 +65,30 @@ export function BlockedAccessScreen() {
   )
 }
 
+const InstallationSetupForm = import.meta.env.VITE_API_MODE === 'mock'
+  ? lazy(() => import('../../features/installation-setup/ui/InstallationSetupForm'))
+  : null
+
 export function InstallationRequiredScreen() {
   const { t } = useTranslation()
+  const dispatch = useDispatch()
+  const status = useGetInstallationStatusQuery(undefined, {
+    skip: import.meta.env.VITE_API_MODE !== 'mock',
+  })
+  useEffect(() => {
+    const phase = status.data?.phase
+    if (phase === 'ready' || phase === 'uninitialized') {
+      dispatch(sessionActions.setInstallationPhase(phase))
+    }
+  }, [dispatch, status.data?.phase])
+  if (InstallationSetupForm && status.isLoading) return <SessionSpinner />
+  if (InstallationSetupForm && status.data?.needsOwner) {
+    return (
+      <Suspense fallback={<SessionSpinner />}>
+        <InstallationSetupForm />
+      </Suspense>
+    )
+  }
   return (
     <Frame title={t('login-page.installation-title')} text={t('login-page.installation-text')} />
   )

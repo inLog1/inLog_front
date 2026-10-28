@@ -14,6 +14,8 @@ export type PermissionGroupId =
   | 'table-views'
   | 'sections'
   | 'access'
+  | 'organizations'
+  | 'projects'
 
 export type CatalogPermission = {
   group: PermissionGroupId
@@ -60,6 +62,9 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'access', resource: 'roles', action: 'create', labelKey: 'access.perm.access.roles-create' },
   { group: 'access', resource: 'roles', action: 'update', labelKey: 'access.perm.access.roles-update' },
   { group: 'access', resource: 'roles', action: 'delete', labelKey: 'access.perm.access.roles-delete' },
+  { group: 'organizations', resource: 'organizations', action: 'create', labelKey: 'access.perm.organizations.create' },
+  { group: 'projects', resource: 'projects', action: 'read', labelKey: 'access.perm.projects.read' },
+  { group: 'projects', resource: 'projects', action: 'create', labelKey: 'access.perm.projects.create' },
 ]
 
 export function isOfferedPermission(resource: string, action: string): boolean {

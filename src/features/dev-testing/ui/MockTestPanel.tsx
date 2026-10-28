@@ -6,16 +6,21 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { selectSession, sessionActions } from '../../../entities/session'
 import { requestLogout } from '../../../shared/api/session-events'
 import { readAccessToken } from '../../../shared/api/session-storage'
+import { documentMockNamespace, documentScenario, persistScenarioChoice, type MockScenario } from '../../../shared/config/mock-scenario'
 import { routes } from '../../../shared/lib/routes'
+import { hasUnsavedWork } from '../../../shared/session/unsaved-work'
 import { cn } from '../../../shared/lib/utils'
 import { badgeVariants } from '../../../shared/ui/badge'
 import { Button } from '../../../shared/ui/button'
 import {
   useGetDevAccountsQuery,
+  useReleaseDevWriterMutation,
   useResetDevFixturesMutation,
+  useResetPersonalInstallationMutation,
   useSwitchDevUserMutation,
   useUpdateDevSettingsMutation,
 } from '../model/devApi'
+import { DirectorySimulation } from './DirectorySimulation'
 import { beginDevSwitch, isCurrentDevSwitch } from '../model/dev-switch'
 import { MOCK_TEST_PANEL_LAUNCHER, MOCK_TEST_PANEL_OPEN } from '../model/panel-position'
 
@@ -30,6 +35,9 @@ export function MockTestPanel() {
   const [switchUser] = useSwitchDevUserMutation()
   const [updateSettings] = useUpdateDevSettingsMutation()
   const [resetFixtures] = useResetDevFixturesMutation()
+  const [resetPersonalInstallation] = useResetPersonalInstallationMutation()
+  const [releaseWriter] = useReleaseDevWriterMutation()
+  const scenario = documentScenario()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -128,6 +136,45 @@ export function MockTestPanel() {
     }
   }
 
+  const switchScenario = async (next: MockScenario) => {
+    if (next === scenario) return
+    const confirmed = window.confirm(t(hasUnsavedWork() ? 'dev-panel.unsaved-switch' : 'dev-panel.switch-scenario'))
+    if (!confirmed) return
+    const namespace = documentMockNamespace()
+    await requestLogout({ reason: 'preset', callApi: false, navigate: false })
+    try {
+      await releaseWriter().unwrap()
+    } catch {
+      setMessage(t('dev-panel.scenario-switch-failed'))
+      dispatch(sessionActions.bumpEpoch())
+      return
+    }
+    if (documentMockNamespace() !== namespace) return
+    persistScenarioChoice(next)
+    window.location.reload()
+  }
+
+  const resetPersonal = async () => {
+    if (!window.confirm(t('dev-panel.personal-reset-confirm'))) return
+    try {
+      await resetPersonalInstallation().unwrap()
+    } catch {
+      setMessage(t('dev-panel.reset-failed'))
+      return
+    }
+    if (scenario !== 'personal') {
+      setMessage(t('dev-panel.personal-reset-done'))
+      return
+    }
+    await requestLogout({ reason: 'reset', callApi: false, navigate: false })
+    try {
+      await releaseWriter().unwrap()
+    } catch {
+      // The document unload releases the lock. The reset itself already completed.
+    }
+    window.location.reload()
+  }
+
   const addSwitchAuthor = async () => {
     await updateSettings({ ensureFormsSwitchAuthor: true }).unwrap()
     setMessage(t('dev-panel.switch-author-ready'))
@@ -157,6 +204,17 @@ export function MockTestPanel() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
       <p className="mb-3 text-muted-foreground">{t('dev-panel.caption')}</p>
+      <p className="mb-2 text-sm font-medium" role="status">
+        {t('dev-panel.scenario-current')}: {t(scenario === 'personal' ? 'dev-panel.scenario-personal' : 'dev-panel.scenario-demo')}
+      </p>
+      <div className="mb-3 flex flex-wrap gap-1">
+        {scenario === 'demo' ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => void switchScenario('personal')}>{t('dev-panel.open-personal')}</Button>
+        ) : (
+          <Button type="button" size="sm" variant="outline" onClick={() => void switchScenario('demo')}>{t('dev-panel.back-demo')}</Button>
+        )}
+        <Button type="button" size="sm" variant="outline" onClick={() => void resetPersonal()}>{t('dev-panel.restart-personal')}</Button>
+      </div>
       {writesUnavailable && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.writes-unavailable')}</p>}
       {writeLocked && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.reset-blocked')}</p>}
       <div className="space-y-2">
@@ -185,7 +243,7 @@ export function MockTestPanel() {
                 {copied === `${account.id}:email` ? <Check /> : <Copy />}
               </Button>
             </div>
-            <div className="flex items-center gap-1">
+            {account.password ? <div className="flex items-center gap-1">
               <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
                 {t('dev-panel.password')} {account.password}
               </span>
@@ -195,11 +253,11 @@ export function MockTestPanel() {
                 variant="ghost"
                 className="h-6 w-6 shrink-0"
                 aria-label={copied === `${account.id}:password` ? t('dev-panel.copied') : t('dev-panel.copy-password')}
-                onClick={() => void copyValue(account.id, 'password', account.password)}
+                onClick={() => { if (account.password) void copyValue(account.id, 'password', account.password) }}
               >
                 {copied === `${account.id}:password` ? <Check /> : <Copy />}
               </Button>
-            </div>
+            </div> : null}
             <span className="mt-2 flex flex-wrap gap-1">
               <span className={cn(badgeVariants({ variant: 'secondary' }), 'font-normal')}>
                 {t(`dev-panel.access-${account.accessState}`)}
@@ -245,9 +303,12 @@ export function MockTestPanel() {
       <Button type="button" size="sm" className="mt-3" variant="outline" onClick={() => void addSwitchAuthor()}>
         {t('dev-panel.switch-author')}
       </Button>
-      <Button type="button" size="sm" className="mt-3" variant="destructive" onClick={() => void reset()}>
-        {t('dev-panel.reset')}
-      </Button>
+      {scenario === 'demo' ? (
+        <Button type="button" size="sm" className="mt-3" variant="destructive" onClick={() => void reset()}>
+          {t('dev-panel.reset')}
+        </Button>
+      ) : null}
+      <DirectorySimulation />
       {message && <p className="mt-2" role="status">{message}</p>}
       </div>
     </aside>

@@ -334,7 +334,7 @@ describe('table view service', () => {
     } as MockState
     delete (snapshot as { tableViews?: unknown }).tableViews
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(8)
+    expect(migrated?.state.schemaVersion).toBe(9)
     expect(migrated?.state.tableViews).toEqual([])
     expect(migrated?.state.sections).toEqual([])
     expect(migrated?.state.formRecords).toEqual(snapshot.formRecords)

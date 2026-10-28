@@ -75,6 +75,7 @@ export function UserDirectory({ userHref }: { userHref: (userId: number) => stri
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <p className="truncate font-medium">{user.fullName}</p>
                       {user.corporateSuperadmin ? <Badge variant="outline">{t('access.superadmin-badge')}</Badge> : null}
+                      {user.assignments.length === 0 ? <Badge variant="secondary">{t('access.no-access-badge')}</Badge> : null}
                     </div>
                     <p className="truncate text-sm text-muted-foreground">{user.email}</p>
                     <p className="text-sm">{t(`access.users-status.${user.status}`)}</p>

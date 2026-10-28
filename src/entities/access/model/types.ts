@@ -111,6 +111,11 @@ export type AccessSnapshot = {
   systemCapabilities: SystemCapability[]
   projects: ProjectRef[]
   organizations: OrganizationRef[]
+  /**
+   * Present when the server stored a verified installation corporation.
+   * Omitted snapshots keep the older derivation from organizations and projects.
+   */
+  installationCorporationId?: number | null
 }
 
 export type AccessState = 'ready' | 'pending' | 'blocked'

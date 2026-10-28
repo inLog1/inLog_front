@@ -1,9 +1,13 @@
 import { http, type HttpHandler } from 'msw'
 import type { InstallationPhase } from '../../../entities/access/model/accessApi'
 import type { AuthMode } from '../../../shared/config/runtime'
-import { resetMockNamespace, updateMockState } from '../db/repository'
+import { documentMockNamespace, PERSONAL_MOCK_NAMESPACE } from '../../../shared/config/mock-scenario'
+import { saveDirectoryEmployee, syncDirectory } from '../directory/service'
+import { releaseMockWriter, resetMockNamespace, updateMockState } from '../db/repository'
 import type { MockFault } from '../db/types'
+import { configureInstallation, createOrganization, createProject, InstallationSetupError, installationNeedsOwner } from '../installation/service'
 import { bearer, commit, json, load, MOCK_PREFIX, persistenceFailure, positiveId, readJson, reply, writeSupport } from '../http'
+import { createSalt, digestPassword } from './password'
 import {
   cancelMockSso,
   capabilitiesOf,
@@ -13,9 +17,12 @@ import {
   listOrganizations,
   listProjects,
   listProviderIdentities,
+  projectDto,
+  loginWithLocalDigest,
   loginWithPassword,
   logoutToken,
   mutateAssignment,
+  principal,
   readOrganization,
   readProject,
   readTestResource,
@@ -32,6 +39,16 @@ export const authHandlers: HttpHandler[] = [
     const body = await readJson(request)
     const email = typeof body.email === 'string' ? body.email : ''
     const password = typeof body.password === 'string' ? body.password : ''
+    const normalized = email.trim().toLowerCase()
+    const user = ready.users.find((item) => item.email.toLowerCase() === normalized)
+    const credential = user
+      ? (ready.localCredentials ?? []).find((item) => item.userId === user.id)
+      : undefined
+    if (credential) {
+      const digest = await digestPassword(password, credential.salt)
+      const salt = credential.salt
+      return commit((state) => loginWithLocalDigest(state, email, digest, salt))
+    }
     return commit((state) => loginWithPassword(state, email, password))
   }),
 
@@ -70,6 +87,7 @@ export const authHandlers: HttpHandler[] = [
       schemaVersion: ready.schemaVersion,
       writeLocked: writing.writeLocked,
       writesUnavailable: writing.writesUnavailable,
+      needsOwner: installationNeedsOwner(ready),
     })
   }),
 
@@ -100,6 +118,27 @@ export const authHandlers: HttpHandler[] = [
     if (organization == null || organization === '') return reply(listProjects(ready, bearer(request), null))
     if (!/^[1-9]\d*$/.test(organization)) return json({ code: 'invalid_organization' }, 400)
     return reply(listProjects(ready, bearer(request), Number(organization)))
+  }),
+
+  http.post(`${MOCK_PREFIX}/projects/project/`, async ({ request }) => {
+    const ready = await load('projects/project/')
+    if (ready instanceof Response) return ready
+    const body = await readJson(request)
+    const token = bearer(request)
+    const organizationId = typeof body.organization === 'number' ? body.organization : Number(body.organization)
+    return commit((state) => {
+      const who = principal(state, token)
+      if (!who.ok) return who.result
+      const created = createProject(state, who.user.id, {
+        organizationId,
+        name: text(body.name),
+        reservoir: text(body.reservoir),
+      })
+      if ('error' in created) {
+        return { state, status: created.error === 'forbidden' ? 403 : 400, body: { code: created.error } }
+      }
+      return { state: created.state, status: 201, body: projectDto(created.project) }
+    })
   }),
 
   http.get(`${MOCK_PREFIX}/projects/project/:id/`, async ({ request, params }) => {
@@ -163,6 +202,7 @@ export const authHandlers: HttpHandler[] = [
   }),
 
   http.post(`${MOCK_PREFIX}/auth/dev/settings/`, async ({ request }) => {
+    const namespace = documentMockNamespace()
     const ready = await load()
     if (ready instanceof Response) return ready
     const body = await readJson(request)
@@ -191,7 +231,7 @@ export const authHandlers: HttpHandler[] = [
             return user
           }),
         }
-      })
+      }, namespace)
       return json({
         authMode: next.authMode,
         installationPhase: next.installationPhase,
@@ -205,8 +245,9 @@ export const authHandlers: HttpHandler[] = [
   }),
 
   http.post(`${MOCK_PREFIX}/auth/dev/reset/`, async () => {
+    const namespace = documentMockNamespace()
     try {
-      const next = await resetMockNamespace()
+      const next = await resetMockNamespace(namespace)
       return json({ namespace: next.namespace, schemaVersion: next.schemaVersion })
     } catch (error) {
       const failure = persistenceFailure(error)
@@ -214,4 +255,153 @@ export const authHandlers: HttpHandler[] = [
       throw error
     }
   }),
+
+  http.post(`${MOCK_PREFIX}/auth/dev/personal/reset/`, async () => {
+    try {
+      const next = await resetMockNamespace(PERSONAL_MOCK_NAMESPACE)
+      return json({ namespace: next.namespace, schemaVersion: next.schemaVersion })
+    } catch (error) {
+      const failure = persistenceFailure(error)
+      if (failure) return failure
+      throw error
+    }
+  }),
+
+  http.post(`${MOCK_PREFIX}/auth/dev/release-writer/`, async () => {
+    const namespace = documentMockNamespace()
+    releaseMockWriter(namespace)
+    return json({ released: true, namespace })
+  }),
+
+  http.post(`${MOCK_PREFIX}/installation/setup/`, async ({ request }) => {
+    const namespace = documentMockNamespace()
+    const ready = await load('installation/setup/')
+    if (ready instanceof Response) return ready
+    const body = await readJson(request)
+    const password = typeof body.password === 'string' ? body.password : ''
+    const confirmation = typeof body.passwordConfirmation === 'string' ? body.passwordConfirmation : ''
+    if (password.length < 8 || password !== confirmation) return json({ code: 'invalid_setup' }, 400)
+    const salt = createSalt()
+    const hash = await digestPassword(password, salt)
+    const draft = {
+      corporationName: text(body.corporationName),
+      givenName: text(body.givenName),
+      surname: text(body.surname),
+      email: text(body.email),
+      salt,
+      hash,
+    }
+    try {
+      await updateMockState((state) => configureInstallation(state, draft), namespace)
+    } catch (error) {
+      if (error instanceof InstallationSetupError) {
+        return json({ code: error.code }, error.code === 'already_configured' ? 409 : 400)
+      }
+      const failure = persistenceFailure(error)
+      if (failure) return failure
+      throw error
+    }
+    try {
+      return await commit((state) => {
+        const login = loginWithLocalDigest(state, draft.email, hash, salt)
+        if (login.status !== 200 || !login.body || typeof login.body !== 'object') {
+          return { state, status: 200, body: { configured: true, signedIn: false } }
+        }
+        return {
+          state: login.state,
+          status: 200,
+          body: { configured: true, signedIn: true, ...login.body },
+        }
+      })
+    } catch {
+      return json({ configured: true, signedIn: false })
+    }
+  }),
+
+  http.post(`${MOCK_PREFIX}/organizations/organization/`, async ({ request }) => {
+    const ready = await load('organizations/organization/')
+    if (ready instanceof Response) return ready
+    const body = await readJson(request)
+    const token = bearer(request)
+    return commit((state) => {
+      const who = principal(state, token)
+      if (!who.ok) return who.result
+      const created = createOrganization(state, who.user.id, {
+        fullName: text(body.full_name),
+        shortName: text(body.short_name),
+        address: text(body.address),
+        kind: text(body.kind),
+      })
+      if ('error' in created) {
+        return { state, status: created.error === 'forbidden' ? 403 : 400, body: { code: created.error } }
+      }
+      return {
+        state: created.state,
+        status: 201,
+        body: {
+          id: created.organization.id,
+          full_name: created.organization.fullName,
+          short_name: created.organization.shortName,
+          address: created.organization.address,
+          created_at: null,
+          inn: null,
+          kpp: null,
+        },
+      }
+    })
+  }),
+
+  http.get(`${MOCK_PREFIX}/auth/dev/directory/`, async () => {
+    const ready = await load()
+    if (ready instanceof Response) return ready
+    return json({
+      providerId: 'mock-corporate',
+      employees: (ready.directoryEmployees ?? []).map((item) => ({
+        id: item.id,
+        givenName: item.givenName,
+        surname: item.surname,
+        email: item.email,
+        organizationId: item.organizationId,
+        providerId: item.providerId,
+        externalSubject: item.externalSubject,
+        linkedUserId: item.linkedUserId,
+      })),
+      organizations: ready.organizations
+        .filter((item) => item.corporationId === ready.installationCorporationId)
+        .map((item) => ({ id: item.id, shortName: item.shortName, kind: item.kind })),
+    })
+  }),
+
+  http.post(`${MOCK_PREFIX}/auth/dev/directory/employees/`, async ({ request }) => {
+    const ready = await load()
+    if (ready instanceof Response) return ready
+    const body = await readJson(request)
+    return commit((state) => {
+      const saved = saveDirectoryEmployee(state, {
+        id: text(body.id),
+        givenName: text(body.givenName),
+        surname: text(body.surname),
+        patronymic: text(body.patronymic),
+        email: text(body.email),
+        organizationId: typeof body.organizationId === 'number' ? body.organizationId : Number(body.organizationId),
+        providerId: text(body.providerId),
+        externalSubject: text(body.externalSubject),
+      })
+      if (!saved.ok) return { state, status: 400, body: { code: saved.code } }
+      return { state: saved.state, status: 200, body: { id: text(body.id) } }
+    })
+  }),
+
+  http.post(`${MOCK_PREFIX}/auth/dev/directory/sync/`, async () => {
+    const ready = await load()
+    if (ready instanceof Response) return ready
+    return commit((state) => {
+      const synced = syncDirectory(state)
+      return { state: synced.state, status: 200, body: synced.report }
+    })
+  }),
 ]
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}

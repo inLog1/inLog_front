@@ -1,4 +1,5 @@
 import { HttpResponse } from 'msw'
+import { documentMockNamespace } from '../../shared/config/mock-scenario'
 import {
   ensureMockState,
   mockWriteStatus,
@@ -28,21 +29,28 @@ function mismatch(foundVersion: number) {
   return json({ code: 'schema_mismatch', foundVersion }, 409)
 }
 
+function hasErrorName(error: unknown, name: string): boolean {
+  return error instanceof Error && error.name === name
+}
+
 export function persistenceFailure(error: unknown): Response | null {
-  if (error instanceof SchemaMismatchError) return mismatch(error.foundVersion)
-  if (error instanceof MockWriterHeldError) {
+  if (error instanceof SchemaMismatchError || hasErrorName(error, 'SchemaMismatchError')) {
+    const foundVersion = error instanceof SchemaMismatchError ? error.foundVersion : -1
+    return mismatch(foundVersion)
+  }
+  if (error instanceof MockWriterHeldError || hasErrorName(error, 'MockWriterHeldError')) {
     return json({
       code: 'mock_writer_held',
       detail: 'Another tab is the writer for this mock namespace. This tab did not change it.',
     }, 409)
   }
-  if (error instanceof MockWriterUnavailableError) {
+  if (error instanceof MockWriterUnavailableError || hasErrorName(error, 'MockWriterUnavailableError')) {
     return json({
       code: 'writer_lock_unavailable',
       detail: 'This browser has no cross-tab lock. A lock inside one page does not exclude other tabs, so the mock database was not changed.',
     }, 409)
   }
-  if (error instanceof StaleMockWriteError) {
+  if (error instanceof StaleMockWriteError || hasErrorName(error, 'StaleMockWriteError')) {
     return json({
       code: 'stale_write',
       detail: 'The write used an older snapshot. The stored mock data was left unchanged.',
@@ -67,12 +75,13 @@ function faultResponse(fault: Exclude<MockFault, null>) {
 }
 
 export async function load(path?: string): Promise<MockState | Response> {
-  const read = await ensureMockState()
+  const namespace = documentMockNamespace()
+  const read = await ensureMockState(namespace)
   if (!read.ok) return mismatch(read.foundVersion)
   if (!path || read.state.fault?.path !== path) return read.state
   const fault = read.state.fault
   try {
-    await updateMockState((current) => ({ ...current, fault: null }))
+    await updateMockState((current) => ({ ...current, fault: null }), namespace)
   } catch (error) {
     const failure = persistenceFailure(error)
     if (failure) return failure
@@ -95,13 +104,14 @@ export function reply(result: FlowResult) {
 }
 
 export async function commit(produce: (state: MockState) => FlowResult) {
+  const namespace = documentMockNamespace()
   const box: { result?: FlowResult } = {}
   try {
     await updateMockState((state) => {
       const result = produce(state)
       box.result = result
       return result.state
-    })
+    }, namespace)
   } catch (error) {
     const failure = persistenceFailure(error)
     if (failure) return failure
@@ -121,5 +131,6 @@ export async function readJson(request: Request): Promise<Record<string, unknown
 }
 
 export async function writeSupport(): Promise<{ writeLocked: boolean; writesUnavailable: boolean }> {
-  return mockWriteStatus()
+  const namespace = documentMockNamespace()
+  return mockWriteStatus(namespace)
 }

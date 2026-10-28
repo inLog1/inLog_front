@@ -57,6 +57,7 @@ export function scopeIsCanonical(
   scope: AccessScope,
   projects: ProjectRef[],
   organizations: OrganizationRef[] = [],
+  installationId: number | null = null,
 ): boolean {
   if (scope.type === 'own') return Number.isInteger(scope.userId)
   if (scope.type === 'project') {
@@ -74,7 +75,9 @@ export function scopeIsCanonical(
     if (related.length === 0) return false
     return related.every((item) => item.corporationId === scope.corporationId)
   }
-  return knownCorporationIds(projects, organizations).has(scope.corporationId)
+  const ids = knownCorporationIds(projects, organizations)
+  if (ids.size === 0) return installationId != null && scope.corporationId === installationId
+  return ids.has(scope.corporationId)
 }
 
 export function scopeCovers(
@@ -82,13 +85,14 @@ export function scopeCovers(
   target: AccessScope,
   projects: ProjectRef[],
   organizations: OrganizationRef[] = [],
+  installationId: number | null = null,
 ): boolean {
   if (granted.type === 'own') {
     return target.type === 'own' && granted.userId === target.userId
   }
   if (target.type === 'own') return false
-  if (!scopeIsCanonical(granted, projects, organizations)) return false
-  if (!scopeIsCanonical(target, projects, organizations)) return false
+  if (!scopeIsCanonical(granted, projects, organizations, installationId)) return false
+  if (!scopeIsCanonical(target, projects, organizations, installationId)) return false
 
   if (granted.type === 'project') {
     return target.type === 'project' && granted.projectId === target.projectId
@@ -106,11 +110,12 @@ export function isDelegationSubset(
   delegation: EffectiveGrant,
   projects: ProjectRef[],
   organizations: OrganizationRef[] = [],
+  installationId: number | null = null,
 ): boolean {
   return parentGrants.some((grant) =>
     grant.resource === delegation.resource
     && actionCovered(grant.action, delegation.action)
-    && scopeCovers(grant.scope, delegation.scope, projects, organizations),
+    && scopeCovers(grant.scope, delegation.scope, projects, organizations, installationId),
   )
 }
 
@@ -133,7 +138,7 @@ function grantCovered(
   return parents.some((parent) =>
     parent.resource === grant.resource
     && actionCovered(parent.action, grant.action)
-    && scopeCovers(parent.scope, scope, snapshot.projects, snapshot.organizations),
+    && scopeCovers(parent.scope, scope, snapshot.projects, snapshot.organizations, installationCorporationId(snapshot)),
   )
 }
 
@@ -195,6 +200,7 @@ export function delegationGrantsFor(snapshot: AccessSnapshot, userId: number): E
       item.grant,
       snapshot.projects,
       snapshot.organizations,
+      installationCorporationId(snapshot),
     ))
     .map((item) => item.grant)
   return [...roleDelegationGrants(snapshot, userId), ...received]
@@ -232,10 +238,11 @@ export function can(
   action: string,
   target: AccessScope,
 ): boolean {
+  const installationId = installationCorporationId(snapshot)
   return effectiveGrants(snapshot, userId).some((grant) =>
     grant.resource === resource
     && actionCovered(grant.action, action)
-    && scopeCovers(grant.scope, target, snapshot.projects, snapshot.organizations),
+    && scopeCovers(grant.scope, target, snapshot.projects, snapshot.organizations, installationId),
   )
 }
 
@@ -246,15 +253,23 @@ export function canDelegate(
   action: string,
   target: AccessScope,
 ): boolean {
+  const installationId = installationCorporationId(snapshot)
   return delegationGrantsFor(snapshot, userId).some((grant) =>
     grant.resource === resource
     && actionCovered(grant.action, action)
-    && scopeCovers(grant.scope, target, snapshot.projects, snapshot.organizations),
+    && scopeCovers(grant.scope, target, snapshot.projects, snapshot.organizations, installationId),
   )
 }
 
 export function installationCorporationId(snapshot: AccessSnapshot): number | null {
   const ids = knownCorporationIds(snapshot.projects, snapshot.organizations)
+  const explicit = snapshot.installationCorporationId
+  const verified = typeof explicit === 'number' && Number.isInteger(explicit) && explicit > 0
+  if (verified) {
+    if (ids.size === 0) return explicit
+    if (ids.size === 1 && ids.has(explicit)) return explicit
+    return null
+  }
   if (ids.size !== 1) return null
   const [corporationId] = ids
   return corporationId ?? null

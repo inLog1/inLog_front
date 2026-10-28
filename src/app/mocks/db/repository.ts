@@ -1,6 +1,8 @@
 import { MOCK_DB_VERSION, MOCK_NAMESPACE, MOCK_WRITER_LEASE_MS } from './constants'
 import { migrateMockDocument } from './migrate'
+import { createEmptyInstallation } from './empty-installation'
 import { createSeed } from './seed'
+import { PERSONAL_MOCK_NAMESPACE } from '../../../shared/config/mock-scenario'
 import type { MockState } from './types'
 
 const STORE = 'state'
@@ -75,7 +77,8 @@ let queue: Promise<unknown> = Promise.resolve()
  * sessionStorage keeps the tab lineage across reload. A duplicated tab copies
  * that value, so the lineage alone cannot name the single live document.
  * Each document also has a memory-only epoch. The exclusive lock is what
- * proves this document is the live holder; the lease still blocks a different lineage.
+ * proves this document is the live holder. A lease left by a closed tab does
+ * not keep that holder read-only: the closed document no longer has the lock.
  */
 const WRITER_SESSION_KEY = 'inlog:mock:writer-tab'
 let writerSession: string | null = null
@@ -115,11 +118,6 @@ function loadOrCreateLineage(): string {
 
 function createEpoch(): string {
   return `epoch-${crypto.randomUUID()}`
-}
-
-function lineageOf(ownerId: string): string {
-  const split = ownerId.indexOf('#')
-  return split === -1 ? ownerId : ownerId.slice(0, split)
 }
 
 let lineageId = loadOrCreateLineage()
@@ -303,17 +301,8 @@ function viewRecord(record: unknown): StoredView {
   return { ok: true, state: migrated.state, changed: migrated.changed }
 }
 
-function isWriterLease(value: unknown): value is WriterLease {
-  if (!value || typeof value !== 'object') return false
-  const lease = value as WriterLease
-  return typeof lease.ownerId === 'string' && typeof lease.until === 'number'
-}
-
-function claimAllowed(lease: unknown, now: number, lockHeld: boolean): boolean {
-  if (!lockHeld) return false
-  if (!isWriterLease(lease) || lease.until <= now) return true
-  if (lease.ownerId === writerId) return true
-  return lineageOf(lease.ownerId) === lineageId
+function claimAllowed(lockHeld: boolean): boolean {
+  return lockHeld
 }
 
 function ourLease(now: number): WriterLease {
@@ -354,9 +343,15 @@ function readBoth(
 }
 
 function seedFor(namespace: string): MockState {
+  if (namespace === PERSONAL_MOCK_NAMESPACE) return createEmptyInstallation(namespace)
   const seeded = createSeed()
   seeded.namespace = namespace
   return seeded
+}
+
+/** Drops this document's writer lock. It does not delete a database or take another tab's lock. */
+export function releaseMockWriter(namespace: string): void {
+  releaseWriterLock(namespace)
 }
 
 async function readUnlocked(namespace: string): Promise<MockRead | { ok: false; reason: 'empty' }> {
@@ -374,9 +369,9 @@ async function readUnlocked(namespace: string): Promise<MockRead | { ok: false; 
 
 async function ensureUnlocked(namespace: string, lockHeld: boolean): Promise<MockRead> {
   return openAndRun(namespace, 'readwrite', (store, controls) => {
-    readBoth(store, (root, writer) => {
+    readBoth(store, (root, _writer) => {
       const now = Date.now()
-      const locked = !claimAllowed(writer, now, lockHeld)
+      const locked = !claimAllowed(lockHeld)
       const viewed = viewRecord(root)
       if (!viewed.ok && viewed.reason === 'empty') {
         if (locked) {
@@ -410,9 +405,9 @@ async function updateUnlocked(
   lockHeld: boolean,
 ): Promise<MockState> {
   return openAndRun(namespace, 'readwrite', (store, controls) => {
-    readBoth(store, (root, writer) => {
+    readBoth(store, (root, _writer) => {
       const now = Date.now()
-      if (!claimAllowed(writer, now, lockHeld)) {
+      if (!claimAllowed(lockHeld)) {
         controls.fail(new MockWriterHeldError())
         return
       }
@@ -464,7 +459,7 @@ async function resetUnlocked(namespace: string, lockHeld: boolean): Promise<Mock
     const writerRequest = store.get(WRITER_KEY)
     writerRequest.onsuccess = () => {
       const now = Date.now()
-      if (!claimAllowed(writerRequest.result, now, lockHeld)) {
+      if (!claimAllowed(lockHeld)) {
         controls.fail(new MockWriterHeldError())
         return
       }
@@ -534,22 +529,11 @@ export async function replaceMockRecord(namespace: string, value: unknown): Prom
   }))
 }
 
-async function readWriterLease(namespace: string): Promise<unknown> {
-  return openAndRun(namespace, 'readonly', (store, controls) => {
-    const request = store.get(WRITER_KEY)
-    request.onsuccess = () => controls.succeed(request.result)
-    request.onerror = () => controls.fail(request.error ?? new Error('IndexedDB read failed'))
-  })
-}
-
 export async function mockWriteStatus(namespace = MOCK_NAMESPACE): Promise<{ writeLocked: boolean; writesUnavailable: boolean }> {
   return enqueue(async () => {
     const lock = await acquireWriterLock(namespace)
     if (lock === 'unavailable') return { writeLocked: false, writesUnavailable: true }
-    const lease = await readWriterLease(namespace)
-    const allowed = claimAllowed(lease, Date.now(), lock === 'held')
-    if (!allowed && lock === 'held') releaseWriterLock(namespace)
-    return { writeLocked: !allowed, writesUnavailable: false }
+    return { writeLocked: !claimAllowed(lock === 'held'), writesUnavailable: false }
   })
 }
 

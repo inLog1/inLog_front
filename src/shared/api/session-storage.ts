@@ -1,3 +1,4 @@
+import { documentScenario } from '../config/mock-scenario'
 import { getApiMode, type ApiMode } from '../config/runtime'
 
 export const LIVE_ACCESS_KEY = 'token'
@@ -69,7 +70,19 @@ export function readJsonNumber(raw: string | null): number | null {
   }
 }
 
+export function sessionDraftPrefix(mode: ApiMode = getApiMode()): string {
+  if (mode === 'mock' && documentScenario() === 'personal') return 'inlog:mock:personal:draft:'
+  return SESSION_DRAFT_PREFIX
+}
+
 function keysFor(mode: ApiMode) {
+  if (mode === 'mock' && documentScenario() === 'personal') {
+    return {
+      access: 'inlog:mock:personal:session:access',
+      refresh: 'inlog:mock:personal:session:refresh',
+      subject: 'inlog:mock:personal:session:subject',
+    }
+  }
   if (mode === 'mock') {
     return {
       access: MOCK_ACCESS_KEY,
@@ -134,7 +147,8 @@ export function clearSessionDrafts() {
   const keys: string[] = []
   for (let index = 0; index < current.length; index += 1) {
     const key = current.key(index)
-    if (key?.startsWith(SESSION_DRAFT_PREFIX)) keys.push(key)
+    const prefix = sessionDraftPrefix()
+    if (key?.startsWith(prefix)) keys.push(key)
   }
   keys.forEach((key) => current.removeItem(key))
 }

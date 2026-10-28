@@ -20,6 +20,30 @@ export type MockUser = {
   position: string
   legacyRole: 'member' | 'admin' | 'super_admin'
   status: 'active' | 'blocked'
+  /**
+   * True only for the original demonstration accounts.
+   * Absent or false never accepts the shared fixture password.
+   */
+  fixturePassword?: boolean
+}
+
+export type LocalCredential = {
+  userId: number
+  salt: string
+  hash: string
+}
+
+/** A row in the simulated personnel source. It is not a role and not a session. */
+export type DirectoryEmployee = {
+  id: string
+  givenName: string
+  surname: string
+  patronymic: string
+  email: string
+  organizationId: number
+  providerId: string
+  externalSubject: string
+  linkedUserId: number | null
 }
 
 export type MockIdentity = {
@@ -44,6 +68,7 @@ export type MockProject = {
   organizationId: number
   corporationId: number
   name: string
+  reservoir?: string
 }
 
 export type MockMembership = {
@@ -293,7 +318,16 @@ export type MockState = {
   authMode: AuthMode
   accessVersion: number
   corporation: { id: number; name: string }
+  /**
+   * Verified identity of this installation. Null until primary setup.
+   * It is written only inside the mock store, never taken from a client payload.
+   */
+  installationCorporationId?: number | null
   users: MockUser[]
+  /** Salted verification values. Plain passwords are not stored. */
+  localCredentials?: LocalCredential[]
+  /** Simulated personnel source for the active scenario. */
+  directoryEmployees?: DirectoryEmployee[]
   identities: MockIdentity[]
   organizations: MockOrganization[]
   projects: MockProject[]

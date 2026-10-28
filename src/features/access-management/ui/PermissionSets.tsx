@@ -14,6 +14,8 @@ const GROUPS: PermissionGroupId[] = [
   'table-views',
   'sections',
   'access',
+  'organizations',
+  'projects',
 ]
 
 type PermissionSetsProps = {

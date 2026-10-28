@@ -46,6 +46,9 @@ export function toSnapshot(state: MockState): AccessSnapshot {
       id: organization.id,
       corporationId: organization.corporationId,
     })),
+    installationCorporationId: typeof state.installationCorporationId === 'number'
+      ? state.installationCorporationId
+      : null,
   }
 }
 
@@ -138,7 +141,24 @@ export function accessFor(state: MockState, user: MockUser): SessionAccess {
 
 export function loginWithPassword(state: MockState, email: string, password: string): FlowResult {
   const user = userByEmail(state, email)
-  if (!user || password !== PUBLIC_FIXTURE_PASSWORD) return fail(state, 401, 'invalid_credentials')
+  if (!user) return fail(state, 401, 'invalid_credentials')
+  if (credentialFor(state, user.id)) return fail(state, 401, 'invalid_credentials')
+  if (user.fixturePassword !== true || password !== PUBLIC_FIXTURE_PASSWORD) return fail(state, 401, 'invalid_credentials')
+  if (user.status === 'blocked') return fail(state, 403, 'blocked')
+  return issue(state, user)
+}
+
+function credentialFor(state: MockState, userId: number) {
+  return (state.localCredentials ?? []).find((item) => item.userId === userId)
+}
+
+/** Compares a digest computed outside the write. The stored salt must still match. */
+export function loginWithLocalDigest(state: MockState, email: string, digest: string, salt: string): FlowResult {
+  const user = userByEmail(state, email)
+  const credential = user ? credentialFor(state, user.id) : undefined
+  if (!user || !credential || credential.salt !== salt || credential.hash !== digest) {
+    return fail(state, 401, 'invalid_credentials')
+  }
   if (user.status === 'blocked') return fail(state, 403, 'blocked')
   return issue(state, user)
 }
@@ -266,13 +286,13 @@ function canReadProjectRecord(state: MockState, userId: number, project: { id: n
   })
 }
 
-function projectDto(project: { id: number; name: string; organizationId: number }) {
+export function projectDto(project: { id: number; name: string; organizationId: number; reservoir?: string }) {
   return {
     id: project.id,
     name: project.name,
     organization: project.organizationId,
     role: null,
-    reservoir: '',
+    reservoir: project.reservoir ?? '',
     company_customer: '',
     contractor: '',
     country: '',
@@ -461,7 +481,7 @@ export function describeAccounts(state: MockState) {
         scope: grant.scope,
       })),
       systemCapabilities: access.systemCapabilities,
-      password: PUBLIC_FIXTURE_PASSWORD,
+      password: user.fixturePassword === true ? PUBLIC_FIXTURE_PASSWORD : null,
     }
   })
 }
@@ -486,6 +506,7 @@ export function ensureFormsSwitchAuthor(state: MockState): MockState {
       position: 'Автор форм двух лабораторий',
       legacyRole: 'member',
       status: 'active',
+      fixturePassword: true,
     }],
     identities: [...state.identities, {
       id: 'idn-forms-switch',

@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from '../../../shared/ui/dialog'
 import { PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
+import { routes } from '../../../shared/lib/routes'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { sameScopeKey, scopeKey } from '../model/users-context'
 import { permissionSummary } from './permission-summary'
@@ -77,6 +78,16 @@ export function UserAccess({ userId, backHref }: { userId: number; backHref: str
       const parsed = accessFailure(error)
       setFailure(t(accessErrorKey(parsed.code)))
       if (parsed.code === 'stale_write') void detail.refetch()
+    }
+  }
+
+  const copyLogin = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${routes.login()}`)
+      setNotice(t('access.login-shared'))
+      setFailure(null)
+    } catch {
+      setFailure(t('access.copy-failed'))
     }
   }
 
@@ -150,9 +161,12 @@ export function UserAccess({ userId, backHref }: { userId: number; backHref: str
             </div>
             <p className="text-sm text-muted-foreground">{t('access.revoke-note')}</p>
             {view.user.assignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {view.coverage === 'granted' ? t('access.users-none-here') : t('access.users-none')}
-              </p>
+              <div className="flex flex-col gap-2">
+                <Badge variant="secondary" className="w-fit">{t('access.no-access-badge')}</Badge>
+                <p className="text-sm text-muted-foreground">
+                  {view.coverage === 'granted' ? t('access.users-none-here') : t('access.users-none')}
+                </p>
+              </div>
             ) : (
               <ul className="flex flex-col gap-2">
                 {view.user.assignments.map((assignment) => (
@@ -172,6 +186,14 @@ export function UserAccess({ userId, backHref }: { userId: number; backHref: str
                 ))}
               </ul>
             )}
+            {view.user.assignments.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="outline" className="w-fit" onClick={() => void copyLogin()}>
+                  {t('access.copy-login')}
+                </Button>
+                <p className="text-sm text-muted-foreground">{t('access.login-shared')}</p>
+              </div>
+            ) : null}
             {notice ? <p className="text-sm" role="status">{notice}</p> : null}
             {failure ? <p className="text-sm text-destructive" role="alert">{failure}</p> : null}
           </section>

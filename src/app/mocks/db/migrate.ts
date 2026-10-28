@@ -5,6 +5,7 @@ import { ROLE_GRANT_DEFINITIONS } from './role-grants'
 import { SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
+import { ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT } from './organization-grants'
 import type { MockState } from './types'
 import type { AccessRole } from '../../../entities/access/model/types'
 
@@ -18,6 +19,9 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 5 has no form collections. Empty collections are added once.
  * Version 6 has no table views. An empty tableViews array is added once.
  * Version 7 has table views and no section collections. Version 8 adds those collections empty.
+ * Version 9 records the installation corporation, local password verifiers and the simulated directory.
+ * Those collections start empty. Existing users without a verifier flag keep the demonstration password.
+ * The organizations.create and projects.create catalog rows are added. Stored role grant lists are not extended.
  * A created-at filter stored as a bare calendar day is rewritten to an explicit UTC day.
  * Other created-at strings stay exact timestamp comparisons.
  * Missing form, table-view, section and role-administration catalog rows are added so the editor can offer them.
@@ -52,13 +56,15 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const sectionsChanged = withSections !== withDays
   const withRoleGrants = ensureRoleAdminGrants(withSections)
   const roleGrantsChanged = withRoleGrants !== withSections
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged) {
+  const withInstallation = ensureInstallationRecord(withRoleGrants)
+  const installationChanged = withInstallation !== withRoleGrants
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withRoleGrants,
+      ...withInstallation,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
@@ -154,6 +160,48 @@ function ensureTableViews(record: MockState): MockState {
     grants,
     tableViews: Array.isArray(source.tableViews) ? source.tableViews : [],
   }
+}
+
+function ensureInstallationRecord(record: MockState): MockState {
+  const source = record as MockState & {
+    localCredentials?: unknown
+    directoryEmployees?: unknown
+    installationCorporationId?: unknown
+  }
+  const users = record.users.map((user) => (
+    typeof user.fixturePassword === 'boolean' ? user : { ...user, fixturePassword: true }
+  ))
+  const usersChanged = users.some((user, index) => user !== record.users[index])
+  const credentialsMissing = !Array.isArray(source.localCredentials)
+  const directoryMissing = !Array.isArray(source.directoryEmployees)
+  const identityMissing = source.installationCorporationId === undefined
+  const grants = Array.isArray(record.grants) ? [...record.grants] : []
+  const catalogGrants = [ORGANIZATION_CREATE_GRANT, PROJECT_CREATE_GRANT]
+  let grantsChanged = false
+  for (const definition of catalogGrants) {
+    if (grants.some((grant) => grant.id === definition.id)) continue
+    grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
+    grantsChanged = true
+  }
+  if (!usersChanged && !credentialsMissing && !directoryMissing && !identityMissing && !grantsChanged) return record
+  return {
+    ...record,
+    users,
+    grants,
+    localCredentials: Array.isArray(source.localCredentials) ? source.localCredentials : [],
+    directoryEmployees: Array.isArray(source.directoryEmployees) ? source.directoryEmployees : [],
+    installationCorporationId: identityMissing ? derivedInstallationId(record) : source.installationCorporationId as number | null,
+  }
+}
+
+function derivedInstallationId(record: MockState): number | null {
+  const stored = record.corporation?.id
+  if (typeof stored !== 'number' || !Number.isInteger(stored) || stored <= 0) return null
+  const ids = new Set<number>()
+  for (const organization of record.organizations ?? []) ids.add(organization.corporationId)
+  for (const project of record.projects ?? []) ids.add(project.corporationId)
+  if (ids.size === 0 || (ids.size === 1 && ids.has(stored))) return stored
+  return null
 }
 
 function ensureRoleAdminGrants(record: MockState): MockState {

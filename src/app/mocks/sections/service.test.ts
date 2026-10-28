@@ -301,7 +301,7 @@ describe('section service', () => {
       sectionVersions: undefined,
     }
     const migrated = migrateMockDocument(snapshot as unknown as MockState)
-    expect(migrated?.state.schemaVersion).toBe(8)
+    expect(migrated?.state.schemaVersion).toBe(9)
     expect(migrated?.state.sections).toEqual([])
     expect(migrated?.state.sectionDrafts).toEqual([])
     expect(migrated?.state.sectionVersions).toEqual([])

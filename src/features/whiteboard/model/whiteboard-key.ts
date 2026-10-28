@@ -1,7 +1,7 @@
+import { documentMockNamespace } from '../../../shared/config/mock-scenario'
 import {
   getApiMode,
   LIVE_DATA_NAMESPACE,
-  MOCK_DATA_NAMESPACE,
   type ApiMode,
 } from '../../../shared/config/runtime'
 import { WHITEBOARD_STORAGE_PREFIX } from '../lib/constants'
@@ -16,7 +16,7 @@ const CURRENT_PREFIX = `${WHITEBOARD_STORAGE_PREFIX}v2:`
  * Recovery is a future explicit action: list the legacy keys and attach one only after the person chooses it.
  */
 export function whiteboardNamespace(mode: ApiMode): string {
-  return mode === 'mock' ? MOCK_DATA_NAMESPACE : LIVE_DATA_NAMESPACE
+  return mode === 'mock' ? documentMockNamespace() : LIVE_DATA_NAMESPACE
 }
 
 export function whiteboardRecordKey(

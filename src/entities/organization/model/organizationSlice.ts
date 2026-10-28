@@ -41,7 +41,7 @@ export const organizationApi = createApi({
               role: response?.role ?? null,
             }),
           }),
-          addOrganization: builder.mutation<OrganizationResponse, Partial<OrganizationRequest>>({
+          addOrganization: builder.mutation<OrganizationResponse, Partial<OrganizationRequest> & { kind?: 'laboratory' | 'customer' }>({
             query: (data) => ({
               url: 'organizations/organization/',
               method: 'POST',

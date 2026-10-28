@@ -2,7 +2,9 @@ import { Button } from "../../../shared/ui/button"
 import { Loader2, Plus, Trash2, Building2, FolderOpen, MapPin } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
+import { useGetSessionAccessQuery } from "../../../entities/access"
 import { useDeleteOrganizationMutation, useGetOrganizationsQuery } from "../../../entities/organization/model/organizationSlice"
 import { useDeleteProjectMutation, useGetProjectsQuery } from "../../../entities/project/model/projectSlice"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/ui/alert-dialog"
@@ -11,6 +13,7 @@ import { cn } from "../../../shared/lib/utils"
 import { CreateOrganizationDialog } from "./CreateOrganizationDialog"
 import { formatAdminDateShort } from "../../platform-admin/lib/format"
 import { canManageOrganization } from "../../../shared/types/membership-access"
+import { selectOrganizationParams } from "../../org-project-selector/model/workspace-context"
 
 function initials(name?: string) {
     const parts = name?.trim().split(/\s+/).filter(Boolean).slice(0, 2) ?? []
@@ -20,14 +23,28 @@ function initials(name?: string) {
 
 const OrganizationsAndProjects = () => {
     const { t } = useTranslation()
+    const mock = import.meta.env.VITE_API_MODE === 'mock'
+    const access = useGetSessionAccessQuery(undefined, { skip: !mock })
+    const canCreateOrganization = !mock || access.data?.effectiveGrants.some((grant) =>
+        grant.resource === 'organizations' && grant.action === 'create' && grant.scope.type !== 'own',
+    ) === true
+    const [searchParams, setSearchParams] = useSearchParams()
     const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null)
     const [orgToDelete, setOrgToDelete] = useState<number | null>(null)
     const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false)
     const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
 
     const { data: organizations = [], isLoading: orgsLoading } = useGetOrganizationsQuery()
-    const selectedOrg = organizations.find((org) => org.id === selectedOrgId) ?? organizations[0] ?? null
+    const requestedOrgId = Number(searchParams.get('org'))
+    const selectedOrg = organizations.find((org) => org.id === requestedOrgId)
+        ?? organizations.find((org) => org.id === selectedOrgId)
+        ?? organizations[0]
+        ?? null
     const activeOrgId = selectedOrg?.id ?? null
+    const chooseOrganization = (organizationId: number) => {
+        setSelectedOrgId(organizationId)
+        setSearchParams((current) => selectOrganizationParams(current, organizationId), { replace: true })
+    }
     
     const { 
         data: projects = [], 
@@ -88,10 +105,12 @@ const OrganizationsAndProjects = () => {
                     </div>
                     <h2 className="text-lg font-semibold">{t('scheduler-page.no-organizations-yet')}</h2>
                     <p className="mt-2 text-sm text-muted-foreground">{t('settings-page.empty-organizations-hint')}</p>
-                    <Button className="mt-6" onClick={() => setIsCreateOrgOpen(true)}>
-                        <Plus className="h-4 w-4" />
-                        {t('scheduler-page.create-first-organization')}
-                    </Button>
+                    {canCreateOrganization ? (
+                        <Button className="mt-6" onClick={() => setIsCreateOrgOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                            {t('scheduler-page.create-first-organization')}
+                        </Button>
+                    ) : null}
                 </div>
                 <CreateOrganizationDialog open={isCreateOrgOpen} onOpenChange={setIsCreateOrgOpen} />
             </div>
@@ -108,14 +127,16 @@ const OrganizationsAndProjects = () => {
                             {organizations.length}
                         </span>
                     </div>
-                    <Button
-                        size="icon"
-                        className="h-8 w-8"
-                        aria-label={t('settings-page.new-organization')}
-                        onClick={() => setIsCreateOrgOpen(true)}
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    {canCreateOrganization ? (
+                        <Button
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={t('settings-page.new-organization')}
+                            onClick={() => setIsCreateOrgOpen(true)}
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    ) : null}
                 </div>
                 <div className="min-h-0 flex-1 space-y-1 overflow-auto px-2 py-1 pb-3">
                     {organizations.map((org) => {
@@ -125,11 +146,11 @@ const OrganizationsAndProjects = () => {
                                 key={org.id}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => setSelectedOrgId(org.id)}
+                                onClick={() => chooseOrganization(org.id)}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' || event.key === ' ') {
                                         event.preventDefault()
-                                        setSelectedOrgId(org.id)
+                                        chooseOrganization(org.id)
                                     }
                                 }}
                                 className={cn(

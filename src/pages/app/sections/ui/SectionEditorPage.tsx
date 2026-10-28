@@ -8,6 +8,7 @@ import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useHasOrganizationGrant, useOrganizationAccessReady, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
+import { useUnsavedSource } from '../../../../shared/session/unsaved-work'
 import { Badge } from '../../../../shared/ui/badge'
 import { Button } from '../../../../shared/ui/button'
 import { PageHeader, WorkPage } from '../../../../shared/ui/page'
@@ -76,6 +77,7 @@ function EditorGate({ sectionId }: { sectionId: string | null }) {
   const switched = lockedOrg != null && Number.isInteger(urlOrg) && urlOrg > 0 && urlOrg !== lockedOrg
   if (switched && !dirty) setLockedOrg(urlOrg)
   const leave = useLeaveGuard(dirty)
+  useUnsavedSource(sectionId ?? 'section-draft', dirty)
   if (sectionId != null && !isSectionId(sectionId)) {
     return <p className="p-4 text-sm text-muted-foreground">{t('sections.errors.not_found')}</p>
   }

@@ -370,7 +370,7 @@ describe('form mock service', () => {
     delete (snapshot as { formVersions?: unknown }).formVersions
     delete (snapshot as { formRecords?: unknown }).formRecords
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(8)
+    expect(migrated?.state.schemaVersion).toBe(9)
     expect(migrated?.state.forms).toEqual([])
     expect(migrated?.state.formRecords).toEqual([])
     expect(migrated?.state.tableViews).toEqual([])

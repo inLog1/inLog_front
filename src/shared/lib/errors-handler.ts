@@ -10,6 +10,13 @@ interface BackendErrorResponse {
 }
 
 // Проверяем, является ли ошибка от RTK Query
+function organizationFailure(code: string, translFunc: TFunction<["translation", ...string[]], undefined>): string | null {
+  if (code === 'forbidden') return translFunc('errors.organization-forbidden')
+  if (code === 'invalid_organization') return translFunc('errors.organization-invalid')
+  if (code === 'mock_writer_held' || code === 'writer_lock_unavailable') return translFunc('errors.writer-held')
+  return null
+}
+
 function isRTKQueryError(error: unknown): error is { status: number; data: BackendErrorResponse } {
   return (error as any).status && (error as any).data
 }
@@ -25,6 +32,14 @@ export const errorsHandler = (
     return
   }
 
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    if (status === 'FETCH_ERROR' || status === 'TIMEOUT_ERROR') {
+      toast.error(translFunc('errors.network-error'))
+      return
+    }
+  }
+
   // 2. Ошибки RTK Query / Fetch
   if (isRTKQueryError(error)) {
     const { status, data } = error
@@ -35,9 +50,22 @@ export const errorsHandler = (
       return
     }
 
+    if (typeof data?.code === 'string') {
+      const known = organizationFailure(data.code, translFunc)
+      if (known) {
+        toast.error(known)
+        return
+      }
+    }
+
     // 3. Ошибка с detail (самый частый случай)
     if (data?.detail) {
       toast.error(data.detail)
+      return
+    }
+
+    if (typeof data?.code === 'string') {
+      toast.error(data.code)
       return
     }
 

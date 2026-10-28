@@ -266,24 +266,33 @@ describe('mock repository', () => {
     }
   })
 
-  it('does not persist a migration while another tab holds the writer lease', async () => {
+  it('does not persist a migration while another tab holds the writer lock', async () => {
     const namespace = `inlog:mock:test-lease-${crypto.randomUUID()}`
     await replaceMockRecord(namespace, legacySnapshot(namespace))
     await plantWriter(namespace, { ownerId: 'other-tab', until: Date.now() + 60_000 })
-    const opened = await ensureMockState(namespace)
-    expect(opened.ok && opened.writeLocked).toBe(true)
-    if (!opened.ok) return
-    expect(opened.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
-    expect(opened.state.users.map((user) => user.id)).toContain(9)
-    expect(opened.state.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toEqual([])
-    const disk = await rawRoot(namespace)
-    expect(disk.schemaVersion).toBe(1)
-    expect(disk.accessVersion).toBe(7)
-    expect(disk.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toBeUndefined()
-    await expect(updateMockState((state) => ({ ...state, accessVersion: 1 }), namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
-    await expect(resetMockNamespace(namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
-    expect((await rawRoot(namespace)).accessVersion).toBe(7)
-    await plantWriter(namespace, { ownerId: 'other-tab', until: Date.now() - 1 })
+    setMockLockSource(() => ({
+      request: ((_name, _options, callback: (lock: null) => void) => {
+        callback(null)
+      }) as LockManager['request'],
+    }))
+    try {
+      const opened = await ensureMockState(namespace)
+      expect(opened.ok && opened.writeLocked).toBe(true)
+      if (!opened.ok) return
+      expect(opened.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+      expect(opened.state.users.map((user) => user.id)).toContain(9)
+      expect(opened.state.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toEqual([])
+      const disk = await rawRoot(namespace)
+      expect(disk.schemaVersion).toBe(1)
+      expect(disk.accessVersion).toBe(7)
+      expect(disk.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toBeUndefined()
+      await expect(updateMockState((state) => ({ ...state, accessVersion: 1 }), namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+      await expect(resetMockNamespace(namespace)).rejects.toBeInstanceOf(MockWriterHeldError)
+      expect((await rawRoot(namespace)).accessVersion).toBe(7)
+      expect((await readWriter(namespace))?.ownerId).toBe('other-tab')
+    } finally {
+      setMockLockSource(null)
+    }
     const persisted = await ensureMockState(namespace)
     expect(persisted.ok && persisted.writeLocked).toBe(false)
     const stored = await rawRoot(namespace)
@@ -291,6 +300,7 @@ describe('mock repository', () => {
     expect(stored.accessVersion).toBe(7)
     expect(stored.users.map((user) => user.id)).toContain(9)
     expect(stored.roles.find((role) => role.id === 'role-owner')?.delegationGrantIds).toEqual([])
+    expect((await readWriter(namespace))?.ownerId).toBe(currentMockWriterId())
   })
 
   it('keeps the previous record when reset aborts and does not delete the database later', async () => {
@@ -363,7 +373,7 @@ describe('mock repository', () => {
     expect(currentMockWriterId()).toContain('tab-')
   })
 
-  it('reclaims the same tab after reload and does not take a live lease from another tab', async () => {
+  it('reclaims the same tab after reload and takes over a lease from a closed tab', async () => {
     const namespace = `inlog:mock:test-reload-${crypto.randomUUID()}`
     const owner = currentMockWriterId()
     rememberMockWriterSession()
@@ -387,12 +397,11 @@ describe('mock repository', () => {
     const again = reloadMockWriterIdentity()
     expect(writerLineage(again)).toBe(writerLineage(owner))
     expect(again).not.toBe('tab-other-live')
-    const locked = await ensureMockState(rival)
-    expect(locked.ok && locked.writeLocked).toBe(true)
-    await expect(updateMockState((state) => ({ ...state, accessVersion: 9 }), rival)).rejects.toBeInstanceOf(MockWriterHeldError)
-    await expect(resetMockNamespace(rival)).rejects.toBeInstanceOf(MockWriterHeldError)
-    expect((await readWriter(rival))?.ownerId).toBe('tab-other-live')
-    expect((await rawRoot(rival)).accessVersion).toBe(1)
+    const taken = await ensureMockState(rival)
+    expect(taken.ok && taken.writeLocked).toBe(false)
+    const takenWrite = await updateMockState((state) => ({ ...state, accessVersion: 9 }), rival)
+    expect(takenWrite.accessVersion).toBe(9)
+    expect((await readWriter(rival))?.ownerId).toBe(again)
   })
 
   it('does not let a duplicated tab write with the copied session lineage', async () => {
