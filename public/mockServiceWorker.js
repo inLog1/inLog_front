@@ -39,6 +39,11 @@ addEventListener('message', async function (event) {
 
   switch (event.data) {
     case 'KEEPALIVE_REQUEST': {
+      // Chrome drops the worker's memory when the tab is idle. The restarted
+      // worker has an empty activeClientIds set, so every fetch skips mocking
+      // until the page sends MOCK_ACTIVATE again. The open page already pings
+      // this message, and that ping is what puts the page back on the list.
+      activeClientIds.add(clientId)
       sendToClient(client, {
         type: 'KEEPALIVE_RESPONSE',
       })

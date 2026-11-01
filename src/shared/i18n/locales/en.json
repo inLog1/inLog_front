@@ -110,6 +110,8 @@
         "writes-unavailable": "This browser has no cross-tab lock. A lock inside one page does not exclude other tabs, so test-data writes are closed here. You can still read.",
         "writes-unavailable": "This browser has no cross-tab lock. A lock inside one page does not protect other tabs, so test writes are closed here. You can still read the data.",
         "reset-failed": "Reset did not finish. The previous test data is still there.",
+        "register": "Register",
+        "register-confirm": "Open an empty installation and register the first administrator? Demonstration data stays. The current session will end.",
         "preset-confirm": "Change the installation preset and end the current session?",
         "fault-armed": "The error is armed only for {{path}}",
         "switch-failed": "The switch did not create a session",

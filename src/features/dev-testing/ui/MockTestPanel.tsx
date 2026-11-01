@@ -6,9 +6,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { selectSession, sessionActions } from '../../../entities/session'
 import { requestLogout } from '../../../shared/api/session-events'
 import { readAccessToken } from '../../../shared/api/session-storage'
-import { documentMockNamespace, documentScenario, persistScenarioChoice, type MockScenario } from '../../../shared/config/mock-scenario'
+import { documentMockNamespace, persistScenarioChoice } from '../../../shared/config/mock-scenario'
 import { routes } from '../../../shared/lib/routes'
-import { hasUnsavedWork } from '../../../shared/session/unsaved-work'
 import { cn } from '../../../shared/lib/utils'
 import { badgeVariants } from '../../../shared/ui/badge'
 import { Button } from '../../../shared/ui/button'
@@ -20,7 +19,6 @@ import {
   useSwitchDevUserMutation,
   useUpdateDevSettingsMutation,
 } from '../model/devApi'
-import { DirectorySimulation } from './DirectorySimulation'
 import { beginDevSwitch, isCurrentDevSwitch } from '../model/dev-switch'
 import { MOCK_TEST_PANEL_LAUNCHER, MOCK_TEST_PANEL_OPEN } from '../model/panel-position'
 
@@ -37,7 +35,6 @@ export function MockTestPanel() {
   const [resetFixtures] = useResetDevFixturesMutation()
   const [resetPersonalInstallation] = useResetPersonalInstallationMutation()
   const [releaseWriter] = useReleaseDevWriterMutation()
-  const scenario = documentScenario()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -136,11 +133,15 @@ export function MockTestPanel() {
     }
   }
 
-  const switchScenario = async (next: MockScenario) => {
-    if (next === scenario) return
-    const confirmed = window.confirm(t(hasUnsavedWork() ? 'dev-panel.unsaved-switch' : 'dev-panel.switch-scenario'))
-    if (!confirmed) return
+  const registerManually = async () => {
+    if (!window.confirm(t('dev-panel.register-confirm'))) return
     const namespace = documentMockNamespace()
+    try {
+      await resetPersonalInstallation().unwrap()
+    } catch {
+      setMessage(t('dev-panel.reset-failed'))
+      return
+    }
     await requestLogout({ reason: 'preset', callApi: false, navigate: false })
     try {
       await releaseWriter().unwrap()
@@ -150,28 +151,7 @@ export function MockTestPanel() {
       return
     }
     if (documentMockNamespace() !== namespace) return
-    persistScenarioChoice(next)
-    window.location.reload()
-  }
-
-  const resetPersonal = async () => {
-    if (!window.confirm(t('dev-panel.personal-reset-confirm'))) return
-    try {
-      await resetPersonalInstallation().unwrap()
-    } catch {
-      setMessage(t('dev-panel.reset-failed'))
-      return
-    }
-    if (scenario !== 'personal') {
-      setMessage(t('dev-panel.personal-reset-done'))
-      return
-    }
-    await requestLogout({ reason: 'reset', callApi: false, navigate: false })
-    try {
-      await releaseWriter().unwrap()
-    } catch {
-      // The document unload releases the lock. The reset itself already completed.
-    }
+    persistScenarioChoice('personal')
     window.location.reload()
   }
 
@@ -203,18 +183,6 @@ export function MockTestPanel() {
         <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>{t('dev-panel.hide')}</Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-      <p className="mb-3 text-muted-foreground">{t('dev-panel.caption')}</p>
-      <p className="mb-2 text-sm font-medium" role="status">
-        {t('dev-panel.scenario-current')}: {t(scenario === 'personal' ? 'dev-panel.scenario-personal' : 'dev-panel.scenario-demo')}
-      </p>
-      <div className="mb-3 flex flex-wrap gap-1">
-        {scenario === 'demo' ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void switchScenario('personal')}>{t('dev-panel.open-personal')}</Button>
-        ) : (
-          <Button type="button" size="sm" variant="outline" onClick={() => void switchScenario('demo')}>{t('dev-panel.back-demo')}</Button>
-        )}
-        <Button type="button" size="sm" variant="outline" onClick={() => void resetPersonal()}>{t('dev-panel.restart-personal')}</Button>
-      </div>
       {writesUnavailable && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.writes-unavailable')}</p>}
       {writeLocked && <p className="mb-3 rounded-md bg-muted px-2 py-1.5 text-muted-foreground" role="status">{t('dev-panel.reset-blocked')}</p>}
       <div className="space-y-2">
@@ -303,12 +271,14 @@ export function MockTestPanel() {
       <Button type="button" size="sm" className="mt-3" variant="outline" onClick={() => void addSwitchAuthor()}>
         {t('dev-panel.switch-author')}
       </Button>
-      {scenario === 'demo' ? (
-        <Button type="button" size="sm" className="mt-3" variant="destructive" onClick={() => void reset()}>
+      <div className="mt-3 flex flex-col gap-2">
+        <Button type="button" size="sm" className="w-full" variant="outline" onClick={() => void registerManually()}>
+          {t('dev-panel.register')}
+        </Button>
+        <Button type="button" size="sm" className="w-full" variant="destructive" onClick={() => void reset()}>
           {t('dev-panel.reset')}
         </Button>
-      ) : null}
-      <DirectorySimulation />
+      </div>
       {message && <p className="mt-2" role="status">{message}</p>}
       </div>
     </aside>

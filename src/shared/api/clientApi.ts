@@ -1,6 +1,7 @@
 import { fetchBaseQuery } from '@reduxjs/toolkit/query'
 import { getApiBaseUrl } from '../config/runtime'
 import { classifyHttpFailure, requestUrl, sameSessionView, shouldLogoutOnStatus } from './endpoint-policy'
+import { isReadRequest, responseBypassedWorker, wakeMockWorker } from './mock-worker-wake'
 import { readAccessToken } from './session-storage'
 import { requestLogout } from './session-events'
 
@@ -21,9 +22,29 @@ function sessionGeneration(getState: () => unknown): number {
   return typeof generation === 'number' ? generation : 0
 }
 
+function unmockedRead() {
+  return {
+    error: {
+      status: 'PARSING_ERROR' as const,
+      originalStatus: 200,
+      error: 'mock-worker-inactive',
+      data: 'mock-worker-inactive',
+    },
+  }
+}
+
 export const baseQuery: typeof baseQueryStart = async (args, api, extraOptions) => {
   const before = { token: readAccessToken(), generation: sessionGeneration(api.getState) }
-  const result = await baseQueryStart(args, api, extraOptions)
+  let result = await baseQueryStart(args, api, extraOptions)
+  if (
+    import.meta.env.VITE_API_MODE === 'mock'
+    && isReadRequest(args)
+    && responseBypassedWorker(result)
+  ) {
+    await wakeMockWorker()
+    result = await baseQueryStart(args, api, extraOptions)
+    if (responseBypassedWorker(result)) return unmockedRead()
+  }
   const after = { token: readAccessToken(), generation: sessionGeneration(api.getState) }
   if (!sameSessionView(before, after)) {
     return {

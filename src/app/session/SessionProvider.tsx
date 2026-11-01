@@ -9,8 +9,10 @@ import { registerLogoutHandler, requestLogout } from '../../shared/api/session-e
 import { readAccessToken, writeSessionSubject } from '../../shared/api/session-storage'
 import type { AppDispatch } from '../store/store'
 import { store } from '../store/store'
+import { MOCK_WORKER_WAKE_EVENT, wakeMockWorker } from '../../shared/api/mock-worker-wake'
 import { invalidateAfterAccessVersion } from './access-refresh'
 import { performLogout } from './perform-logout'
+import { recoverRejectedMockQueries } from './recover-mock-queries'
 import { releaseQuerySubscriptions, type QuerySubscription } from './query-subscriptions'
 
 function isFetchError(error: unknown): error is FetchBaseQueryError {
@@ -153,18 +155,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (import.meta.env.VITE_API_MODE !== 'mock') return
     let active = true
     const refreshLease = () => {
-      const query = dispatch(accessApi.endpoints.getInstallationStatus.initiate(undefined, { forceRefetch: true }))
-      void query.unwrap().then((installation) => {
+      void wakeMockWorker().then(() => {
         if (!active) return
-        dispatch(sessionActions.setMockWriteLocked(installation.writeLocked === true))
-        dispatch(sessionActions.setMockWritesUnavailable(installation.writesUnavailable === true))
-      }).catch(() => undefined).finally(() => {
-        query.unsubscribe()
-      })
-      if (store.getState().session.phase !== 'authenticated') return
-      const access = dispatch(accessApi.endpoints.getSessionAccess.initiate(undefined, { forceRefetch: true }))
-      void access.finally(() => {
-        access.unsubscribe()
+        const query = dispatch(accessApi.endpoints.getInstallationStatus.initiate(undefined, { forceRefetch: true }))
+        void query.unwrap().then((installation) => {
+          if (!active) return
+          dispatch(sessionActions.setMockWriteLocked(installation.writeLocked === true))
+          dispatch(sessionActions.setMockWritesUnavailable(installation.writesUnavailable === true))
+        }).catch(() => undefined).finally(() => {
+          query.unsubscribe()
+        })
+        if (store.getState().session.phase === 'authenticated') {
+          const access = dispatch(accessApi.endpoints.getSessionAccess.initiate(undefined, { forceRefetch: true }))
+          void access.finally(() => {
+            access.unsubscribe()
+          })
+        }
+        // Reads that failed while the worker was asleep are still marked rejected.
+        // Ask for them again now that this page is back on the worker's client list.
+        recoverRejectedMockQueries(dispatch, store.getState)
       })
     }
     const onVisible = () => {
@@ -174,10 +183,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // The same timer re-reads session access. It is not a push channel to other tabs.
     const timer = window.setInterval(refreshLease, 20_000)
     document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener(MOCK_WORKER_WAKE_EVENT, refreshLease)
     return () => {
       active = false
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener(MOCK_WORKER_WAKE_EVENT, refreshLease)
     }
   }, [dispatch])
 
