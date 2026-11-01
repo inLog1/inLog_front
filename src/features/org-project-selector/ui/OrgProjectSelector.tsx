@@ -70,7 +70,7 @@ const OrgProjectSelector = ({
             <div id="workspace-context" className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-2">
                 {showOrganization && organizations.length === 0 && canCreateOrganization ? (
                     <Button asChild variant="outline" size="sm" className="h-8 max-w-full">
-                        <Link to={routes.settings.organizationsAndProjects()}>
+                        <Link to={routes.settings.organizations()}>
                             {t('scheduler-page.create-first-organization')}
                         </Link>
                     </Button>
@@ -147,7 +147,7 @@ const OrgProjectSelector = ({
                             </p>
                             {canCreateOrganization ? (
                                 <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                    <Link to={routes.settings.organizationsAndProjects()}>
+                                    <Link to={routes.settings.organizations()}>
                                         <Plus className="h-4 w-4 shrink-0" />
                                         {t('scheduler-page.create-first-organization')}
                                     </Link>
@@ -202,7 +202,7 @@ const OrgProjectSelector = ({
                             </p>
                             {currentOrgId && (
                                 <Button asChild variant="outline" size="sm" className="w-full whitespace-nowrap">
-                                    <Link to={routes.settings.organizationsAndProjects()}>
+                                    <Link to={currentOrgId ? `${routes.settings.projects()}?org=${currentOrgId}&directoryOrg=${currentOrgId}` : routes.settings.projects()}>
                                         <Plus className="h-4 w-4 shrink-0" />
                                         {t('settings-page.create-first-project')}
                                     </Link>

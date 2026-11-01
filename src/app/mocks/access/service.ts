@@ -250,15 +250,28 @@ function roleView(state: MockState, role: AccessRole, owner: AccessScope, actorI
     affectedUserCount: users.size,
     affectedScopes: assignments.map((item) => item.scope),
     canEdit: can(snapshot, actorId, 'roles', 'update', owner),
-    canDelete: assignments.length === 0 && can(snapshot, actorId, 'roles', 'delete', owner),
+    canDelete: can(snapshot, actorId, 'roles', 'delete', owner),
   }
+}
+
+const ROLE_DESK_ACTIONS = ['read', 'create', 'update', 'delete'] as const
+const ROLE_LIST_ACTIONS = ['read', 'update', 'delete'] as const
+
+function canEnterRoleDesk(snapshot: ReturnType<typeof toSnapshot>, userId: number, scope: AccessScope): boolean {
+  if (canManageAssignment(snapshot, userId, scope)) return true
+  return ROLE_DESK_ACTIONS.some((action) => can(snapshot, userId, 'roles', action, scope))
+}
+
+function canInspectRole(snapshot: ReturnType<typeof toSnapshot>, userId: number, owner: AccessScope): boolean {
+  if (canManageAssignment(snapshot, userId, owner)) return true
+  return ROLE_LIST_ACTIONS.some((action) => can(snapshot, userId, 'roles', action, owner))
 }
 
 function visibleRoles(state: MockState, userId: number, area: 'organization' | 'corporation', organizationId: number | null): AccessRole[] {
   const snapshot = toSnapshot(state)
   return state.roles.filter((role) => {
     const owner = roleOwnerScope(role, snapshot)
-    if (!owner || (!can(snapshot, userId, 'roles', 'read', owner) && !canManageAssignment(snapshot, userId, owner))) return false
+    if (!owner || !canInspectRole(snapshot, userId, owner)) return false
     if (area === 'corporation') return owner.type === 'corporation'
     if (organizationId == null) return false
     return scopeInOrganization(owner, organizationId)
@@ -290,7 +303,7 @@ export function readDirectory(
   let area: 'organization' | 'corporation'
   let organizationId: number | null = null
   if (query.scope === 'corporation' && (query.organization == null || query.organization === '')) {
-    if (!canManageCorporation && !can(snapshot, who.user.id, 'roles', 'read', { type: 'corporation', corporationId })) {
+    if (!canEnterRoleDesk(snapshot, who.user.id, { type: 'corporation', corporationId })) {
       return fail(state, 403, 'forbidden')
     }
     area = 'corporation'
@@ -300,7 +313,7 @@ export function readDirectory(
     const organization = state.organizations.find((item) => item.id === organizationId)
     if (!organization || organization.corporationId !== corporationId) return fail(state, 404, 'not_found')
     const scope = { type: 'organization' as const, organizationId, corporationId }
-    if (!canManageAssignment(snapshot, who.user.id, scope) && !can(snapshot, who.user.id, 'roles', 'read', scope)) {
+    if (!canEnterRoleDesk(snapshot, who.user.id, scope)) {
       return fail(state, 403, 'forbidden')
     }
     area = 'organization'

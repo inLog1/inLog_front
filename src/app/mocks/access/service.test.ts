@@ -408,6 +408,61 @@ describe('access management service', () => {
     expect(created.accessVersion).toBeGreaterThan(1)
   })
 
+  it('keeps role deletion independent from update and refuses an assigned role', () => {
+    const { state, token } = ownerSession()
+    const created = createRole(state, token, {
+      displayName: 'Съёмная',
+      description: '',
+      grantIds: [grantId(state, 'reports', 'read')],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+    })
+    const roleId = created.state.roles.find((item) => item.displayName === 'Съёмная')?.id ?? ''
+    const withActor = (grantIds: string[]) => ({
+      ...created.state,
+      roles: [...created.state.roles, {
+        id: 'role-actor',
+        displayName: 'Оператор ролей',
+        grantIds,
+        delegationGrantIds: [],
+        ownerScope: org(101),
+      }],
+      assignments: [...created.state.assignments, {
+        id: 'asg-actor',
+        userId: 6,
+        roleId: 'role-actor',
+        scope: org(101),
+      }],
+    })
+    const updater = sessionFor(withActor([grantId(created.state, 'roles', 'update')]), 'pending@example.test', 6)
+    const denied = deleteRole(updater.state, updater.token, roleId)
+    expect(denied.status).toBe(403)
+    expect(denied.state.roles.some((item) => item.id === roleId)).toBe(true)
+    expect(denied.state.assignments).toEqual(updater.state.assignments)
+
+    const deleter = sessionFor(withActor([grantId(created.state, 'roles', 'delete')]), 'pending@example.test', 6)
+    const removed = deleteRole(deleter.state, deleter.token, roleId)
+    expect(removed.status).toBe(200)
+    expect(removed.state.roles.some((item) => item.id === roleId)).toBe(false)
+    expect(hasCorporateSuperadmin(toSnapshot(removed.state), 1)).toBe(true)
+    expect(removed.state.systemCapabilities).toEqual(deleter.state.systemCapabilities)
+
+    const assigned = createAssignment(created.state, token, { userId: 3, roleId, scope: org(101) })
+    const blocked = deleteRole(assigned.state, token, roleId)
+    expect(blocked.status).toBe(409)
+    expect(blocked.body).toMatchObject({ code: 'role_in_use' })
+    expect(blocked.state.roles).toEqual(assigned.state.roles)
+    expect(blocked.state.assignments).toEqual(assigned.state.assignments)
+    expect(blocked.state.users).toEqual(assigned.state.users)
+    expect(blocked.state.systemCapabilities).toEqual(assigned.state.systemCapabilities)
+
+    const reader = sessionFor(withActor([grantId(created.state, 'roles', 'read')]), 'pending@example.test', 6)
+    expect(readDirectory(reader.state, reader.token, { scope: null, organization: '101' }).status).toBe(200)
+    const editor = sessionFor(withActor([grantId(created.state, 'roles', 'update')]), 'pending@example.test', 6)
+    expect(readDirectory(editor.state, editor.token, { scope: null, organization: '102' }).status).toBe(403)
+    expect(readDirectory(editor.state, editor.token, { scope: null, organization: '101' }).status).toBe(200)
+  })
+
   it('reports that live mode does not call the access contract', () => {
     expect(accessManagementMode('live')).toBe('unavailable')
     expect(accessManagementMode(undefined)).toBe('unavailable')

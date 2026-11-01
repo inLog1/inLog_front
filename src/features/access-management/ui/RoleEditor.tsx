@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { setUnsavedSource, useUnsavedSource } from '../../../shared/session/unsaved-work'
 import {
   useCreateAccessRoleMutation,
   useDeleteAccessRoleMutation,
@@ -18,22 +19,23 @@ import { Textarea } from '../../../shared/ui/textarea'
 import { EditorActions, PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { PermissionSets } from './PermissionSets'
+import { RoleDeleteDialog } from './RoleDeleteDialog'
 import { scopeLabel } from './scope-label'
 
 type RoleEditorProps = {
   roleId: string | null
   owner: 'organization' | 'corporation'
   organizationId: number | null
-  backHref: string
-  savedHref: (roleId: string) => string
+  listHref: string
+  usersHref: string
 }
 
-export function RoleEditor({ roleId, owner, organizationId, backHref, savedHref }: RoleEditorProps) {
-  if (roleId) return <ExistingRole roleId={roleId} backHref={backHref} savedHref={savedHref} />
-  return <NewRole owner={owner} organizationId={organizationId} backHref={backHref} savedHref={savedHref} />
+export function RoleEditor({ roleId, owner, organizationId, listHref, usersHref }: RoleEditorProps) {
+  if (roleId) return <ExistingRole roleId={roleId} listHref={listHref} usersHref={usersHref} />
+  return <NewRole owner={owner} organizationId={organizationId} listHref={listHref} usersHref={usersHref} />
 }
 
-function NewRole({ owner, organizationId, backHref, savedHref }: { owner: 'organization' | 'corporation'; organizationId: number | null; backHref: string; savedHref: (roleId: string) => string }) {
+function NewRole({ owner, organizationId, listHref, usersHref }: { owner: 'organization' | 'corporation'; organizationId: number | null; listHref: string; usersHref: string }) {
   const { t } = useTranslation()
   const skip = owner === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
@@ -51,11 +53,11 @@ function NewRole({ owner, organizationId, backHref, savedHref }: { owner: 'organ
   if (directory.isLoading || !directory.data || !ownerScope) {
     return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
   }
-  if (!directory.data.canCreateRole) return <CreateDenied backHref={backHref} />
+  if (!directory.data.canCreateRole) return <CreateDenied listHref={listHref} />
   return (
     <RoleForm
-      backHref={backHref}
-      savedHref={savedHref}
+      listHref={listHref}
+      usersHref={usersHref}
       ownerScope={ownerScope}
       organizations={directory.data.organizations}
       projects={directory.data.projects}
@@ -68,15 +70,16 @@ function NewRole({ owner, organizationId, backHref, savedHref }: { owner: 'organ
   )
 }
 
-function ExistingRole({ roleId, backHref, savedHref }: { roleId: string; backHref: string; savedHref: (roleId: string) => string }) {
+function ExistingRole({ roleId, listHref, usersHref }: { roleId: string; listHref: string; usersHref: string }) {
   const role = useGetAccessRoleQuery(roleId)
   if (role.isLoading || !role.data) {
     return <EditorStatus error={role.isError ? role.error : null} />
   }
   return (
     <RoleForm
-      backHref={backHref}
-      savedHref={savedHref}
+      listHref={listHref}
+      usersHref={usersHref}
+      onRefresh={() => void role.refetch()}
       ownerScope={role.data.role.ownerScope}
       organizations={role.data.organizations}
       projects={role.data.projects}
@@ -89,13 +92,13 @@ function ExistingRole({ roleId, backHref, savedHref }: { roleId: string; backHre
   )
 }
 
-function CreateDenied({ backHref }: { backHref: string }) {
+function CreateDenied({ listHref }: { listHref: string }) {
   const { t } = useTranslation()
   return (
     <WorkPage>
       <PageHeader
         title={t('access.edit-title')}
-        breadcrumbs={[{ label: t('nav.access'), to: backHref }, { label: t('access.create-role') }]}
+        breadcrumbs={[{ label: t('nav.access'), to: listHref }, { label: t('access.create-role') }]}
       />
       <PageState kind="empty" description={t('access.create-denied')} />
       <p className="text-sm text-muted-foreground">{t('access.installation-superadmin-note')}</p>
@@ -110,8 +113,9 @@ function EditorStatus({ error }: { error: unknown }) {
 }
 
 function RoleForm({
-  backHref,
-  savedHref,
+  listHref,
+  usersHref,
+  onRefresh,
   ownerScope,
   organizations,
   projects,
@@ -121,8 +125,9 @@ function RoleForm({
   canEdit,
   initial,
 }: {
-  backHref: string
-  savedHref: (roleId: string) => string
+  listHref: string
+  usersHref: string
+  onRefresh?: () => void
   ownerScope: AccessScope
   organizations: Array<{ id: number; shortName: string }>
   projects: Array<{ id: number; name: string; organizationId: number }>
@@ -150,9 +155,28 @@ function RoleForm({
   const [delegationIds, setDelegationIds] = useState(initial?.delegation.map((item) => item.id) ?? [])
   const [failure, setFailure] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [conflict, setConflict] = useState(false)
+  const [leaveClean, setLeaveClean] = useState(false)
   const [createRole, createState] = useCreateAccessRoleMutation()
   const [updateRole, updateState] = useUpdateAccessRoleMutation()
   const [deleteRole, deleteState] = useDeleteAccessRoleMutation()
+  const sameIds = (left: string[], right: string[]) => left.length === right.length && left.every((id, index) => id === right[index])
+  const initialOperational = initial?.operational.map((item) => item.id) ?? []
+  const initialDelegation = initial?.delegation.map((item) => item.id) ?? []
+  const dirty = !leaveClean && (
+    name !== (initial?.displayName ?? '')
+    || description !== (initial?.description ?? '')
+    || !sameIds(operationalIds, initialOperational)
+    || !sameIds(delegationIds, initialDelegation)
+  )
+  useUnsavedSource(initial ? `role-editor:${initial.id}` : 'role-editor:new', dirty)
+  const pending = createState.isLoading || updateState.isLoading || deleteState.isLoading
+  const returnToList = () => {
+    setLeaveClean(true)
+    setUnsavedSource(initial ? `role-editor:${initial.id}` : 'role-editor:new', false)
+    navigate(listHref, { replace: true })
+  }
   const session = useGetSessionAccessQuery(undefined, { skip: import.meta.env.VITE_API_MODE !== 'mock' })
   const operatorOwner = session.data?.accessState === 'ready' && session.data.systemCapabilities.includes('corporate_superadmin')
   const offeredIds = new Set(offered.map((item) => item.id))
@@ -160,6 +184,7 @@ function RoleForm({
   const preservedDelegation = (initial?.delegation ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
 
   const save = async () => {
+    if (pending) return
     setFailure(null)
     setNotice(null)
     const displayName = name.trim()
@@ -177,15 +202,10 @@ function RoleForm({
       ownerScope,
     }
     try {
-      if (initial) {
-        await updateRole({ roleId: initial.id, body }).unwrap()
-        setNotice(t('access.role-saved'))
-        toast.success(t('access.role-saved'))
-      } else {
-        const created = await createRole(body).unwrap()
-        toast.success(t('access.role-saved'))
-        navigate(savedHref(created.role.id), { replace: true })
-      }
+      if (initial) await updateRole({ roleId: initial.id, body }).unwrap()
+      else await createRole(body).unwrap()
+      toast.success(t('access.role-saved'))
+      returnToList()
     } catch (error) {
       const parsed = accessFailure(error)
       const message = t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 })
@@ -195,28 +215,44 @@ function RoleForm({
   }
 
   const remove = async () => {
-    if (!initial) return
+    if (!initial || pending || conflict || initial.assignmentCount > 0) return
     setFailure(null)
     setNotice(null)
     try {
       await deleteRole({ roleId: initial.id }).unwrap()
       toast.success(t('access.role-deleted'))
-      navigate(backHref, { replace: true })
+      setConfirmDelete(false)
+      returnToList()
     } catch (error) {
       const parsed = accessFailure(error)
-      setFailure(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 }))
+      if (parsed.code === 'role_in_use') {
+        setConflict(true)
+        onRefresh?.()
+      }
+      const message = t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? 0 })
+      setFailure(message)
+      toast.error(message)
     }
   }
 
   const scopeText = scopeLabel(ownerScope, organizations, projects, t)
-  const busy = !canEdit || createState.isLoading || updateState.isLoading
+  const busy = !canEdit || pending
+  const knownInUse = (initial?.assignmentCount ?? 0) > 0 || conflict
   const actionButtons = () => (
     <>
       <Button asChild variant="outline">
-        <Link to={backHref}>{t('access.cancel')}</Link>
+        <Link to={listHref}>{t('access.cancel')}</Link>
       </Button>
-      {initial ? (
-        <Button type="button" variant="outline" disabled={deleteState.isLoading || !initial.canDelete} onClick={() => void remove()}>
+      {initial?.canDelete ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={() => {
+            setConflict(false)
+            setConfirmDelete(true)
+          }}
+        >
           {t('access.delete-role')}
         </Button>
       ) : null}
@@ -231,7 +267,7 @@ function RoleForm({
         title={initial ? t('access.edit-title') : t('access.create-role')}
         description={t('access.edit-lead')}
         breadcrumbs={[
-          { label: t('nav.access'), to: backHref },
+          { label: t('nav.access'), to: listHref },
           { label: initial ? initial.displayName : t('access.create-role') },
         ]}
         actions={actionButtons()}
@@ -318,10 +354,25 @@ function RoleForm({
           </ul>
         </div>
       ) : null}
+      {initial ? (
+        <RoleDeleteDialog
+          open={confirmDelete}
+          name={initial.displayName}
+          pending={deleteState.isLoading}
+          blocked={knownInUse}
+          usersHref={usersHref}
+          onOpenChange={(open) => {
+            if (open) return
+            setConfirmDelete(false)
+            setConflict(false)
+          }}
+          onConfirm={() => void remove()}
+        />
+      ) : null}
       <EditorActions
         notice={(
           <>
-            {initial && !initial.canDelete ? <p className="text-foreground">{t('access.delete-blocked')}</p> : null}
+            {initial && knownInUse && initial.canDelete ? <p className="text-foreground">{t('access.delete-blocked')}</p> : null}
             {notice ? <p role="status">{notice}</p> : null}
             {failure ? <p className="text-destructive" role="alert">{failure}</p> : null}
           </>

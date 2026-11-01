@@ -33,6 +33,7 @@ export const CreateOrganizationDialog = ({ open, onOpenChange, onCreated }: Crea
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (isLoading) return
         
         let toastId: string | undefined
         try {

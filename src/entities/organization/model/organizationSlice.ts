@@ -53,7 +53,7 @@ export const organizationApi = createApi({
             async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
               try {
                 await queryFulfilled
-                dispatch(accessApi.util.invalidateTags(['SessionAccess']))
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
               } catch {
                 // A rejected create stays rejected and is not sent again.
               }
@@ -81,7 +81,7 @@ export const organizationApi = createApi({
             async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
               try {
                 await queryFulfilled
-                dispatch(accessApi.util.invalidateTags(['SessionAccess']))
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
               } catch {
                 // A conflict or refusal is not retried and is not treated as a saved change.
               }

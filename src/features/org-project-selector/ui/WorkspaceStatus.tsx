@@ -1,6 +1,6 @@
 import { AlertCircle, Building2, FolderOpen, Loader2, ShieldOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
@@ -34,6 +34,11 @@ export function WorkspaceStatus({
     onRetry?: () => void
 }) {
     const { t } = useTranslation()
+    const [search] = useSearchParams()
+    const organizationId = search.get('org')
+    const projectsHref = organizationId
+        ? `${routes.settings.projects()}?org=${organizationId}&directoryOrg=${organizationId}`
+        : routes.settings.projects()
     const text = reason ? t(REASON_KEY[reason]) : t('workspace.loading')
     const Icon = status === 'loading'
         ? Loader2
@@ -55,10 +60,17 @@ export function WorkspaceStatus({
                         {t('workspace.retry')}
                     </Button>
                 ) : null}
-                {status === 'empty' ? (
+                {status === 'empty' && reason === 'organizations-empty' ? (
                     <Button asChild variant="outline">
-                        <Link to={routes.settings.organizationsAndProjects()}>
-                            {t('settings-page.organizations-and-projects')}
+                        <Link to={routes.settings.organizations()}>
+                            {t('nav.organizations')}
+                        </Link>
+                    </Button>
+                ) : null}
+                {status === 'empty' && reason === 'projects-empty' ? (
+                    <Button asChild variant="outline">
+                        <Link to={projectsHref}>
+                            {t('settings-page.new-project')}
                         </Link>
                     </Button>
                 ) : null}

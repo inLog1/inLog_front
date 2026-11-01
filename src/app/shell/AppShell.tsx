@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Wrench } from 'lucide-react'
+import { Bell, BookOpen, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Users, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
@@ -11,6 +11,7 @@ import {
   sectionByPath,
   showsProjectSelector,
   visibleNavigation,
+  visibleOrganizationModules,
   type AppSection,
 } from '../navigation/catalog'
 import { useNavigationInput } from '../navigation/use-navigation'
@@ -32,6 +33,8 @@ const ICONS: Record<string, LucideIcon> = {
   access: Shield,
   sections: PanelsTopLeft,
   'organizations-settings': Building2,
+  'organization-personnel': Users,
+  'organization-reference': BookOpen,
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
@@ -88,13 +91,30 @@ function Shell() {
       icon: sectionIcon(item.iconKey),
     }))
     const work = sections.filter((section) => section.group === 'work').map(toLink)
-    const settings = sections.filter((section) => section.group === 'settings').map(toLink)
+    const organizationId = navigation.organizationId
+    const moduleLinks: SidebarLinkModel[] = organizationId == null ? [] : visibleOrganizationModules(navigation).map((section) => ({
+      id: section.id,
+      label: t(section.labelKey),
+      to: href(
+        section.id === 'organization-personnel'
+          ? routes.settings.organizationPersonnel(organizationId)
+          : routes.settings.organizationReference(organizationId),
+        'organization',
+      ),
+      icon: ICONS[section.id] ?? Building2,
+      end: true,
+    }))
+    const settings = sections.filter((section) => section.group === 'settings').map((section) => {
+      const link = toLink(section)
+      if (section.id !== 'organizations-settings') return link
+      return { ...link, end: true, children: moduleLinks }
+    })
     return [
       { id: 'primary', label: t('home.title'), items: primary.map(toLink) },
       { id: 'work', label: t('shell.work'), items: [...published, ...work] },
       { id: 'settings', label: t('shell.settings'), items: settings },
     ].filter((group) => group.items.length > 0)
-  }, [href, organizationSections.items, sections, t])
+  }, [href, navigation, organizationSections.items, sections, t])
 
   const profile = APP_SECTIONS.find((section) => section.id === 'profile')
   const home = sections.find((section) => section.id === 'home')

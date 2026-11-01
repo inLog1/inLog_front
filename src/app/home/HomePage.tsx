@@ -365,10 +365,12 @@ function WelcomeContext({
   if (message) {
     return (
       <div className="mt-4">
-        <p className="max-w-2xl break-words text-sm leading-relaxed text-white">{message}</p>
+        <p className="max-w-2xl break-words text-sm leading-relaxed text-white">
+          {canCreateOrganization && reason === 'organizations-empty' ? t('settings-page.owner-empty-title') : message}
+        </p>
         {canCreateOrganization && reason === 'organizations-empty' ? (
           <Button asChild variant="outline" size="sm" className="mt-3 border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-            <Link to={routes.settings.organizationsAndProjects()}>{t('scheduler-page.create-first-organization')}</Link>
+            <Link to={routes.settings.organizations()}>{t('scheduler-page.create-first-organization')}</Link>
           </Button>
         ) : null}
       </div>

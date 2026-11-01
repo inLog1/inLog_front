@@ -321,7 +321,7 @@ describe('mock first-run scenarios', () => {
     expect(first.report.created).toEqual(['hr-1'])
     expect(first.state.users).toHaveLength(2)
     expect(first.state.assignments).toEqual([])
-    expect(first.state.roles).toEqual([])
+    expect(first.state.roles.map((role) => role.id).sort()).toEqual(state.roles.map((role) => role.id).sort())
     expect(first.state.systemCapabilities).toEqual(state.systemCapabilities)
     expect(first.state.localCredentials?.[0]?.hash).toBe(ownerHash)
     const employee = first.state.users.find((user) => user.email === 'ilya@personal.test')

@@ -32,13 +32,7 @@ const Dashboard = () => {
               icon={<FolderKanban className="h-6 w-6" />}
               title={t('dashboard-page.organizations')}
               description={t('dashboard-page.organizations-description')}
-              to={routes.settings.organizationsAndProjects()}
-            />
-            <QuickLinkCard
-              icon={<FolderKanban className="h-6 w-6" />}
-              title={t('dashboard-page.projects')}
-              description={t('dashboard-page.projects-description')}
-              to={routes.settings.organizationsAndProjects()}
+              to={routes.settings.organizations()}
             />
             <QuickLinkCard
               icon={<ListTodo className="h-6 w-6" />}

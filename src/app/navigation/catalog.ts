@@ -110,10 +110,37 @@ export const APP_SECTIONS: readonly AppSection[] = [
     id: 'organizations-settings',
     labelKey: 'nav.organizations',
     descriptionKey: 'nav.organizations-description',
-    path: routes.settings.organizationsAndProjects(),
+    path: routes.settings.organizations(),
     group: 'settings',
     context: 'none',
     surface: 'navigation',
+  },
+  {
+    id: 'organization-personnel',
+    labelKey: 'nav.personnel',
+    descriptionKey: 'nav.personnel-description',
+    path: '/settings/organizations/:organizationId/personnel',
+    group: 'settings',
+    context: 'organization',
+    surface: 'nested',
+  },
+  {
+    id: 'organization-reference',
+    labelKey: 'nav.reference',
+    descriptionKey: 'nav.reference-description',
+    path: '/settings/organizations/:organizationId/reference',
+    group: 'settings',
+    context: 'organization',
+    surface: 'nested',
+  },
+  {
+    id: 'projects-settings',
+    labelKey: 'nav.projects',
+    descriptionKey: 'nav.projects-description',
+    path: routes.settings.projects(),
+    group: 'settings',
+    context: 'organization',
+    surface: 'preserved',
   },
   {
     id: 'access',
@@ -251,13 +278,23 @@ function sectionsDesk(input: NavigationInput): SectionAccess {
   return 'unavailable'
 }
 
-const DIRECTORY_PERMISSIONS = [
+const ORGANIZATION_PERMISSIONS = [
   ['organizations', 'read'],
   ['organizations', 'create'],
   ['organizations', 'update'],
+] as const
+
+const PROJECT_PERMISSIONS = [
   ['projects', 'read'],
   ['projects', 'create'],
   ['projects', 'update'],
+] as const
+
+const ROLE_PERMISSIONS = [
+  ['roles', 'read'],
+  ['roles', 'create'],
+  ['roles', 'update'],
+  ['roles', 'delete'],
 ] as const
 
 /**
@@ -270,10 +307,43 @@ function organizationsSection(input: NavigationInput): SectionAccess {
   if (input.grantsPending) return 'unavailable'
   if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
   const allowed = input.grants.some((grant) =>
-    DIRECTORY_PERMISSIONS.some(([resource, action]) => grant.resource === resource && grant.action === action)
+    ORGANIZATION_PERMISSIONS.some(([resource, action]) => grant.resource === resource && grant.action === action)
     && (grant.scope.type === 'project' || grant.scope.type === 'organization' || grant.scope.type === 'corporation'),
   )
   return allowed ? 'allowed' : 'unavailable'
+}
+
+/**
+ * Personnel and reference stubs share this check.
+ * Replace the organizations.read call when those modules get their own permissions.
+ * A selected organization is required. Another organization's existence does not open the stubs.
+ */
+function organizationModuleSection(input: NavigationInput): SectionAccess {
+  if (input.grantsPending) return 'unavailable'
+  if (input.organizationId == null) return 'unavailable'
+  if (!input.enforceGrants) return 'not-enforced'
+  if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
+  const access = permissionAccess(input, { resource: 'organizations', action: 'read' }, 'organization')
+  return access === 'allowed' ? 'allowed' : 'unavailable'
+}
+
+export function visibleOrganizationModules(input: NavigationInput): AppSection[] {
+  const access = organizationModuleSection(input)
+  if (access !== 'allowed' && access !== 'not-enforced') return []
+  return APP_SECTIONS.filter((section) =>
+    section.id === 'organization-personnel' || section.id === 'organization-reference',
+  )
+}
+
+/** Direct project management. Menu visibility is separate and does not grant this. */
+export function canOpenProjectManagement(input: NavigationInput): boolean {
+  if (input.grantsPending) return false
+  if (!input.enforceGrants) return true
+  if (input.systemCapabilities.includes('corporate_superadmin')) return true
+  return input.grants.some((grant) =>
+    PROJECT_PERMISSIONS.some(([resource, action]) => grant.resource === resource && grant.action === action)
+    && (grant.scope.type === 'project' || grant.scope.type === 'organization' || grant.scope.type === 'corporation'),
+  )
 }
 
 function accessSection(input: NavigationInput): SectionAccess {
@@ -282,7 +352,8 @@ function accessSection(input: NavigationInput): SectionAccess {
   if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
   const manages = permissionAccess(input, { resource: 'assignments', action: 'update' }, 'organization')
   const readsUsers = permissionAccess(input, { resource: 'access-users', action: 'read' }, 'organization')
-  const states = [manages, readsUsers]
+  const roleStates = ROLE_PERMISSIONS.map(([resource, action]) => permissionAccess(input, { resource, action }, 'organization'))
+  const states = [manages, readsUsers, ...roleStates]
   if (states.includes('allowed')) return 'allowed'
   if (states.includes('needs-context')) return 'needs-context'
   if (states.includes('denied-here')) return 'denied-here'
@@ -294,6 +365,9 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.id === 'home' || section.id === 'profile' || section.id === 'notifications') return 'allowed'
   if (section.id === 'access') return accessSection(input)
   if (section.id === 'organizations-settings') return organizationsSection(input)
+  if (section.id === 'organization-personnel' || section.id === 'organization-reference') {
+    return organizationModuleSection(input)
+  }
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
@@ -358,13 +432,34 @@ export function shouldLoadProjectTasks(input: NavigationInput): boolean {
   })
 }
 
+function sectionMatchScore(pattern: string, path: string): number | null {
+  if (pattern === '/') return path === '/' ? 1 : null
+  const patternParts = pattern.split('/').filter(Boolean)
+  const pathParts = path.split('/').filter(Boolean)
+  if (pathParts.length < patternParts.length) return null
+  for (let index = 0; index < patternParts.length; index += 1) {
+    const token = patternParts[index]
+    const actual = pathParts[index]
+    if (token.startsWith(':')) {
+      if (!/^[1-9]\d*$/.test(actual ?? '')) return null
+    } else if (token !== actual) return null
+  }
+  if (pathParts.length !== patternParts.length && patternParts.some((part) => part.startsWith(':'))) return null
+  return patternParts.length
+}
+
 export function sectionByPath(pathname: string): AppSection | null {
   const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
-  const matches = APP_SECTIONS.filter((section) =>
-    section.path === '/' ? path === '/' : path === section.path || path.startsWith(`${section.path}/`),
-  )
-  matches.sort((left, right) => right.path.length - left.path.length)
-  return matches[0] ?? null
+  let best: AppSection | null = null
+  let bestScore = 0
+  for (const section of APP_SECTIONS) {
+    const score = sectionMatchScore(section.path, path)
+    if (score != null && score > bestScore) {
+      best = section
+      bestScore = score
+    }
+  }
+  return best
 }
 
 export function showsProjectSelector(pathname: string): boolean {

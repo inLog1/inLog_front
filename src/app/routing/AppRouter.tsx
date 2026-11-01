@@ -19,7 +19,9 @@ import SchedulerPage from '../../pages/dashboard/scheduler'
 import TasksPage from '../../pages/dashboard/scheduler/tasks'
 import TemplatesPage from '../../pages/dashboard/scheduler/templates'
 import SettingsPage from '../../pages/dashboard/settings'
-import OrganizationsAndProjectsPage from '../../pages/dashboard/settings/ogranizations-and-projects'
+import OrganizationsPage from '../../pages/dashboard/settings/organizations'
+import { OrganizationModulePage } from '../../pages/app/organizations/ui/OrganizationModulePage'
+import { ProjectManagementRoute } from './ProjectManagementRoute'
 import ProfilePage from '../../pages/dashboard/settings/profile'
 import { routes } from '../../shared/lib/routes'
 import { AppShell } from '../shell/AppShell'
@@ -106,7 +108,13 @@ export function AppRouter() {
               <Route path="/settings/access/users/:userId" element={<AccessUserPage />} />
               <Route path={routes.settings.accessRoleNew()} element={<RoleEditorPage />} />
               <Route path="/settings/access/roles/:roleId" element={<RoleEditorPage />} />
-              <Route path={routes.settings.organizationsAndProjects()} element={<OrganizationsAndProjectsPage />} />
+              <Route path={routes.settings.organizationPersonnel(':organizationId')} element={<OrganizationModulePage module="personnel" />} />
+              <Route path={routes.settings.organizationReference(':organizationId')} element={<OrganizationModulePage module="reference" />} />
+              <Route path="/settings/organizations/personnel" element={<OrganizationModulePage module="personnel" />} />
+              <Route path="/settings/organizations/reference" element={<OrganizationModulePage module="reference" />} />
+              <Route path={routes.settings.organizations()} element={<OrganizationsPage />} />
+              <Route path={routes.settings.projects()} element={<ProjectManagementRoute />} />
+              <Route path={routes.settings.organizationsAndProjects()} element={<RedirectKeepingSearch to={routes.settings.organizations()} />} />
               <Route path={routes.settings.list()} element={<SettingsPage />}>
                 <Route index element={<RedirectKeepingSearch to={routes.settings.notifications()} />} />
                 <Route path={routes.settings.notifications()} element={<NotificationsPage />} />

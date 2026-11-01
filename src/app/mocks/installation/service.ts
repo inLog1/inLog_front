@@ -1,6 +1,7 @@
 import { can } from '../../../entities/access/model/grants'
 import type { MockOrganization, MockProject, MockState, MockUser } from '../db/types'
 import { toSnapshot } from '../auth/flow'
+import { withOrganizationAdministrator } from '../organizations/organization-admin-role'
 
 export class InstallationSetupError extends Error {
   readonly code: 'already_configured' | 'invalid_setup'
@@ -89,7 +90,10 @@ export function createOrganization(
     address,
     revision: 1,
   }
-  return { state: { ...state, organizations: [...state.organizations, organization] }, organization }
+  const drafted: MockState = { ...state, organizations: [...state.organizations, organization] }
+  const next = withOrganizationAdministrator(drafted, organization, userId)
+  if (!next) return { error: 'invalid_organization' }
+  return { state: next, organization }
 }
 
 export function createProject(
