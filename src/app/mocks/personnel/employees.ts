@@ -17,7 +17,7 @@ import {
 import { externalIdentityClash, isCalendarDate, valueOccupied } from '../../../entities/personnel/model/rules'
 import type { FlowResult } from '../auth/flow'
 import type { MockState, MockUser } from '../db/types'
-import { directoryPermissions, findReference, referenceOptions } from './directories'
+import { canCreateDirectoryRecord, directoryPermissions, findReference, referenceOptions } from './directories'
 import { allowedKeys, allows, done, enter, problem, revisionOf } from './gate'
 
 function configs(state: MockState): PersonnelConfig[] {
@@ -67,7 +67,7 @@ function optionsFor(state: MockState, userId: number, config: PersonnelConfig) {
       directoryId: definition.id,
       title: definition.title,
       archived: definition.archived,
-      canAdd: !definition.archived && allows(state, userId, config.organizationId, 'directories', 'update'),
+      canAdd: canCreateDirectoryRecord(state, userId, definition),
       source: definition.source,
       fields: definition.fields,
       records: referenceOptions(state, config.organizationId, key),
@@ -326,12 +326,45 @@ function presentEmployee(state: MockState, viewerId: number, config: PersonnelCo
 }
 
 function fio(config: PersonnelConfig, employee: Employee): string {
-  const parts = ['last-name', 'first-name', 'patronymic'].map((key) => {
-    const field = config.fields.find((item) => item.key === key)
-    const value = field ? employee.values[field.id] : null
-    return typeof value === 'string' ? value.trim() : ''
-  }).filter(Boolean)
+  const parts = ['last-name', 'first-name', 'patronymic'].map((key) => textFieldValue(config, employee, key)).filter(Boolean)
   return parts.join(' ')
+}
+
+function textFieldValue(config: PersonnelConfig, employee: Employee, key: string): string {
+  const field = config.fields.find((item) => item.key === key)
+  const value = field ? employee.values[field.id] : null
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function directoryFact(
+  state: MockState,
+  config: PersonnelConfig,
+  employee: Employee,
+  key: string,
+): { id: string; label: string } {
+  const field = config.fields.find((item) => item.key === key)
+  const id = textFieldValue(config, employee, key)
+  if (!field || !id) return { id: '', label: '' }
+  const found = findReference(state, employee.organizationId, field.directoryKey, id)
+  return { id, label: found?.label ?? '' }
+}
+
+function employeeSummary(state: MockState, config: PersonnelConfig, employee: Employee) {
+  const position = directoryFact(state, config, employee, 'position')
+  const department = directoryFact(state, config, employee, 'department')
+  const qualification = directoryFact(state, config, employee, 'qualification-status')
+  return {
+    name: fio(config, employee),
+    email: textFieldValue(config, employee, 'email'),
+    personnelNumber: textFieldValue(config, employee, 'personnel-number'),
+    position: position.label,
+    positionId: position.id,
+    department: department.label,
+    departmentId: department.id,
+    qualification: qualification.label,
+    qualificationId: qualification.id,
+    certificationUntil: textFieldValue(config, employee, 'certification-until'),
+  }
 }
 
 function listItem(state: MockState, config: PersonnelConfig, employee: Employee) {
@@ -360,7 +393,14 @@ function listItem(state: MockState, config: PersonnelConfig, employee: Employee)
     else cells[columnId] = value == null ? '' : String(value)
     marks[columnId] = null
   }
-  return { id: employee.id, revision: employee.revision, archived: employee.archived, cells, marks }
+  return {
+    id: employee.id,
+    revision: employee.revision,
+    archived: employee.archived,
+    cells,
+    marks,
+    summary: employeeSummary(state, config, employee),
+  }
 }
 
 export function listEmployees(
@@ -448,7 +488,7 @@ function normalizeValue(field: PersonnelField, raw: unknown): { value: Personnel
 function applyValues(
   state: MockState,
   config: PersonnelConfig,
-  employee: Pick<Employee, 'organizationId' | 'source' | 'values'>,
+  employee: Pick<Employee, 'organizationId' | 'source' | 'values'> & { id?: string },
   raw: unknown,
 ): { values: Record<string, PersonnelValue> } | { error: string; fieldId?: string } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { error: 'invalid_value' }
@@ -485,7 +525,52 @@ function applyValues(
     }
     if (!valueOccupied(value)) return { error: 'required', fieldId: field.id }
   }
+  const duplicate = duplicatePersonnelNumber(state, config, employee, values)
+  if (duplicate) return duplicate
+  const workplace = workplaceDepartment(state, config, employee.organizationId, values)
+  if (workplace) return workplace
   return { values }
+}
+
+function duplicatePersonnelNumber(
+  state: MockState,
+  config: PersonnelConfig,
+  employee: { id?: string; organizationId: number },
+  values: Record<string, PersonnelValue>,
+): { error: string; fieldId: string } | null {
+  const field = config.fields.find((item) => item.key === 'personnel-number' && item.visible && !item.archived)
+  if (!field) return null
+  const value = values[field.id]
+  if (typeof value !== 'string') return null
+  const needle = value.trim().toLowerCase()
+  if (!needle) return null
+  const taken = employees(state).some((item) => {
+    if (item.organizationId !== employee.organizationId || item.archived) return false
+    if (employee.id && item.id === employee.id) return false
+    const current = item.values[field.id]
+    return typeof current === 'string' && current.trim().toLowerCase() === needle
+  })
+  return taken ? { error: 'duplicate_value', fieldId: field.id } : null
+}
+
+function workplaceDepartment(
+  state: MockState,
+  config: PersonnelConfig,
+  organizationId: number,
+  values: Record<string, PersonnelValue>,
+): { error: string; fieldId: string } | null {
+  const field = config.fields.find((item) => item.key === 'workplace' && item.visible && !item.archived)
+  if (!field) return null
+  const workplaceId = values[field.id]
+  if (typeof workplaceId !== 'string' || !workplaceId) return null
+  const workplace = (state.workplaces ?? []).find((item) => item.id === workplaceId && item.organizationId === organizationId)
+  if (!workplace) return { error: 'not_found', fieldId: field.id }
+  if (!workplace.departmentId) return null
+  const departmentField = config.fields.find((item) => item.key === 'department')
+  const departmentId = departmentField && typeof values[departmentField.id] === 'string' ? values[departmentField.id] : ''
+  if (!departmentId || workplace.departmentId === departmentId) return null
+  return { error: 'workplace_department', fieldId: field.id }
+  return null
 }
 
 /** Inserts a card. Manual HTTP creation always uses source manual and an empty external id. */

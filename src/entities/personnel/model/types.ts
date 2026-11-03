@@ -15,6 +15,17 @@ export type DirectorySource =
   | { type: 'manual' }
   | { type: 'registry'; registry: 'departments' | 'workplaces' }
 
+/** Sidebar / table grouping for a directory definition (without the synthetic “all” bucket). */
+export const DIRECTORY_CATALOG_SECTIONS = [
+  'equipment',
+  'test-requests',
+  'org-structure',
+  'personnel',
+  'measurements',
+  'other',
+] as const
+export type DirectoryCatalogSection = (typeof DIRECTORY_CATALOG_SECTIONS)[number]
+
 export type DirectoryField = {
   id: string
   key: string
@@ -33,6 +44,8 @@ export type DirectoryDefinition = {
   revision: number
   fields: DirectoryField[]
   source: DirectorySource
+  /** When set, overrides starter key → section mapping in the reference UI. */
+  sections?: DirectoryCatalogSection[]
   archived: boolean
 }
 
@@ -53,6 +66,8 @@ export type Department = {
   parentId: string | null
   revision: number
   archived: boolean
+  /** User-defined directory field values (registry extensions). */
+  values?: Record<string, string>
 }
 
 export type Workplace = {
@@ -62,6 +77,7 @@ export type Workplace = {
   departmentId: string | null
   revision: number
   archived: boolean
+  values?: Record<string, string>
 }
 
 export type PersonnelTab = {
@@ -121,10 +137,18 @@ export type OrganizationWorkspace = {
 }
 
 export type DirectoryPermissions = {
+  read: boolean
+  /** Manual directories reuse directories.update. Registries use records.create. */
+  create: boolean
   update: boolean
   archive: boolean
   delete: boolean
+  /** Manual directories.structure, or registry schema update. */
   structure: boolean
+  schemaRead: boolean
+  schemaCreate: boolean
+  schemaUpdate: boolean
+  schemaDelete: boolean
 }
 
 export type PersonnelPermissions = {
@@ -143,6 +167,8 @@ export type ReferenceOption = {
   label: string
   archived: boolean
   missing?: boolean
+  /** Set for workplace options so the employee form can keep the selected department. */
+  departmentId?: string | null
 }
 
 export type StarterParts = {

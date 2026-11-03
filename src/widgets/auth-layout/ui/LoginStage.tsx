@@ -7,10 +7,11 @@ export function LoginStage() {
   const { t } = useTranslation()
 
   return (
-    <div className="auth-stage flex h-dvh flex-col overflow-hidden">
+    <div className="auth-stage flex h-dvh flex-col overflow-hidden bg-background text-foreground" data-shell="user">
       <AuthTopBar
+        variant="workspace"
         end={(
-          <span className="hidden items-center gap-2 text-sm text-shell-muted sm:flex">
+          <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
             <LayoutGrid className="h-4 w-4" />
             {t('login-page.corporate-system')}
           </span>

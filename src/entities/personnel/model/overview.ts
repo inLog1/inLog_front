@@ -33,6 +33,8 @@ export type CorporatePersonnelRow = {
   name: string
   email: string
   position: string
+  department: string
+  archived: boolean
   /** Null when role names are hidden. An empty list means no assignment is visible. */
   roles: { id: string; displayName: string }[] | null
   organizationName: string
@@ -129,6 +131,8 @@ export function parseCorporateOverview(response: unknown): CorporateOverview {
       name: text(row.name),
       email: text(row.email),
       position: text(row.position),
+      department: text(row.department),
+      archived: row.archived === true,
       roles: rolesOf(row.roles),
       organizationName: text(row.organizationName),
       organizationShortName: text(row.organizationShortName),

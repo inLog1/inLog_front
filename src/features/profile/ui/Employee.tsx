@@ -211,7 +211,7 @@ const Employee = () => {
     // Компонент скелетона для загрузки
     if (isLoading) {
         return (
-            <div className="container mx-auto py-6 px-4 md:px-6 max-w-4xl">
+            <div className="w-full max-w-4xl py-6">
                 <div className="space-y-6">
                     {/* Заголовок */}
                     <div className="flex items-center gap-4">
@@ -244,7 +244,7 @@ const Employee = () => {
     }
 
     return (
-        <div className="container mx-auto py-6 px-4 md:px-6 max-w-4xl">
+        <div className="w-full max-w-4xl py-6">
             <div className="space-y-6">
                 <div className="flex items-start gap-8 pb-1">
                     <Avatar className="h-24 w-24 border-2 border-border">

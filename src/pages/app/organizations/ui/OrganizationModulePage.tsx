@@ -8,7 +8,7 @@ import { PersonnelSection } from '../../../../features/personnel'
 import { parseRouteId } from '../../../../features/org-project-selector/model/workspace-context'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
-import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
+import { PageState, WorkPage } from '../../../../shared/ui/page'
 
 type ModuleId = 'personnel' | 'reference'
 
@@ -24,7 +24,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   const navigate = useNavigate()
   const [search, setSearch] = useSearchParams()
   const parsed = parseRouteId(params.organizationId ?? null)
-  const title = module === 'personnel' ? t('nav.personnel') : t('nav.reference')
   const organizationId = parsed.kind === 'id' ? parsed.id : null
   const organization = useGetOrganizationByIdQuery(organizationId ?? 0, { skip: organizationId == null })
   const loaded = organization.currentData?.id === organizationId ? organization.currentData : null
@@ -43,6 +42,7 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
       next.set('org', String(selected.id))
       next.set('directoryOrg', String(selected.id))
       next.delete('employee')
+      next.delete('directory')
       navigate({ pathname: path, search: next.toString() }, { replace: true })
       return
     }
@@ -55,7 +55,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   if (parsed.kind === 'absent') {
     return (
       <WorkPage>
-        <PageHeader title={title} />
         <PageState
           kind="empty"
           description={t('settings-page.modules-choose')}
@@ -71,7 +70,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   if (parsed.kind === 'invalid') {
     return (
       <WorkPage>
-        <PageHeader title={title} />
         <PageState kind="empty" description={t('settings-page.modules-invalid')} />
       </WorkPage>
     )
@@ -79,7 +77,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   if (switching || organization.isLoading || organization.isUninitialized) {
     return (
       <WorkPage>
-        <PageHeader title={title} />
         <PageState kind="loading" description={t('workspace.loading')} />
       </WorkPage>
     )
@@ -93,7 +90,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
         : t('settings-page.modules-error')
     return (
       <WorkPage>
-        <PageHeader title={title} />
         <PageState
           kind={status === 404 || status === 403 ? 'empty' : 'error'}
           description={description}
@@ -111,7 +107,6 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   if (getApiMode() !== 'mock') {
     return (
       <WorkPage>
-        <PageHeader title={title} description={scopeLabel} />
         <PageState kind="empty" description={t('personnel.unavailable')} />
       </WorkPage>
     )

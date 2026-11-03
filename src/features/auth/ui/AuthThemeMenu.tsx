@@ -9,10 +9,14 @@ import {
   DropdownMenuTrigger,
 } from '../../../shared/ui/dropdown-menu'
 
-export function AuthThemeMenu() {
+export function AuthThemeMenu({ variant = 'shell' }: { variant?: 'shell' | 'workspace' }) {
   const { t } = useTranslation()
   const { theme, setTheme } = useTheme()
   const Icon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor
+  const triggerClass =
+    variant === 'workspace'
+      ? 'text-shell-header-foreground hover:bg-shell-chip hover:text-shell-header-foreground'
+      : 'text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground'
 
   return (
     <DropdownMenu>
@@ -21,7 +25,7 @@ export function AuthThemeMenu() {
           type="button"
           variant="ghost"
           size="icon"
-          className="text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground"
+          className={triggerClass}
           aria-label={t('login-page.theme')}
         >
           <Icon className="h-4 w-4" />

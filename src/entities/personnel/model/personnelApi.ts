@@ -1,6 +1,7 @@
 import { platformApi } from '../../../shared/api/platformApi'
 import { parseCorporateOverview, type CorporateOverview } from './overview'
 import type {
+  DirectoryCatalogSection,
   DirectoryDefinition,
   DirectoryField,
   DirectoryPermissions,
@@ -47,6 +48,19 @@ export type EmployeeCard = {
   permissions: PersonnelPermissions
 }
 
+export type EmployeeListSummary = {
+  name: string
+  email: string
+  personnelNumber: string
+  position: string
+  positionId: string
+  department: string
+  departmentId: string
+  qualification: string
+  qualificationId: string
+  certificationUntil: string
+}
+
 export type EmployeeListResponse = {
   initialized: boolean
   columns: string[]
@@ -57,15 +71,20 @@ export type EmployeeListResponse = {
     archived: boolean
     cells: Record<string, string>
     marks: Record<string, 'archived' | 'missing' | null>
+    summary: EmployeeListSummary
   }[]
   permissions: PersonnelPermissions
+}
+
+export type DirectoryView = DirectoryDefinition & {
+  permissions: DirectoryPermissions
 }
 
 export type DirectoryListResponse = {
   initialized: boolean
   canInitialize: boolean
   permissions: DirectoryPermissions
-  directories: DirectoryDefinition[]
+  directories: DirectoryView[]
 }
 
 export type DirectoryRecord = {
@@ -83,8 +102,9 @@ export type DirectoryRecord = {
 }
 
 export type DirectoryDetailResponse = {
-  directory: DirectoryDefinition
+  directory: DirectoryView
   records: DirectoryRecord[]
+  usedFieldIds: string[]
   permissions: DirectoryPermissions
 }
 
@@ -117,6 +137,17 @@ export const personnelApi = platformApi.injectEndpoints({
       query: ({ organizationId, directoryId }) => `directories/${directoryId}/?organization=${organizationId}`,
       providesTags: (_result, _error, arg) => [{ type: 'Directories', id: arg.directoryId }],
     }),
+    createDirectoryDefinition: build.mutation<
+      DirectoryDefinition,
+      { organizationId: number; title: string; description?: string; section?: DirectoryCatalogSection }
+    >({
+      query: ({ organizationId, title, description, section }) => ({
+        url: 'directories/',
+        method: 'POST',
+        body: { organizationId, title, description: description ?? '', section: section ?? 'other' },
+      }),
+      invalidatesTags: (_result, _error, arg) => [{ type: 'Directories', id: `org-${arg.organizationId}` }],
+    }),
     createDirectoryRecord: build.mutation<DirectoryRecord, { directoryId: string; body: Record<string, unknown> }>({
       query: ({ directoryId, body }) => ({ url: `directories/${directoryId}/records/`, method: 'POST', body }),
       invalidatesTags: [{ type: 'Directories' }, { type: 'Personnel' }],
@@ -140,6 +171,20 @@ export const personnelApi = platformApi.injectEndpoints({
       query: ({ directoryId, body }) => ({ url: `directories/${directoryId}/`, method: 'PATCH', body }),
       invalidatesTags: [
         { type: 'Directories' },
+        { type: 'Personnel' },
+      ],
+    }),
+    deleteDirectoryDefinition: build.mutation<
+      { id: string },
+      { organizationId: number; directoryId: string; expectedRevision: number }
+    >({
+      query: ({ organizationId, directoryId, expectedRevision }) => ({
+        url: `directories/${directoryId}/?organization=${organizationId}&expectedRevision=${expectedRevision}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'Directories', id: `org-${arg.organizationId}` },
+        { type: 'Directories', id: arg.directoryId },
         { type: 'Personnel' },
       ],
     }),
@@ -197,10 +242,12 @@ export const personnelApi = platformApi.injectEndpoints({
 export const {
   useGetDirectoriesQuery,
   useGetDirectoryQuery,
+  useCreateDirectoryDefinitionMutation,
   useCreateDirectoryRecordMutation,
   useUpdateDirectoryRecordMutation,
   useArchiveDirectoryRecordMutation,
   useDeleteDirectoryRecordMutation,
+  useDeleteDirectoryDefinitionMutation,
   useUpdateDirectoryDefinitionMutation,
   useInitializePersonnelWorkspaceMutation,
   useGetPersonnelConfigQuery,

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
@@ -26,6 +26,14 @@ export function EditOrganizationDialog({
   const [shortName, setShortName] = useState(organization?.shortName ?? '')
   const [address, setAddress] = useState(organization?.address ?? '')
   const [kind, setKind] = useState<'laboratory' | 'customer'>(organization?.kind ?? 'laboratory')
+  useEffect(() => {
+    if (!open || !organization) return
+    setFullName(organization.fullName)
+    setShortName(organization.shortName)
+    setAddress(organization.address)
+    setKind(organization.kind)
+  }, [open, organization])
+
   const dirty = open && organization != null && (
     fullName !== organization.fullName
     || shortName !== organization.shortName

@@ -27,6 +27,7 @@ export function personnelVisible(row: CorporatePersonnelRow, query: string, kind
   return includes(row.name, needle)
     || includes(row.email, needle)
     || includes(row.position, needle)
+    || includes(row.department, needle)
     || includes(roles, needle)
     || includes(row.organizationName, needle)
     || includes(row.organizationShortName, needle)

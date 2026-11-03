@@ -3,6 +3,8 @@
 import * as React from "react"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
+import { enUS, ru } from "react-day-picker/locale"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "../lib/utils"
 import { Button } from "./button"
@@ -28,6 +30,7 @@ interface DatePickerProps {
   defaultMonth?: Date
   fromYear?: number
   toYear?: number
+  triggerProps?: React.ComponentProps<typeof Button>
 }
 
 export function DatePicker({
@@ -43,9 +46,23 @@ export function DatePicker({
   defaultMonth,
   fromYear,
   toYear,
+  triggerProps,
 }: DatePickerProps) {
+  const { t, i18n } = useTranslation()
   const [date, setDate] = React.useState<Date | undefined>(value)
   const [isOpen, setIsOpen] = React.useState(false)
+
+  const calendarLocale = i18n.language?.startsWith("ru") ? ru : enUS
+
+  const yearBounds = React.useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    const minYear = fromYear ?? currentYear - 100
+    const maxYear = toYear ?? currentYear
+    return {
+      startMonth: new Date(minYear, 0, 1),
+      endMonth: new Date(maxYear, 11, 1),
+    }
+  }, [fromYear, toYear])
 
   // Синхронизация внешнего value
   React.useEffect(() => {
@@ -80,16 +97,18 @@ export function DatePicker({
         <PopoverTrigger asChild>
           <Button
             id={id}
+            type="button"
             variant="outline"
             className={cn(
-              "w-full justify-start text-left font-normal px-3 bg-transparent",
+              "h-9 w-full justify-start gap-2 text-left font-normal px-3 bg-transparent",
               !date && "text-muted-foreground",
               disabled && "opacity-50 cursor-not-allowed",
               triggerClassName
             )}
             disabled={disabled}
+            {...triggerProps}
           >
-            <CalendarIcon className={`h-4 w-4 transition-colors text-muted-foreground ${isOpen && "text-primary"}`} />
+            <CalendarIcon className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-colors", isOpen && "text-primary")} />
             {date ? (
               format(date, DATE_VIEW_FORMAT)
             ) : (
@@ -98,38 +117,38 @@ export function DatePicker({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-auto p-0 bg-background" align="start">
-          <div className="p-3">
+        <PopoverContent className="w-auto overflow-visible p-0 bg-background" align="start">
             <Calendar
               mode="single"
               selected={date}
               onSelect={handleSelect}
               defaultMonth={defaultMonth ?? date}
-              className={cn("w-full", calendarClassName)}
-              fromYear={fromYear}
-              toYear={toYear}
+              className={calendarClassName}
+              captionLayout="dropdown"
+              reverseYears
+              startMonth={yearBounds.startMonth}
+              endMonth={yearBounds.endMonth}
+              locale={calendarLocale}
               initialFocus
-              style={{
-                width: '200px', // Фиксированная ширина для одного месяца
-              }}
             />
-          </div>
           <div className="flex items-center justify-end gap-2 p-2 pt-0">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
+              type="button"
               onClick={handleClear}
               className="h-8 px-3"
             >
-              Очистить
+              {t('buttons.clear')}
             </Button>
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               size="sm"
+              type="button"
               onClick={handleApply}
               className="h-8 px-3"
             >
-              Применить
+              {t('buttons.apply')}
             </Button>
           </div>
         </PopoverContent>

@@ -85,6 +85,7 @@ export function HomePage() {
     systemCapabilities: ready && access.data ? access.data.systemCapabilities : [],
     organizationId: workspace.currentOrgId,
     projectId: workspace.currentProjectId,
+    hasOrganizations: workspace.organizations.length > 0 || workspace.currentOrgId != null,
   }
   const explicitProject = workspace.currentProjectId != null
     && workspace.searchParams.get('project') === String(workspace.currentProjectId)
@@ -110,7 +111,7 @@ export function HomePage() {
   const workShowsChoose = !sectionsPending && !hasWork && contextKind === 'choose'
 
   return (
-    <div className="home-refresh flex min-h-full w-full min-w-0 max-w-[1600px] flex-col gap-5 px-4 py-4 md:gap-6 md:px-6 md:py-6 xl:px-8">
+    <div className="home-refresh flex min-h-full w-full min-w-0 max-w-[1600px] flex-col gap-5 py-4 md:gap-6 md:py-6">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight">{t('home.title')}</h1>
         {owner ? (

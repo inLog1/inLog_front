@@ -86,19 +86,19 @@ export function AddEmployeeDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); else onOpenChange(true) }}>
-        <DialogContent className="flex max-h-[min(88vh,820px)] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0">
-          <div className={draft ? 'hidden' : 'contents'}>
+        <DialogContent className="flex h-[min(90vh,920px)] w-[min(1040px,calc(100%-1.5rem))] max-w-[1040px] flex-col gap-0 overflow-hidden p-0">
+          <div className={draft ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
           <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 pr-12 text-left">
-            <DialogTitle>{t('corporation.add-employee')}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle>{t('personnel.dialog-new')}</DialogTitle>
+            <DialogDescription className="sr-only">
               {targets.length === 1 && selected
                 ? t('corporation.add-in-organization', { name: selected.name })
                 : t('corporation.pick-organization-note')}
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex min-h-0 flex-1 flex-col">
             {targets.length > 1 ? (
-              <label className="mb-4 grid max-w-sm gap-1 text-sm">
+              <label className="grid max-w-sm shrink-0 gap-1 px-6 py-3 text-sm">
                 {t('corporation.pick-organization')}
                 <Select value={selected ? String(selected.id) : undefined} onValueChange={(value) => chooseOrganization(Number(value))}>
                   <SelectTrigger aria-label={t('corporation.pick-organization')}>

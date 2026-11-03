@@ -7,6 +7,7 @@ import { TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
+import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
 import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import { withResidentUsers } from './resident-users'
 import type { MockState } from './types'
@@ -35,6 +36,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * edited records and stored role grant lists are left as they are. Role origin is not invented.
  * A ready personal installation also receives the resident accounts when their emails are absent.
  * Those accounts have no grants. Other namespaces are not extended.
+ * Version 11 adds the system-registry grant rows for departments and workplaces.
+ * Stored role grant lists are not extended. directories.* stays on manual directories only.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -308,7 +311,7 @@ function ensureTaskCatalog(record: MockState): MockState {
 function ensurePersonnelCatalog(record: MockState): MockState {
   const grants = Array.isArray(record.grants) ? [...record.grants] : []
   let grantsChanged = false
-  for (const definition of PERSONNEL_GRANT_DEFINITIONS) {
+  for (const definition of [...PERSONNEL_GRANT_DEFINITIONS, ...REGISTRY_GRANT_DEFINITIONS]) {
     if (!grants.some((grant) => grant.id === definition.id)) {
       grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
       grantsChanged = true

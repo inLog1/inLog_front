@@ -21,6 +21,8 @@ const row: CorporatePersonnelRow = {
   name: 'Иванов Иван',
   email: 'ivan@lab.test',
   position: 'Лаборант',
+  department: 'Лаборатория',
+  archived: false,
   roles: [{ id: 'role-1', displayName: 'Исполнитель' }],
   organizationName: 'Лаборатория А',
   organizationShortName: 'Лаб. А',

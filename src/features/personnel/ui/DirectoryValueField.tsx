@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { personnelError, useCreateDirectoryRecordMutation, type DirectoryOptions } from '../../../entities/personnel'
 import { Button } from '../../../shared/ui/button'
 import { DialogTitle } from '../../../shared/ui/dialog'
+import { DirectoryRecordSelect } from '../../../shared/ui/directory-record-select'
 import { Input } from '../../../shared/ui/input'
 
 export function DirectoryValueField({
@@ -35,15 +36,21 @@ export function DirectoryValueField({
   const [createRecord, createState] = useCreateDirectoryRecordMutation()
   const current = option.records.find((item) => item.id === value)
   const choices = option.records.filter((item) => !item.archived || item.id === value)
+  const choiceItems = choices.map((item) => ({
+    id: item.id,
+    label: `${item.label || item.id}${item.archived ? ` (${t('directories.archived')})` : ''}${item.missing ? ` (${t('personnel.missing-value')})` : ''}`,
+  }))
   const registry = option.source.type === 'registry' ? option.source.registry : null
   const departmentChoices = (departments?.records ?? []).filter((item) => !item.archived)
+  const extensionFields = option.fields.filter((field) => field.key === 'custom' && !field.archived)
 
   const save = async () => {
     setError('')
+    const extensionValues = Object.fromEntries(extensionFields.map((field) => [field.id, values[field.id] ?? '']))
     const body = registry === 'departments'
-      ? { organizationId, name, code, parentId: parentId || null }
+      ? { organizationId, name, code, parentId: parentId || null, values: extensionValues }
       : registry === 'workplaces'
-        ? { organizationId, name, departmentId: departmentId || null }
+        ? { organizationId, name, departmentId: departmentId || null, values: extensionValues }
         : { organizationId, values }
     try {
       const created = await createRecord({ directoryId: option.directoryId, body }).unwrap()
@@ -61,26 +68,15 @@ export function DirectoryValueField({
 
   return (
     <div className="grid gap-2">
-      <div className={onRequestAdd ? 'flex flex-wrap items-center gap-x-3 gap-y-1' : 'grid gap-2'}>
-      <select
-        className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm"
+      <DirectoryRecordSelect
+        triggerClassName="min-w-0 w-full"
+        emptyLabel={choices.length === 0 ? t('personnel.empty-options') : t('personnel.choose')}
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{choices.length === 0 ? t('personnel.empty-options') : t('personnel.choose')}</option>
-        {choices.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.label || item.id}{item.archived ? ` (${t('directories.archived')})` : ''}{item.missing ? ` (${t('personnel.missing-value')})` : ''}
-          </option>
-        ))}
-      </select>
-      {onRequestAdd && option.canAdd && !disabled ? (
-        <button type="button" className="shrink-0 text-sm font-medium text-primary hover:underline" onClick={onRequestAdd}>
-          + {t('personnel.add-option', { title: option.title })}
-        </button>
-      ) : null}
-      </div>
+        items={choiceItems}
+        aria-label={option.title}
+        onChange={onChange}
+      />
       {current?.missing ? <p className="text-xs text-muted-foreground">{t('personnel.missing-value')}</p> : null}
       {!onRequestAdd && choices.filter((item) => !item.archived).length === 0 ? <p className="text-xs text-muted-foreground">{t('personnel.empty-options')}</p> : null}
       {!onRequestAdd && option.canAdd && !disabled ? (
@@ -97,17 +93,32 @@ export function DirectoryValueField({
               {registry === 'departments' ? (
                 <>
                   <Input value={code} onChange={(event) => setCode(event.target.value)} placeholder={t('directories.code')} aria-label={t('directories.code')} />
-                  <select className="h-9 rounded-md border border-border bg-background px-2 text-sm" value={parentId} onChange={(event) => setParentId(event.target.value)} aria-label={t('directories.parent')}>
-                    <option value="">{t('directories.no-parent')}</option>
-                    {departmentChoices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
+                  <DirectoryRecordSelect
+                    emptyLabel={t('directories.no-parent')}
+                    value={parentId}
+                    items={departmentChoices.map((item) => ({ id: item.id, label: item.label }))}
+                    aria-label={t('directories.parent')}
+                    onChange={setParentId}
+                  />
                 </>
               ) : (
-                <select className="h-9 rounded-md border border-border bg-background px-2 text-sm" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} aria-label={t('directories.department')}>
-                  <option value="">{t('directories.no-department')}</option>
-                  {departmentChoices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select>
+                <DirectoryRecordSelect
+                  emptyLabel={t('directories.no-department')}
+                  value={departmentId}
+                  items={departmentChoices.map((item) => ({ id: item.id, label: item.label }))}
+                  aria-label={t('directories.department')}
+                  onChange={setDepartmentId}
+                />
               )}
+              {extensionFields.map((field) => (
+                <Input
+                  key={field.id}
+                  value={values[field.id] ?? ''}
+                  placeholder={field.label}
+                  aria-label={field.label}
+                  onChange={(event) => setValues({ ...values, [field.id]: event.target.value })}
+                />
+              ))}
             </>
           ) : option.fields.filter((field) => !field.archived).map((field) => (
             <Input
@@ -156,13 +167,15 @@ export function DirectoryCreatePanel({
   const registry = option.source.type === 'registry' ? option.source.registry : null
   const departmentChoices = (departments?.records ?? []).filter((item) => !item.archived)
   const fields = option.fields.filter((field) => !field.archived)
+  const extensionFields = option.fields.filter((field) => field.key === 'custom' && !field.archived)
 
   const save = async () => {
     setError('')
+    const extensionValues = Object.fromEntries(extensionFields.map((field) => [field.id, values[field.id] ?? '']))
     const body = registry === 'departments'
-      ? { organizationId, name, code, parentId: parentId || null }
+      ? { organizationId, name, code, parentId: parentId || null, values: extensionValues }
       : registry === 'workplaces'
-        ? { organizationId, name, departmentId: departmentId || null }
+        ? { organizationId, name, departmentId: departmentId || null, values: extensionValues }
         : { organizationId, values }
     try {
       const created = await createRecord({ directoryId: option.directoryId, body }).unwrap()
@@ -202,18 +215,25 @@ export function DirectoryCreatePanel({
                   <Input value={code} onChange={(event) => setCode(event.target.value)} aria-label={t('directories.code')} />
                 </label>
               ) : null}
-              <label className="grid gap-1 text-sm sm:col-span-2">
-                {registry === 'departments' ? t('directories.parent') : t('directories.department')}
-                <select
-                  className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              <div className="sm:col-span-2">
+                <DirectoryRecordSelect
+                  label={registry === 'departments' ? t('directories.parent') : t('directories.department')}
+                  emptyLabel={registry === 'departments' ? t('directories.no-parent') : t('directories.no-department')}
                   value={registry === 'departments' ? parentId : departmentId}
-                  aria-label={registry === 'departments' ? t('directories.parent') : t('directories.department')}
-                  onChange={(event) => (registry === 'departments' ? setParentId(event.target.value) : setDepartmentId(event.target.value))}
-                >
-                  <option value="">{registry === 'departments' ? t('directories.no-parent') : t('directories.no-department')}</option>
-                  {departmentChoices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select>
-              </label>
+                  items={departmentChoices.map((item) => ({ id: item.id, label: item.label }))}
+                  onChange={(next) => (registry === 'departments' ? setParentId(next) : setDepartmentId(next))}
+                />
+              </div>
+              {extensionFields.map((field) => (
+                <label key={field.id} className="grid gap-1 text-sm">
+                  {field.label}{field.required ? ' *' : ''}
+                  <Input
+                    value={values[field.id] ?? ''}
+                    aria-label={field.label}
+                    onChange={(event) => setValues({ ...values, [field.id]: event.target.value })}
+                  />
+                </label>
+              ))}
             </>
           ) : fields.map((field) => (
             <label key={field.id} className="grid gap-1 text-sm">

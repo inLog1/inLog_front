@@ -11,6 +11,7 @@ import {
   type TableViewConfig,
   type ViewFilter,
 } from '../../../entities/table-view'
+import { CalendarDatePicker } from '../../../shared/ui/calendar-date-picker'
 import { Button } from '../../../shared/ui/button'
 import { Checkbox } from '../../../shared/ui/checkbox'
 import { Input } from '../../../shared/ui/input'
@@ -164,19 +165,18 @@ export function ViewSettings({
                   })}
                 </select>
               ) : kind === 'date' ? (
-                <Input
-                  type="date"
+                <CalendarDatePicker
                   aria-label={t('tableViews.value')}
-                  value={typeof filter.value === 'string' ? filter.value : ''}
-                  onChange={(event) => setFilter(index, { ...filter, value: event.target.value || null })}
+                  triggerClassName="min-w-0"
+                  value={typeof filter.value === 'string' ? filter.value : null}
+                  onChange={(next) => setFilter(index, { ...filter, value: next })}
                 />
               ) : kind === 'createdAt' ? (
                 <div className="min-w-0 space-y-1">
-                  <Input
-                    type="date"
+                  <CalendarDatePicker
                     aria-label={t('tableViews.value')}
-                    value={createdAtDay(filter.value) ?? ''}
-                    onChange={(event) => setFilter(index, { ...filter, value: event.target.value ? createdAtToken(event.target.value) : null })}
+                    value={createdAtDay(filter.value)}
+                    onChange={(next) => setFilter(index, { ...filter, value: next ? createdAtToken(next) : null })}
                   />
                   <p className="text-xs text-muted-foreground">{t('tableViews.created-at-utc')}</p>
                   {typeof filter.value === 'string' && filter.value !== '' && createdAtDay(filter.value) == null ? (

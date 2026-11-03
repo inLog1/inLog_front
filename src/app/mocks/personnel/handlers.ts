@@ -3,7 +3,9 @@ import { bearer, commit, json, load, MOCK_PREFIX, positiveId, readJson, reply } 
 import { agreedOrganization } from './gate'
 import {
   archiveDirectoryRecord,
+  createDirectoryDefinition,
   createDirectoryRecord,
+  deleteDirectoryDefinition,
   deleteDirectoryRecord,
   initializeWorkspace,
   listDirectories,
@@ -42,6 +44,10 @@ export const personnelHandlers: HttpHandler[] = [
     if (organizationId == null) return json({ code: 'invalid_organization' }, 400)
     return reply(listDirectories(ready, bearer(request), organizationId))
   }),
+  http.post(`${MOCK_PREFIX}/directories/`, async ({ request }) => {
+    const body = await readJson(request)
+    return commit((state) => createDirectoryDefinition(state, bearer(request), body))
+  }),
   http.post(`${MOCK_PREFIX}/personnel/workspace/`, async ({ request }) => {
     const body = await readJson(request)
     const organizationId = typeof body.organizationId === 'number' ? body.organizationId : 0
@@ -57,6 +63,19 @@ export const personnelHandlers: HttpHandler[] = [
   http.patch(`${MOCK_PREFIX}/directories/:directoryId/`, async ({ request, params }) => {
     const body = await readJson(request)
     return commit((state) => updateDirectoryDefinition(state, bearer(request), String(params.directoryId), body))
+  }),
+  http.delete(`${MOCK_PREFIX}/directories/:directoryId/`, async ({ request, params }) => {
+    const ready = await load('directories/:directoryId/')
+    if (ready instanceof Response) return ready
+    const organizationId = organizationQuery(request)
+    if (organizationId == null) return json({ code: 'invalid_organization' }, 400)
+    return commit((state) => deleteDirectoryDefinition(
+      state,
+      bearer(request),
+      organizationId,
+      String(params.directoryId),
+      revisionQuery(request),
+    ))
   }),
   http.post(`${MOCK_PREFIX}/directories/:directoryId/records/`, async ({ request, params }) => {
     const body = await readJson(request)

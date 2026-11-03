@@ -4,6 +4,7 @@ import { directoryFieldId, directoryId, personnelFieldId } from '../../../entiti
 import { createdOrganizationPersonnelPath } from '../../../features/organizations-and-projects/model/created-organization'
 import { switchUser, toSnapshot } from '../auth/flow'
 import { createEmptyInstallation } from '../db/empty-installation'
+import { MOCK_SCHEMA_VERSION } from '../db/constants'
 import { migrateMockDocument } from '../db/migrate'
 import { createSeed } from '../db/seed'
 import type { Employee } from '../../../entities/personnel/model/types'
@@ -11,9 +12,12 @@ import { configureInstallation, createOrganization } from '../installation/servi
 import { ORGANIZATION_ADMINISTRATOR_ROLE_NAME } from '../organizations/organization-admin-role'
 import {
   archiveDirectoryRecord,
+  createDirectoryDefinition,
   createDirectoryRecord,
+  deleteDirectoryDefinition,
   deleteDirectoryRecord,
   listDirectories,
+  updateDirectoryDefinition,
   updateDirectoryRecord,
 } from './directories'
 import {
@@ -392,6 +396,102 @@ describe('personnel and directories', () => {
     expect(crossed.state.departments.find((item) => item.id === childId)?.parentId).toBe(parentId)
   })
 
+  it('deletes a custom directory definition and blocks starter directories', () => {
+    const { state, token, organizationId } = opened()
+    const created = createDirectoryDefinition(state, token, {
+      organizationId,
+      title: 'Станки',
+      description: '',
+      section: 'equipment',
+    })
+    expect(created.status).toBe(201)
+    const body = created.body as { id: string; revision: number }
+    const removed = deleteDirectoryDefinition(created.state, token, organizationId, body.id, body.revision)
+    expect(removed.status).toBe(200)
+    expect(removed.state.directoryDefinitions?.some((item) => item.id === body.id)).toBe(false)
+    const blocked = deleteDirectoryDefinition(removed.state, token, organizationId, directoryId(organizationId, 'positions'), 1)
+    expect((blocked.body as { code?: string }).code).toBe('system_directory')
+  })
+
+  it('stores section on create and update for a custom directory definition', () => {
+    const { state, token, organizationId } = opened()
+    const created = createDirectoryDefinition(state, token, {
+      organizationId,
+      title: 'Станки',
+      description: '',
+      section: 'equipment',
+    })
+    expect(created.status).toBe(201)
+    const body = created.body as { id: string; sections?: string[]; revision: number }
+    expect(body.sections).toEqual(['equipment'])
+    const stored = created.state.directoryDefinitions?.find((item) => item.id === body.id)
+    if (!stored) throw new Error('created directory')
+    const updated = updateDirectoryDefinition(created.state, token, body.id, {
+      organizationId,
+      expectedRevision: body.revision,
+      title: 'Станки',
+      description: '',
+      archived: false,
+      fields: stored.fields.map((field) => ({
+        id: field.id,
+        label: field.label,
+        required: field.required,
+        archived: field.archived,
+        type: field.type,
+      })),
+      section: 'measurements',
+    })
+    expect(updated.status).toBe(200)
+    expect((updated.body as { sections?: string[] }).sections).toEqual(['measurements'])
+  })
+
+  it('adds a custom attribute to a registry directory and keeps system columns intact', () => {
+    const { state, token, organizationId } = opened()
+    const dirId = directoryId(organizationId, 'departments')
+    const listed = listDirectories(state, token, organizationId)
+    const definition = (listed.body as { directories: Array<{ id: string; revision: number; fields: Array<{ id: string; key: string; label: string; required: boolean; archived: boolean; type: 'text' }> }> }).directories
+      .find((item) => item.id === dirId)
+    if (!definition) throw new Error('departments definition')
+    const fields = definition.fields.map((field) => ({
+      id: field.id,
+      label: field.label,
+      required: field.required,
+      archived: field.archived,
+      type: field.type,
+    }))
+    const added = updateDirectoryDefinition(state, token, dirId, {
+      organizationId,
+      expectedRevision: definition.revision,
+      title: 'Подразделения',
+      description: '',
+      archived: false,
+      fields: [...fields, { id: 'new:short', label: 'Краткое название', required: false, archived: false, type: 'text' }],
+    })
+    expect(added.status).toBe(200)
+    const next = (added.body as { fields: Array<{ key: string; label: string }> }).fields
+    expect(next.some((field) => field.key === 'custom' && field.label === 'Краткое название')).toBe(true)
+    expect(next.filter((field) => field.key !== 'custom')).toHaveLength(definition.fields.length)
+    const stored = added.state.directoryDefinitions?.find((item) => item.id === dirId)
+    if (!stored) throw new Error('stored departments')
+    const blocked = updateDirectoryDefinition(added.state, token, dirId, {
+      organizationId,
+      expectedRevision: stored.revision,
+      title: stored.title,
+      description: stored.description,
+      archived: stored.archived,
+      fields: stored.fields
+        .filter((field) => field.key !== 'name')
+        .map((field) => ({
+          id: field.id,
+          label: field.label,
+          required: field.required,
+          archived: field.archived,
+          type: field.type,
+        })),
+    })
+    expect((blocked.body as { code?: string }).code).toBe('system_field')
+  })
+
   it('keeps stored values when the structure changes and rejects a lossy type change', () => {
     const { state, token, organizationId } = opened()
     const config = readPersonnelConfig(state, token, organizationId)
@@ -515,8 +615,10 @@ describe('personnel and directories', () => {
       }],
     }
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(10)
+    expect(migrated?.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
     expect(migrated?.state.roles.find((role) => role.id === 'role-named')?.grantIds).toEqual(['g-projects'])
+    expect(migrated?.state.grants.some((grant) => grant.id === 'g-registry-departments-records-read')).toBe(true)
+    expect(migrated?.state.roles.every((role) => !role.grantIds.some((id) => id.startsWith('g-registry-')))).toBe(true)
     expect(migrated?.state.roles.find((role) => role.id === 'role-named')?.origin).toBeUndefined()
     expect(migrated?.state.organizationWorkspaces.some((item) => item.organizationId === 101)).toBe(true)
     expect(migrated?.state.employees).toEqual([])
@@ -584,5 +686,71 @@ describe('personnel and directories', () => {
     const listed = listDirectories(session.state, session.token, 101)
     expect(listed.status).toBe(200)
     expect((listed.body as { directories: unknown[] }).directories.length).toBeGreaterThan(0)
+  })
+
+  it('keeps a personnel number unique among active cards and rejects a workplace from another department', () => {
+    const { state, token, organizationId } = opened()
+    const department = createDirectoryRecord(state, token, directoryId(organizationId, 'departments'), {
+      organizationId,
+      name: 'Керн',
+      code: 'К',
+      parentId: null,
+    })
+    const departmentId = (department.body as { id: string }).id
+    const other = createDirectoryRecord(department.state, token, directoryId(organizationId, 'departments'), {
+      organizationId,
+      name: 'Флюиды',
+      code: 'Ф',
+      parentId: null,
+    })
+    const otherId = (other.body as { id: string }).id
+    const workplace = createDirectoryRecord(other.state, token, directoryId(organizationId, 'workplaces'), {
+      organizationId,
+      name: 'Стол 1',
+      departmentId: otherId,
+    })
+    const workplaceId = (workplace.body as { id: string }).id
+    const first = createEmployee(workplace.state, token, {
+      organizationId,
+      values: names(organizationId, 'Иванов', 'Иван', {
+        [personnelFieldId(organizationId, 'personnel-number')]: 'T-1',
+        [personnelFieldId(organizationId, 'department')]: departmentId,
+      }),
+    })
+    expect(first.status).toBe(201)
+    const listed = listEmployees(first.state, token, organizationId, false, '')
+    const row = (listed.body as { employees: Array<{ summary: { personnelNumber: string; departmentId: string; name: string } }> }).employees[0]
+    expect(row?.summary).toMatchObject({ personnelNumber: 'T-1', departmentId, name: 'Иванов Иван' })
+    const duplicate = createEmployee(first.state, token, {
+      organizationId,
+      values: names(organizationId, 'Петров', 'Пётр', {
+        [personnelFieldId(organizationId, 'personnel-number')]: 't-1',
+      }),
+    })
+    expect((duplicate.body as { code: string }).code).toBe('duplicate_value')
+    const mismatched = createEmployee(first.state, token, {
+      organizationId,
+      values: names(organizationId, 'Сидоров', 'Сидор', {
+        [personnelFieldId(organizationId, 'personnel-number')]: 'T-2',
+        [personnelFieldId(organizationId, 'department')]: departmentId,
+        [personnelFieldId(organizationId, 'workplace')]: workplaceId,
+      }),
+    })
+    expect((mismatched.body as { code: string }).code).toBe('workplace_department')
+    const created = first.body as { employee: { id: string; revision: number } }
+    const archived = archiveEmployee(first.state, token, created.employee.id, {
+      organizationId,
+      expectedRevision: created.employee.revision,
+      archived: true,
+    })
+    const reused = createEmployee(archived.state, token, {
+      organizationId,
+      values: names(organizationId, 'Петров', 'Пётр', {
+        [personnelFieldId(organizationId, 'personnel-number')]: 'T-1',
+        [personnelFieldId(organizationId, 'department')]: otherId,
+        [personnelFieldId(organizationId, 'workplace')]: workplaceId,
+      }),
+    })
+    expect(reused.status).toBe(201)
   })
 })

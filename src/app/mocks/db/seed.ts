@@ -6,6 +6,7 @@ import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
+import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
 import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import type { MockState } from './types'
 
@@ -108,6 +109,7 @@ export function createSeed(): MockState {
       ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...DIRECTORY_CATALOG_GRANTS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...PERSONNEL_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...REGISTRY_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {

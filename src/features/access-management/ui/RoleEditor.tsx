@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -178,6 +178,10 @@ function RoleForm({
     navigate(listHref, { replace: true })
   }
   const session = useGetSessionAccessQuery(undefined, { skip: import.meta.env.VITE_API_MODE !== 'mock' })
+  useEffect(() => {
+    if (window.location.hash !== '#role-permissions') return
+    document.getElementById('role-permissions')?.scrollIntoView({ block: 'start' })
+  }, [])
   const operatorOwner = session.data?.accessState === 'ready' && session.data.systemCapabilities.includes('corporate_superadmin')
   const offeredIds = new Set(offered.map((item) => item.id))
   const preservedOperational = (initial?.operational ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
@@ -308,7 +312,7 @@ function RoleForm({
         </label>
       </div>
       {!canEdit ? <p className="text-sm text-foreground">{t('access.edit-denied')}</p> : null}
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
+      <div id="role-permissions" className="grid scroll-mt-6 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
         <PermissionSets
           offered={offered}
           delegableIds={delegableIds}

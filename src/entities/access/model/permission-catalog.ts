@@ -18,12 +18,47 @@ export type PermissionGroupId =
   | 'projects'
   | 'personnel'
   | 'directories'
+  | 'system-registries'
+
+export const SYSTEM_REGISTRIES = ['departments', 'workplaces'] as const
+export type SystemRegistryId = (typeof SYSTEM_REGISTRIES)[number]
+
+export function registryRecordsResource(registry: SystemRegistryId): string {
+  return `registry.${registry}.records`
+}
+
+export function registrySchemaResource(registry: SystemRegistryId): string {
+  return `registry.${registry}.schema`
+}
 
 export type CatalogPermission = {
   group: PermissionGroupId
   resource: string
   action: string
   labelKey: string
+  /** Heading inside the group. Used by system registries. */
+  sectionKey?: string
+}
+
+const REGISTRY_RECORD_ACTIONS = ['read', 'create', 'update', 'archive', 'delete'] as const
+const REGISTRY_SCHEMA_ACTIONS = ['read', 'create', 'update', 'delete'] as const
+
+function registryCatalog(registry: SystemRegistryId): CatalogPermission[] {
+  const records = REGISTRY_RECORD_ACTIONS.map((action) => ({
+    group: 'system-registries' as const,
+    sectionKey: registry,
+    resource: registryRecordsResource(registry),
+    action,
+    labelKey: `access.perm.registry.${registry}.records.${action}`,
+  }))
+  const schema = REGISTRY_SCHEMA_ACTIONS.map((action) => ({
+    group: 'system-registries' as const,
+    sectionKey: registry,
+    resource: registrySchemaResource(registry),
+    action,
+    labelKey: `access.perm.registry.${registry}.schema.${action}`,
+  }))
+  return [...records, ...schema]
 }
 
 export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
@@ -82,6 +117,8 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'directories', resource: 'directories', action: 'archive', labelKey: 'access.perm.directories.archive' },
   { group: 'directories', resource: 'directories', action: 'delete', labelKey: 'access.perm.directories.delete' },
   { group: 'directories', resource: 'directories.structure', action: 'update', labelKey: 'access.perm.directories.structure' },
+  ...registryCatalog('departments'),
+  ...registryCatalog('workplaces'),
 ]
 
 export function isOfferedPermission(resource: string, action: string): boolean {

@@ -37,7 +37,7 @@ export function Header({ crumbs, showWorkspace, menuOpen, onOpenMenu }: HeaderPr
           <Menu className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1 text-shell-header-foreground">
-          {crumbs.length > 0 ? <PageCrumbs items={crumbs} /> : null}
+          {crumbs.length > 0 ? <PageCrumbs items={crumbs} tone="shell" /> : null}
         </div>
         <CompactTools className="md:hidden" />
       </div>

@@ -55,6 +55,18 @@ export function allows(
   })
 }
 
+/** Authenticated user inside this installation's organization. Permission is checked by the caller. */
+export function authenticate(
+  state: MockState,
+  token: string | null,
+  organizationId: number,
+): Gate {
+  const who = principal(state, token)
+  if (!who.ok) return who
+  if (!organizationOf(state, organizationId)) return { ok: false, result: problem(state, 404, 'not_found') }
+  return { ok: true, user: who.user }
+}
+
 export function enter(
   state: MockState,
   token: string | null,

@@ -43,8 +43,9 @@ import {
   DropdownMenuTrigger,
 } from '../../../../shared/ui/dropdown-menu'
 import { Input } from '../../../../shared/ui/input'
-import { PageHeader, PageHeading, PageState, WorkPage } from '../../../../shared/ui/page'
+import { PageHeading, PageState, WorkPage } from '../../../../shared/ui/page'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../shared/ui/select'
+import { TabButton } from '../../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
 import { AddEmployeeDialog } from '../../../../features/personnel'
 import { PersonnelComposer } from './PersonnelComposer'
@@ -143,7 +144,7 @@ function MockCorporation() {
     : null
   const editorOpen = edited != null
   const organizations = data.organizations.filter((item) => organizationVisible(item, location.query, location.kind))
-  const personnel = data.personnel.filter((item) => personnelVisible(item, location.query, location.kind))
+  const personnel = data.personnel.filter((item) => !item.archived && personnelVisible(item, location.query, location.kind))
   const showCreate = location.tab === 'organizations' && data.createOrganization
   const showAdd = location.tab === 'personnel' && data.createTargets.length > 0 && !editorOpen
 
@@ -162,7 +163,6 @@ function MockCorporation() {
   return (
     <WorkPage>
       <PageHeading>{t('nav.corporation')}</PageHeading>
-      <PageHeader title={t('nav.corporation')} description={t('corporation.description')} />
       <div className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-end sm:justify-between">
         <div className="flex gap-4" role="tablist" aria-label={t('nav.corporation')}>
           <TabButton active={location.tab === 'organizations'} onClick={() => selectTab('organizations')}>
@@ -339,7 +339,6 @@ function LiveCorporation() {
   return (
     <WorkPage>
       <PageHeading>{t('nav.corporation')}</PageHeading>
-      <PageHeader title={t('nav.corporation')} description={t('corporation.description')} />
       <div className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-end sm:justify-between">
         <div className="flex gap-4" role="tablist" aria-label={t('nav.corporation')}>
           <TabButton active={location.tab === 'organizations'} onClick={() => write({ tab: 'organizations', employee: null, personnelOrg: null })}>
@@ -425,23 +424,6 @@ function LiveCorporation() {
       )}
       <CreateOrganizationDialog open={createOpen} onOpenChange={setCreateOpen} />
     </WorkPage>
-  )
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={cn(
-        'border-b-2 px-1 pb-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   )
 }
 

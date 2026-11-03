@@ -27,7 +27,7 @@ const RootPageLayout = ({
 
   if (navItems.length === 0) {
     return (
-      <div className="h-full min-h-0 w-full min-w-0 overflow-auto p-4">
+      <div className="h-full min-h-0 w-full min-w-0 overflow-auto py-4">
         {children}
       </div>
     )
@@ -51,7 +51,7 @@ const RootPageLayout = ({
           </Link>
         ))}
       </nav>
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-2">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto py-2">
         {children}
       </div>
     </div>

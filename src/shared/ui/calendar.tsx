@@ -17,11 +17,13 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  hideNavigation,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const usesDropdownCaption = captionLayout !== "label"
 
   return (
     <DayPicker
@@ -33,20 +35,32 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
+      hideNavigation={hideNavigation ?? usesDropdownCaption}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString("default", { month: "short" }),
         ...formatters,
       }}
       classNames={{
-        root: cn("w-fit", defaultClassNames.root),
+        root: cn(
+          usesDropdownCaption
+            ? "w-[calc(var(--cell-size)*7)]"
+            : "w-fit",
+          defaultClassNames.root
+        ),
         months: cn(
           "relative flex flex-col gap-4 md:flex-row",
           defaultClassNames.months
         ),
-        month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
+        month: cn(
+          "flex w-full flex-col",
+          usesDropdownCaption ? "gap-2" : "gap-4",
+          defaultClassNames.month
+        ),
         nav: cn(
-          "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+          usesDropdownCaption
+            ? "hidden"
+            : "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
           defaultClassNames.nav
         ),
         button_previous: cn(
@@ -60,15 +74,23 @@ function Calendar({
           defaultClassNames.button_next
         ),
         month_caption: cn(
-          "flex h-[--cell-size] w-full items-center justify-center px-[--cell-size]",
+          "flex w-full items-stretch",
+          usesDropdownCaption
+            ? "min-h-8"
+            : "h-[--cell-size] items-center justify-center px-[--cell-size]",
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "flex h-[--cell-size] w-full items-center justify-center gap-1.5 text-sm font-medium",
+          "grid w-full gap-1.5 text-sm font-medium",
+          usesDropdownCaption
+            ? "min-h-8 grid-cols-2"
+            : "flex h-[--cell-size] items-center justify-center",
           defaultClassNames.dropdowns
         ),
+        months_dropdown: cn("min-w-0 w-full", defaultClassNames.months_dropdown),
+        years_dropdown: cn("min-w-0 w-full", defaultClassNames.years_dropdown),
         dropdown_root: cn(
-          "has-focus:border-ring border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] relative rounded-md border",
+          "has-focus:border-ring border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] relative flex h-8 w-full min-w-0 items-center rounded-md border bg-background",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
@@ -79,9 +101,10 @@ function Calendar({
           "select-none font-medium",
           captionLayout === "label"
             ? "text-sm"
-            : "[&>svg]:text-muted-foreground flex h-8 items-center gap-1 rounded-md pl-2 pr-1 text-sm [&>svg]:size-3.5",
+            : "flex h-8 min-w-0 flex-1 items-center justify-center gap-1 truncate rounded-md px-2 text-sm [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label
         ),
+        month_grid: cn("w-full", defaultClassNames.month_grid),
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(

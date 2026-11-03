@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { cn } from '../../lib/utils'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -36,10 +37,11 @@ export function PageHeader({
   )
 }
 
-export function PageCrumbs({ items }: { items: PageCrumb[] }) {
+export function PageCrumbs({ items, tone = 'inline' }: { items: PageCrumb[]; tone?: 'inline' | 'shell' }) {
+  const shell = tone === 'shell'
   return (
     <Breadcrumb>
-      <BreadcrumbList className="text-xs sm:text-sm">
+      <BreadcrumbList className={shell ? 'text-[1.2rem]' : 'text-xs sm:text-sm'}>
         {items.map((item, index) => {
           const last = index === items.length - 1
           return (
@@ -47,7 +49,10 @@ export function PageCrumbs({ items }: { items: PageCrumb[] }) {
               {index > 0 ? <BreadcrumbSeparator /> : null}
               <BreadcrumbItem className="min-w-0">
                 {last || !item.to ? (
-                  <BreadcrumbPage className="max-w-[14rem] truncate sm:max-w-xs">{item.label}</BreadcrumbPage>
+                  <BreadcrumbPage className={cn(
+                    'truncate',
+                    shell ? 'max-w-full text-[1.2rem] font-semibold' : 'max-w-[14rem] font-normal sm:max-w-xs',
+                  )}>{item.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
                     <Link to={item.to} className="max-w-[10rem] truncate sm:max-w-[14rem]">{item.label}</Link>

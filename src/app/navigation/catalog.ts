@@ -1,4 +1,9 @@
 import { grantAllows } from '../../entities/access/model/grants'
+import {
+  SYSTEM_REGISTRIES,
+  registryRecordsResource,
+  registrySchemaResource,
+} from '../../entities/access/model/permission-catalog'
 import type { EffectiveGrant, SystemCapabilityCode } from '../../entities/access/model/types'
 import { routes } from '../../shared/lib/routes'
 
@@ -42,6 +47,8 @@ export type NavigationInput = {
   systemCapabilities: readonly SystemCapabilityCode[]
   organizationId: number | null
   projectId: number | null
+  /** True when the corporation already has an organization. Personnel and reference use this, not the open card. */
+  hasOrganizations: boolean
 }
 
 export type QuickActionId = 'create-task' | 'open-constructor' | 'build-report'
@@ -329,7 +336,8 @@ function organizationsSection(input: NavigationInput): SectionAccess {
 /**
  * Personnel and reference use their own permissions.
  * organizations.read does not open either module.
- * A selected organization is required. Another organization's existence does not open them.
+ * They stay hidden until the corporation has an organization, and they stay visible after leaving its card.
+ * A selected organization only narrows a grant to that organization.
  */
 function organizationModuleAccess(
   input: NavigationInput,
@@ -337,9 +345,12 @@ function organizationModuleAccess(
   action: string,
 ): SectionAccess {
   if (input.grantsPending) return 'unavailable'
-  if (input.organizationId == null) return 'unavailable'
+  if (!input.hasOrganizations && input.organizationId == null) return 'unavailable'
   if (!input.enforceGrants) return 'not-enforced'
   if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
+  if (input.organizationId == null) {
+    return hasOperational(input.grants, resource, action) ? 'allowed' : 'unavailable'
+  }
   const access = permissionAccess(input, { resource, action }, 'organization')
   return access === 'allowed' ? 'allowed' : 'unavailable'
 }
@@ -377,13 +388,30 @@ function accessSection(input: NavigationInput): SectionAccess {
   return 'unavailable'
 }
 
+function referenceSection(input: NavigationInput): SectionAccess {
+  const reads = [
+    ['directories', 'read'] as const,
+    ...SYSTEM_REGISTRIES.flatMap((registry) => [
+      [registryRecordsResource(registry), 'read'] as const,
+      [registrySchemaResource(registry), 'read'] as const,
+    ]),
+  ]
+  let fallback: SectionAccess = 'unavailable'
+  for (const [resource, action] of reads) {
+    const access = organizationModuleAccess(input, resource, action)
+    if (access === 'allowed' || access === 'not-enforced') return access
+    fallback = access
+  }
+  return fallback
+}
+
 export function sectionAccess(section: AppSection, input: NavigationInput): SectionAccess {
   if (section.surface === 'preserved') return 'unavailable'
   if (section.id === 'home' || section.id === 'profile' || section.id === 'notifications') return 'allowed'
   if (section.id === 'access') return accessSection(input)
   if (section.id === 'organizations-settings') return organizationsSection(input)
   if (section.id === 'organization-personnel') return organizationModuleAccess(input, 'personnel', 'read')
-  if (section.id === 'organization-reference') return organizationModuleAccess(input, 'directories', 'read')
+  if (section.id === 'organization-reference') return referenceSection(input)
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')

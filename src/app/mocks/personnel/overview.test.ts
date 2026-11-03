@@ -191,8 +191,9 @@ describe('corporate personnel overview', () => {
     expect(archived.state.memberships).toBe(editor.state.memberships)
     expect(archived.state.employees.find((item) => item.id === employeeId)?.accountId).toBe(9)
     const after = readCorporateOverview(archived.state, editor.token)
-    const afterBody = after.body as { personnel: { employeeId: string }[]; organizations: { id: number; employeeCount: number | null }[] }
-    expect(afterBody.personnel.some((item) => item.employeeId === employeeId)).toBe(false)
+    const afterBody = after.body as { personnel: { employeeId: string; archived: boolean }[]; organizations: { id: number; employeeCount: number | null }[] }
+    const archivedRow = afterBody.personnel.find((item) => item.employeeId === employeeId)
+    expect(archivedRow?.archived).toBe(true)
     expect(afterBody.organizations.find((item) => item.id === opened.firstId)?.employeeCount).toBe(0)
   })
 })

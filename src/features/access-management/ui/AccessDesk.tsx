@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState, type ReactNode } from 'react'
+import { ArrowRight, Eye, Info, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,12 +12,15 @@ import {
 import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/tabs'
 import { accessErrorKey, accessFailure } from '../model/errors'
-import { permissionSummary } from './permission-summary'
+import { permissionPreview } from './permission-summary'
 import { RoleDeleteDialog } from './RoleDeleteDialog'
 import { scopeLabel } from './scope-label'
 import { UserDirectory } from './UserDirectory'
+
+const NO_ROLES: readonly { id: string; displayName: string }[] = []
 
 type AccessDeskProps = {
   area: 'organization' | 'corporation'
@@ -27,6 +31,8 @@ type AccessDeskProps = {
   roleHref: (roleId: string | 'new') => string
   userHref: (userId: number) => string
 }
+
+const tabTriggerClass = 'rounded-lg px-4 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground'
 
 export function AccessDesk({ area, organizationId, canManageCorporation, installationSuperadmin, onArea, roleHref, userHref }: AccessDeskProps) {
   const { t } = useTranslation()
@@ -58,36 +64,39 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
 
   return (
     <WorkPage>
-      <PageHeader title={t('nav.access')} description={t('access.lead')} />
+      <PageHeader
+        title={t('nav.access')}
+        description={t(tab === 'users' ? 'access.desk-lead-users' : 'access.desk-lead-roles')}
+      />
       {installationSuperadmin ? (
         <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
           <span className="font-medium">{t('access.installation-superadmin')}</span>
           <span className="mt-1 block text-muted-foreground">{t('access.installation-superadmin-note')}</span>
         </p>
       ) : null}
-      <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0" />
-        {canManageCorporation ? (
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant={area === 'organization' ? 'default' : 'outline'} onClick={() => onArea('organization')}>
-              {t('access.area.organization')}
-            </Button>
-            <Button type="button" variant={area === 'corporation' ? 'default' : 'outline'} onClick={() => onArea('corporation')}>
-              {t('access.area.corporation')}
-            </Button>
-          </div>
-        ) : null}
-      </div>
       {area === 'organization' && organizationId == null ? (
         <p className="text-sm text-muted-foreground">{t('access.choose-organization')}</p>
       ) : null}
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start">
-          <TabsTrigger value="roles">{t('access.tabs.roles')}</TabsTrigger>
-          <TabsTrigger value="users">{t('access.tabs.users')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="roles" className="min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="h-auto justify-start gap-1 bg-transparent p-0">
+            <TabsTrigger value="roles" className={tabTriggerClass}>{t('access.tabs.roles')}</TabsTrigger>
+            <TabsTrigger value="users" className={tabTriggerClass}>{t('access.tabs.users')}</TabsTrigger>
+          </TabsList>
+          {canManageCorporation ? (
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t('access.scope.corporation')}>
+              <Button type="button" size="sm" variant={area === 'organization' ? 'default' : 'ghost'} onClick={() => onArea('organization')}>
+                {t('access.area.organization')}
+              </Button>
+              <Button type="button" size="sm" variant={area === 'corporation' ? 'default' : 'ghost'} onClick={() => onArea('corporation')}>
+                {t('access.area.corporation')}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        {area === 'corporation' ? <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p> : null}
+        <AccessGuide kind={tab} />
+        <TabsContent value="roles" className="mt-4 min-w-0">
           <DirectoryGate query={directory} empty={skip}>
             {directoryView ? (
               <RoleList
@@ -99,11 +108,54 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
             ) : null}
           </DirectoryGate>
         </TabsContent>
-        <TabsContent value="users" className="min-w-0">
-          <UserDirectory userHref={userHref} />
+        <TabsContent value="users" className="mt-4 min-w-0">
+          <UserDirectory
+            userHref={userHref}
+            area={area}
+            roles={directoryView?.roles ?? NO_ROLES}
+          />
         </TabsContent>
       </Tabs>
     </WorkPage>
+  )
+}
+
+function AccessGuide({ kind }: { kind: 'roles' | 'users' }) {
+  const { t } = useTranslation()
+  const steps = kind === 'roles'
+    ? [
+        { title: t('access.guide.roles.1'), hint: t('access.guide.roles.1-hint') },
+        { title: t('access.guide.roles.2'), hint: t('access.guide.roles.2-hint') },
+        { title: t('access.guide.roles.3'), hint: t('access.guide.roles.3-hint') },
+      ]
+    : [
+        { title: t('access.guide.users.1'), hint: '' },
+        { title: t('access.guide.users.2'), hint: '' },
+        { title: t('access.guide.users.3'), hint: '' },
+      ]
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-primary/15 bg-primary/10 px-4 py-3 lg:flex-row lg:items-center" role="note">
+      <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-background text-primary">
+          <Info className="size-4" aria-hidden />
+        </span>
+        {kind === 'roles' ? <span>{t('access.guide.roles-title')}</span> : null}
+      </div>
+      <ol className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        {steps.map((step, index) => (
+          <li key={step.title} className="flex items-center gap-2">
+            {index > 0 ? <ArrowRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" aria-hidden /> : null}
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-background text-xs font-semibold text-primary">
+              {index + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{step.title}</span>
+              {step.hint ? <span className="block text-xs text-muted-foreground">{step.hint}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -162,73 +214,100 @@ function RoleList({
       toast.error(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? pendingRole.assignmentCount }))
     }
   }
+  const heading = directory.scope === 'corporation' ? t('access.roles-heading-corporation') : t('access.roles-heading')
   return (
-    <div className="mt-4 flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         {directory.canCreateRole ? (
           <Button asChild>
-            <Link to={roleHref('new')}>{t('access.create-role')}</Link>
+            <Link to={roleHref('new')}><Plus />{t('access.create-role')}</Link>
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground">{t('access.create-denied')}</p>
         )}
       </div>
-      {directory.roles.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.roles-empty')}</p> : null}
-      {directory.roles.length > 0 ? (
-        <div className="min-w-0 overflow-x-auto">
-          <div className="hidden min-w-[40rem] grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] gap-3 px-3 text-xs text-muted-foreground md:grid">
-            <span>{t('access.name')}</span>
-            <span>{t('access.owner')}</span>
-            <span>{t('access.assignments')}</span>
-            <span>{t('access.summary')}</span>
-            <span>{t('access.row-actions')}</span>
-          </div>
-          <ul className="mt-1 flex flex-col gap-2">
-            {directory.roles.map((role) => {
-              const scope = scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)
-              const summary = permissionSummary(role.operational) || t('access.no-permissions')
-              return (
-                <li key={role.id} className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex flex-col gap-2 md:grid md:min-w-[40rem] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] md:items-center md:gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{role.displayName}</p>
-                      {role.description ? <p className="truncate text-xs text-muted-foreground">{role.description}</p> : null}
-                    </div>
-                    <p className="text-sm">{scope}</p>
-                    <p className="text-sm">{t('access.assignment-count', { count: role.assignmentCount })}</p>
-                    <p className="text-sm text-muted-foreground">{summary}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {role.canEdit ? (
-                        <Button asChild variant="outline" size="sm" className="w-fit">
-                          <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
-                        </Button>
-                      ) : null}
-                      {role.canDelete ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-fit"
-                          disabled={deleteState.isLoading}
-                          onClick={() => {
-                            setConflict(false)
-                            setPendingRole(role)
-                          }}
-                        >
-                          {t('access.delete-role')}
-                        </Button>
-                      ) : null}
-                      {!role.canEdit && !role.canDelete ? (
-                        <span className="text-xs text-muted-foreground">{t('access.edit-denied')}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Shield className="size-4 text-muted-foreground" aria-hidden />
+          <h2 className="text-base font-semibold">{heading}</h2>
         </div>
-      ) : null}
+        {directory.roles.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-muted-foreground">{t('access.roles-empty')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-4">{t('access.column-role-name')}</TableHead>
+                  <TableHead>{t('access.column-scope')}</TableHead>
+                  <TableHead>{t('access.column-users')}</TableHead>
+                  <TableHead>{t('access.column-permissions')}</TableHead>
+                  <TableHead className="pr-4">{t('access.row-actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {directory.roles.map((role) => {
+                  const scope = scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)
+                  const preview = permissionPreview(role.operational, t)
+                  return (
+                    <TableRow key={role.id}>
+                      <TableCell className="pl-4">
+                        <p className="font-medium">{role.displayName}</p>
+                        {role.description ? <p className="text-xs text-primary">{role.description}</p> : null}
+                      </TableCell>
+                      <TableCell className="text-sm">{scope}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5 text-sm">
+                          <Users className="size-3.5 text-muted-foreground" aria-hidden />
+                          {role.affectedUserCount}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-xs text-sm text-muted-foreground">
+                        {preview.lead || t('access.no-permissions')}
+                        {preview.extra > 0 ? <span className="ml-1 font-medium text-primary">+{preview.extra}</span> : null}
+                      </TableCell>
+                      <TableCell className="pr-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={roleHref(role.id)}><Eye />{t('access.view-role')}</Link>
+                          </Button>
+                          {role.canEdit ? (
+                            <Button asChild variant="outline" size="sm">
+                              <Link to={roleHref(role.id)}><Pencil />{t('access.edit-role')}</Link>
+                            </Button>
+                          ) : null}
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`${roleHref(role.id)}#role-permissions`}><Shield />{t('access.open-permissions')}</Link>
+                          </Button>
+                          {role.canDelete ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deleteState.isLoading}
+                              aria-label={t('access.delete-role')}
+                              onClick={() => {
+                                setConflict(false)
+                                setPendingRole(role)
+                              }}
+                            >
+                              <Trash2 />
+                            </Button>
+                          ) : null}
+                          {!role.canEdit && !role.canDelete ? (
+                            <span className="text-xs text-muted-foreground">{t('access.edit-denied')}</span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
       <RecentChanges directory={directory} />
       <RoleDeleteDialog
         open={pendingRole != null}

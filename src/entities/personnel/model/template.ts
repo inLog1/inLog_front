@@ -13,6 +13,13 @@ import {
   type StarterParts,
 } from './types'
 
+export const STARTER_DIRECTORY_KEYS = [
+  'departments',
+  'positions',
+  'workplaces',
+  'qualification-status',
+] as const
+
 export function directoryId(organizationId: number, key: string): string {
   return `dir:${organizationId}:${key}`
 }
@@ -176,9 +183,10 @@ export function buildStarter(organizationId: number): StarterParts {
     fields,
     columns: [
       COLUMN_FIO,
-      personnelFieldId(organizationId, 'department'),
       personnelFieldId(organizationId, 'position'),
-      personnelFieldId(organizationId, 'email'),
+      personnelFieldId(organizationId, 'department'),
+      personnelFieldId(organizationId, 'qualification-status'),
+      personnelFieldId(organizationId, 'certification-until'),
       COLUMN_STATE,
     ],
   }

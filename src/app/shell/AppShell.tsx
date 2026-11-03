@@ -92,7 +92,7 @@ function Shell() {
       icon: sectionIcon(item.iconKey),
     }))
     const work = sections.filter((section) => section.group === 'work').map(toLink)
-    const organizationId = navigation.organizationId
+    const organizationId = navigation.organizationId ?? navigation.listedOrganizationId
     const moduleLinks: SidebarLinkModel[] = organizationId == null ? [] : visibleOrganizationModules(navigation).map((section) => ({
       id: section.id,
       label: t(section.labelKey),
@@ -127,10 +127,11 @@ function Shell() {
   const home = sections.find((section) => section.id === 'home')
   const current = sectionByPath(location.pathname)
   const onWorkSection = matchPath({ path: '/workspace/sections/:sectionId', end: true }, location.pathname)
+  const accessDesk = matchPath({ path: routes.settings.access(), end: true }, location.pathname)
   const profileTo = profile ? href(profile.path, 'app') : '/settings/profile'
   const homeTo = home ? href(home.path, 'app') : href(routes.dashboard(), 'app')
   const currentLabel = pageLabel
-    ?? (onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
+    ?? (accessDesk ? null : onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
   const crumbs: PageCrumb[] = currentLabel ? [{ label: currentLabel }] : []
   const accountNote = navigation.systemCapabilities.includes('corporate_superadmin')
     ? t('home.owner-badge')
@@ -151,7 +152,7 @@ function Shell() {
           menuOpen={menuOpen}
           onOpenMenu={openMenu}
         />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background pb-16">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background px-3 pb-16 md:px-4">
           <Outlet />
         </main>
       </div>

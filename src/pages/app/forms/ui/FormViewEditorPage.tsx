@@ -102,7 +102,7 @@ function EditorGate({ viewId }: { viewId: string | null }) {
     after()
   }
   return (
-    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4 p-4 pb-20">
+    <div className="flex min-w-0 max-w-5xl flex-col gap-4 py-4 pb-20">
       <ViewEditor
         key={`${lockedOrg}:${viewId ?? 'new'}`}
         organizationId={lockedOrg}

@@ -26,7 +26,8 @@ export function readCorporateOverview(state: MockState, token: string | null): F
     const readOrganization = allows(state, userId, organization.id, 'organizations', 'read')
     const readPersonnel = allows(state, userId, organization.id, 'personnel', 'read')
     const createPersonnel = allows(state, userId, organization.id, 'personnel', 'create')
-    const active = (state.employees ?? []).filter((item) => item.organizationId === organization.id && !item.archived)
+    const employees = (state.employees ?? []).filter((item) => item.organizationId === organization.id)
+    const active = employees.filter((item) => !item.archived)
     if (readOrganization) {
       cards.push({
         id: organization.id,
@@ -51,7 +52,7 @@ export function readCorporateOverview(state: MockState, token: string | null): F
     if (!readPersonnel) continue
     const config = (state.personnelConfigs ?? []).find((item) => item.organizationId === organization.id)
     if (!config) continue
-    for (const employee of active) {
+    for (const employee of employees) {
       personnel.push(projectRow(state, userId, organization, config, employee))
     }
   }
@@ -60,7 +61,7 @@ export function readCorporateOverview(state: MockState, token: string | null): F
     corporationEmpty: organizations.length === 0,
     createOrganization: can(toSnapshot(state), userId, 'organizations', 'create', { type: 'corporation', corporationId }),
     organizationCount: cards.length,
-    personnelCount: personnel.length,
+    personnelCount: personnel.filter((row) => !row.archived).length,
     organizations: cards,
     createTargets,
     personnel,
@@ -83,7 +84,7 @@ function projectRow(
   userId: number,
   organization: MockOrganization,
   config: PersonnelConfig,
-  employee: { id: string; organizationId: number; revision: number; accountId: number | null; values: Record<string, PersonnelValue> },
+  employee: { id: string; organizationId: number; revision: number; archived: boolean; accountId: number | null; values: Record<string, PersonnelValue> },
 ) {
   const permissions = personnelPermissions(state, userId, organization.id)
   const name = ['last-name', 'first-name', 'patronymic'].map((key) => textValue(config, employee.values, key)).filter(Boolean).join(' ')
@@ -92,6 +93,11 @@ function projectRow(
   const position = positionField?.type === 'directory' && typeof positionId === 'string' && positionId
     ? findReference(state, organization.id, positionField.directoryKey, positionId)?.label ?? ''
     : textValue(config, employee.values, 'position')
+  const departmentField = config.fields.find((item) => item.key === 'department')
+  const departmentId = departmentField ? employee.values[departmentField.id] : null
+  const department = departmentField?.type === 'directory' && typeof departmentId === 'string' && departmentId
+    ? findReference(state, organization.id, departmentField.directoryKey, departmentId)?.label ?? ''
+    : ''
   return {
     employeeId: employee.id,
     organizationId: organization.id,
@@ -99,6 +105,8 @@ function projectRow(
     name,
     email: textValue(config, employee.values, 'email'),
     position,
+    department,
+    archived: employee.archived === true,
     roles: permissions.roles
       ? assignedRoles(state, employee.accountId, organization.id).map((role) => ({ id: role.id, displayName: role.displayName }))
       : null,

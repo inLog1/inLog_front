@@ -35,6 +35,7 @@ function input(patch: Partial<NavigationInput> = {}): NavigationInput {
     grants: [],
     organizationId: null,
     projectId: null,
+    hasOrganizations: false,
     systemCapabilities: [],
     ...patch,
   }
@@ -274,11 +275,19 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(employee).some((item) => item.id === 'profile' || item.id === 'notifications' || item.id === 'access')).toBe(false)
   })
 
-  it('shows organization modules only for the selected organization the subject can read', () => {
+  it('shows personnel and reference once the corporation has an organization the subject can read', () => {
     const personnel = input({ grants: [grant('personnel', 'read')], organizationId: 101 })
     const directories = input({ grants: [grant('directories', 'read')], organizationId: 101 })
     expect(visibleOrganizationModules(personnel).map((item) => item.id)).toEqual(['organization-personnel'])
     expect(visibleOrganizationModules(directories).map((item) => item.id)).toEqual(['organization-reference'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('registry.workplaces.records', 'read')],
+      organizationId: 101,
+    })).map((item) => item.id)).toEqual(['organization-reference'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('registry.workplaces.records', 'create')],
+      organizationId: 101,
+    }))).toEqual([])
     expect(visibleOrganizationModules(input({ grants: [grant('organizations', 'read')], organizationId: 101 }))).toEqual([])
     expect(visibleNavigation(personnel).some((item) => item.id === 'organization-personnel')).toBe(false)
     expect(homeSetupCards(personnel).some((item) => item.id === 'organization-personnel' || item.id === 'organization-reference')).toBe(false)
@@ -296,6 +305,21 @@ describe('navigation catalog', () => {
       'organization-reference',
     ])
     expect(visibleOrganizationModules(input({ systemCapabilities: ['corporate_superadmin'] }))).toEqual([])
+    expect(visibleOrganizationModules(input({
+      systemCapabilities: ['corporate_superadmin'],
+      hasOrganizations: true,
+    })).map((item) => item.id)).toEqual([
+      'organization-personnel',
+      'organization-reference',
+    ])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('personnel', 'read')],
+      hasOrganizations: true,
+    })).map((item) => item.id)).toEqual(['organization-personnel'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('organizations', 'read')],
+      hasOrganizations: true,
+    }))).toEqual([])
     expect(sectionByPath('/settings/organizations')?.id).toBe('organizations-settings')
     expect(sectionByPath('/settings/organizations/101')?.id).toBe('organizations-settings')
     expect(isOrganizationDetailPath('/settings/organizations/101')).toBe(true)
