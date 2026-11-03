@@ -14,8 +14,8 @@
   --popover: #ffffff;
   --popover-foreground: #172235;
 
-  --primary: oklch(0.68 0.18 250);        /* твой #009EF5 */
-  --primary-foreground: oklch(1 0 0);     /* белый текст на primary */
+  --primary: oklch(0.44 0.09 168);        /* глубокий тил, белый текст проходит контраст */
+  --primary-foreground: #ffffff;
 
   --secondary: #EEF2F6;
   --secondary-foreground: #172235;
@@ -23,15 +23,15 @@
   --muted: #F5F7FA;
   --muted-foreground: #596579;
 
-  --accent: oklch(0.72 0.14 190);         /* ≈ --mint-color */
-  --accent-foreground: oklch(1 0 0);
+  --accent: oklch(0.955 0.02 168);
+  --accent-foreground: oklch(0.32 0.05 168);
 
   --destructive: oklch(0.65 0.22 25);     /* ≈ #ff6d6d */
   --destructive-foreground: oklch(1 0 0);
 
   --border: #E2E8F0;
   --input: #E2E8F0;
-  --ring: oklch(0.68 0.18 250);           /* primary для фокуса */
+  --ring: oklch(0.44 0.09 168);
 
   /* Дополнительные из твоего старого проекта (используй как кастомные) */
   --success: oklch(0.68 0.15 145);        /* #34CD84 */
@@ -58,7 +58,7 @@
   --calendar-selected: var(--primary);
   --calendar-selected-text: var(--primary-foreground);
   --calendar-today: var(--accent);
-  --calendar-range-bg: oklch(0.72 0.14 190 / 0.2);
+  --calendar-range-bg: oklch(0.44 0.09 168 / 0.16);
   
   --low-priority: oklch(72.3% 0.219 149.579); 
   --medium-priority: oklch(79.5% 0.184 86.047);
@@ -76,8 +76,8 @@
   --gantt-grid-line-dark: #d1d5db;
   --gantt-hover-bg: #f3f4f6;
   --gantt-selected-bg: #e5e7eb;
-  --gantt-bar-bg: #3b82f6;
-  --gantt-bar-progress: #2563eb;
+  --gantt-bar-bg: #0f766e;
+  --gantt-bar-progress: #115e59;
   --gantt-bar-label: #ffffff;
   --gantt-link-stroke: #9ca3af;
 
@@ -88,15 +88,15 @@
   --shell-line: rgb(255 255 255 / 0.1);
   --shell-subtle: rgb(255 255 255 / 0.1);
   --shell-subtle-hover: rgb(255 255 255 / 0.18);
-  --shell-accent: #0e86d4;
-  --shell-accent-fg: #ffffff;
-  --shell-header: color-mix(in srgb, #0e86d4 16%, white);
-  --shell-header-fg: #1e3a5f;
-  --shell-header-border: color-mix(in srgb, #1e3a5f 12%, transparent);
-  --shell-chip: color-mix(in srgb, #0e86d4 14%, white);
-  --shell-chip-hover: color-mix(in srgb, #0e86d4 22%, white);
-  --shell-chip-fg: #1e3a5f;
-  --shell-chip-icon: #0b7ec4;
+  --shell-accent: oklch(0.95 0.025 168);
+  --shell-accent-fg: oklch(0.34 0.06 168);
+  --shell-header: color-mix(in srgb, oklch(0.44 0.09 168) 10%, white);
+  --shell-header-fg: #172235;
+  --shell-header-border: color-mix(in srgb, #172235 12%, transparent);
+  --shell-chip: color-mix(in srgb, oklch(0.44 0.09 168) 10%, white);
+  --shell-chip-hover: color-mix(in srgb, oklch(0.44 0.09 168) 16%, white);
+  --shell-chip-fg: #172235;
+  --shell-chip-icon: oklch(0.40 0.07 168);
   --shell-divider: rgb(30 58 95 / 0.15);
   --shell-toolbar: #ffffff;
   --shell-toolbar-fg: #1e3a5f;
@@ -105,21 +105,21 @@
 
 /* Авторизованная оболочка. Экран входа остаётся на токенах :root, пока data-shell не задан. */
 [data-shell='user'] {
-  --shell-bg: #ffffff;
-  --shell-fg: #172235;
-  --shell-muted: #596579;
-  --shell-line: #E2E8F0;
-  --shell-subtle: #F5F7FA;
-  --shell-subtle-hover: #E8EEF5;
-  --shell-accent: #E7F1FB;
-  --shell-accent-fg: #0B4F86;
+  --shell-bg: oklch(0.28 0.034 172);
+  --shell-fg: oklch(0.97 0.008 172);
+  --shell-muted: oklch(0.78 0.02 172);
+  --shell-line: oklch(1 0 0 / 0.12);
+  --shell-subtle: oklch(1 0 0 / 0.08);
+  --shell-subtle-hover: oklch(1 0 0 / 0.14);
+  --shell-accent: oklch(0.46 0.09 168);
+  --shell-accent-fg: #ffffff;
   --shell-header: #ffffff;
   --shell-header-fg: #172235;
   --shell-header-border: #E2E8F0;
   --shell-chip: #F5F7FA;
   --shell-chip-hover: #E8EEF5;
   --shell-chip-fg: #172235;
-  --shell-chip-icon: #0B4F86;
+  --shell-chip-icon: oklch(0.40 0.07 168);
   --shell-divider: #E2E8F0;
   --shell-toolbar: #ffffff;
   --shell-toolbar-fg: #172235;
@@ -137,8 +137,8 @@
   --popover: oklch(0.18 0.02 240);
   --popover-foreground: oklch(0.92 0.01 220);
 
-  --primary: oklch(0.68 0.18 250);
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.76 0.11 168);
+  --primary-foreground: oklch(0.20 0.04 168);
 
   --secondary: oklch(0.25 0.02 240);
   --secondary-foreground: oklch(0.92 0.01 220);
@@ -146,15 +146,15 @@
   --muted: oklch(0.22 0.01 240);
   --muted-foreground: #A8B3C4;
 
-  --accent: oklch(0.72 0.14 190 / 0.8);
-  --accent-foreground: oklch(1 0 0);
+  --accent: oklch(0.30 0.04 168);
+  --accent-foreground: oklch(0.94 0.02 168);
 
   --destructive: oklch(0.70 0.20 25);
   --destructive-foreground: oklch(1 0 0);
 
   --border: oklch(0.30 0.02 240);
   --input: oklch(0.30 0.02 240);
-  --ring: oklch(0.68 0.18 250);
+  --ring: oklch(0.76 0.11 168);
 
   --success: oklch(0.68 0.15 145);
   --warning: oklch(0.78 0.18 70);
@@ -172,8 +172,8 @@
   --gantt-grid-line-dark: #4b5563;
   --gantt-hover-bg: #374151;
   --gantt-selected-bg: #4b5563;
-  --gantt-bar-bg: #3b82f6;
-  --gantt-bar-progress: #60a5fa;
+  --gantt-bar-bg: #2dd4bf;
+  --gantt-bar-progress: #5eead4;
   --gantt-bar-label: #ffffff;
   --gantt-link-stroke: #6b7280;
 
@@ -193,15 +193,15 @@
   --calendar-selected: var(--primary);
   --calendar-selected-text: var(--primary-foreground);
   --calendar-today: var(--accent);
-  --calendar-range-bg: oklch(0.72 0.14 190 / 0.15);
+  --calendar-range-bg: oklch(0.76 0.11 168 / 0.18);
 
   --shell-header: color-mix(in srgb, #364f6b 48%, var(--card));
   --shell-header-fg: oklch(0.92 0.01 220);
   --shell-header-border: rgb(255 255 255 / 0.1);
-  --shell-chip: color-mix(in srgb, #0e86d4 42%, #152033);
-  --shell-chip-hover: color-mix(in srgb, #0e86d4 55%, #152033);
+  --shell-chip: color-mix(in srgb, oklch(0.76 0.11 168) 28%, #152033);
+  --shell-chip-hover: color-mix(in srgb, oklch(0.76 0.11 168) 40%, #152033);
   --shell-chip-fg: #f4f8fc;
-  --shell-chip-icon: #9fd4fb;
+  --shell-chip-icon: oklch(0.86 0.08 168);
   --shell-divider: rgb(255 255 255 / 0.22);
   --shell-toolbar: color-mix(in srgb, white 18%, var(--card));
   --shell-toolbar-fg: #f4f8fc;
@@ -222,21 +222,21 @@
   --input: #2C3A4E;
   --secondary: #1C2736;
   --secondary-foreground: #E8EEF6;
-  --shell-bg: #121A26;
-  --shell-fg: #E8EEF6;
-  --shell-muted: #A8B3C4;
-  --shell-line: #2C3A4E;
-  --shell-subtle: #1C2736;
-  --shell-subtle-hover: #243246;
-  --shell-accent: #1A3354;
-  --shell-accent-fg: #D6E8FF;
+  --shell-bg: oklch(0.24 0.03 172);
+  --shell-fg: oklch(0.96 0.01 172);
+  --shell-muted: oklch(0.76 0.02 172);
+  --shell-line: oklch(1 0 0 / 0.1);
+  --shell-subtle: oklch(1 0 0 / 0.07);
+  --shell-subtle-hover: oklch(1 0 0 / 0.12);
+  --shell-accent: oklch(0.50 0.09 168);
+  --shell-accent-fg: #ffffff;
   --shell-header: #121A26;
   --shell-header-fg: #E8EEF6;
   --shell-header-border: #2C3A4E;
   --shell-chip: #1C2736;
   --shell-chip-hover: #243246;
   --shell-chip-fg: #E8EEF6;
-  --shell-chip-icon: #9FC4EE;
+  --shell-chip-icon: oklch(0.86 0.08 168);
   --shell-divider: #2C3A4E;
   --shell-toolbar: #172033;
   --shell-toolbar-fg: #E8EEF6;
@@ -360,6 +360,24 @@
   background: var(--shell-header);
   border-bottom: 1px solid var(--shell-header-border);
   color: var(--shell-header-fg);
+}
+
+/* Рельс пользователя: тил сверху переходит в глубокий сине-зелёный. Платформенная оболочка остаётся сплошной. */
+[data-shell='user'] .app-sidebar {
+  background-color: oklch(0.20 0.05 200);
+  background-image:
+    radial-gradient(140% 70% at -10% -15%, oklch(0.46 0.12 158) 0%, transparent 54%),
+    radial-gradient(85% 50% at 120% 110%, oklch(0.32 0.1 235) 0%, transparent 58%),
+    linear-gradient(172deg, oklch(0.34 0.08 162) 0%, oklch(0.24 0.05 185) 42%, oklch(0.16 0.06 235) 100%);
+}
+
+.dark[data-shell='user'] .app-sidebar,
+.dark [data-shell='user'] .app-sidebar {
+  background-color: oklch(0.16 0.04 205);
+  background-image:
+    radial-gradient(140% 70% at -10% -15%, oklch(0.40 0.11 160) 0%, transparent 56%),
+    radial-gradient(85% 50% at 120% 110%, oklch(0.26 0.09 240) 0%, transparent 60%),
+    linear-gradient(172deg, oklch(0.28 0.07 164) 0%, oklch(0.19 0.045 190) 44%, oklch(0.13 0.055 240) 100%);
 }
 
 /* Ширина совпадает с w-60. min-width: 0 нужен, чтобы flex не держал панель по контенту. */

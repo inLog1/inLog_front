@@ -6,7 +6,7 @@ import { saveDirectoryEmployee, syncDirectory } from '../directory/service'
 import { releaseMockWriter, resetMockNamespace, updateMockState } from '../db/repository'
 import type { MockFault } from '../db/types'
 import { configureInstallation, createOrganization, createProject, InstallationSetupError, installationNeedsOwner } from '../installation/service'
-import { readDirectory, updateOrganizationRecord, updateProjectRecord } from '../organizations/service'
+import { deleteOrganizationRecord, readDirectory, updateOrganizationRecord, updateProjectRecord } from '../organizations/service'
 import { bearer, commit, json, load, MOCK_PREFIX, persistenceFailure, positiveId, readJson, reply, writeSupport } from '../http'
 import { createSalt, digestPassword } from './password'
 import {
@@ -340,6 +340,14 @@ export const authHandlers: HttpHandler[] = [
     const ready = await load('organizations/directory/')
     if (ready instanceof Response) return ready
     return reply(readDirectory(ready, bearer(request)))
+  }),
+
+  http.delete(`${MOCK_PREFIX}/organizations/organization/:id/`, async ({ request, params }) => {
+    const ready = await load('organizations/organization/:id/')
+    if (ready instanceof Response) return ready
+    const id = positiveId(params.id)
+    if (id == null) return json({ code: 'not_found' }, 404)
+    return commit((state) => deleteOrganizationRecord(state, bearer(request), id))
   }),
 
   http.patch(`${MOCK_PREFIX}/organizations/organization/:id/`, async ({ request, params }) => {

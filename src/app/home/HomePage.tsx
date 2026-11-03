@@ -128,7 +128,7 @@ export function HomePage() {
             <h2 className="break-words text-[1.5rem] font-semibold leading-[1.2] sm:text-[1.75rem] lg:text-[2rem]">
               {greeting}
             </h2>
-            <p className="mt-1 text-sm text-[#D7E6FA] sm:text-base">{t('home.workspace')}</p>
+            <p className="mt-1 text-sm text-[var(--home-welcome-muted)] sm:text-base">{t('home.workspace')}</p>
             {userPending && !name ? (
               <span className="mt-3 block h-3 w-40 rounded-full bg-white/25" role="status" aria-label={t('workspace.loading')} />
             ) : null}
@@ -146,7 +146,7 @@ export function HomePage() {
             />
           </div>
           {owner ? (
-            <p className="max-w-xs text-sm leading-snug text-[#D7E6FA] lg:border-l lg:border-white/40 lg:pl-5">
+            <p className="max-w-xs text-sm leading-snug text-[var(--home-welcome-muted)] lg:border-l lg:border-white/40 lg:pl-5">
               {t('home.full-access')}
             </p>
           ) : null}
@@ -406,7 +406,7 @@ function WelcomeContext({
           <span className="break-words">{project}</span>
         </span>
       ) : (
-        <span className="inline-flex max-w-full items-center rounded-full bg-white/10 px-3 py-1.5 text-sm text-[#D7E6FA] ring-1 ring-inset ring-white/20">
+        <span className="inline-flex max-w-full items-center rounded-full bg-white/10 px-3 py-1.5 text-sm text-[var(--home-welcome-muted)] ring-1 ring-inset ring-white/20">
           {t('home.choose-project')}
         </span>
       )}

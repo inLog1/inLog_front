@@ -16,6 +16,8 @@ const GROUPS: PermissionGroupId[] = [
   'access',
   'organizations',
   'projects',
+  'personnel',
+  'directories',
 ]
 
 type PermissionSetsProps = {

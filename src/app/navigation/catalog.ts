@@ -28,6 +28,8 @@ export type AppSection = {
   context: SectionContext
   /** navigation is the sidebar. nested stays inside a working section. preserved is a direct URL only. account is the profile and notification entry, not a menu row. */
   surface: SectionSurface
+  /** False keeps the route and its grants, and hides the sidebar, home card and matching shortcut. */
+  listed?: boolean
 }
 
 export type NavigationInput = {
@@ -87,6 +89,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
+    listed: false,
   },
   {
     id: 'sections',
@@ -96,6 +99,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
+    listed: false,
   },
   {
     id: 'constructor',
@@ -105,11 +109,12 @@ export const APP_SECTIONS: readonly AppSection[] = [
     group: 'settings',
     context: 'organization',
     surface: 'navigation',
+    listed: false,
   },
   {
     id: 'organizations-settings',
-    labelKey: 'nav.organizations',
-    descriptionKey: 'nav.organizations-description',
+    labelKey: 'nav.corporation',
+    descriptionKey: 'nav.corporation-description',
     path: routes.settings.organizations(),
     group: 'settings',
     context: 'none',
@@ -284,6 +289,13 @@ const ORGANIZATION_PERMISSIONS = [
   ['organizations', 'update'],
 ] as const
 
+const PERSONNEL_SCREEN_PERMISSIONS = [
+  ['personnel', 'read'],
+  ['personnel', 'create'],
+  ['personnel', 'update'],
+  ['personnel', 'archive'],
+] as const
+
 const PROJECT_PERMISSIONS = [
   ['projects', 'read'],
   ['projects', 'create'],
@@ -298,41 +310,46 @@ const ROLE_PERMISSIONS = [
 ] as const
 
 /**
- * The management screen does not need a selected organization.
- * A delegation is not an operational grant, so it does not open the screen.
- * The role display name is not an input.
+ * The corporation screen does not need a selected organization.
+ * Organization and personnel rights open it independently and do not grant each other.
+ * A delegation is not an operational grant. The role display name is not an input.
  */
 function organizationsSection(input: NavigationInput): SectionAccess {
   if (!input.enforceGrants) return 'not-enforced'
   if (input.grantsPending) return 'unavailable'
   if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
+  const screenPermissions = [...ORGANIZATION_PERMISSIONS, ...PERSONNEL_SCREEN_PERMISSIONS]
   const allowed = input.grants.some((grant) =>
-    ORGANIZATION_PERMISSIONS.some(([resource, action]) => grant.resource === resource && grant.action === action)
+    screenPermissions.some(([resource, action]) => grant.resource === resource && grant.action === action)
     && (grant.scope.type === 'project' || grant.scope.type === 'organization' || grant.scope.type === 'corporation'),
   )
   return allowed ? 'allowed' : 'unavailable'
 }
 
 /**
- * Personnel and reference stubs share this check.
- * Replace the organizations.read call when those modules get their own permissions.
- * A selected organization is required. Another organization's existence does not open the stubs.
+ * Personnel and reference use their own permissions.
+ * organizations.read does not open either module.
+ * A selected organization is required. Another organization's existence does not open them.
  */
-function organizationModuleSection(input: NavigationInput): SectionAccess {
+function organizationModuleAccess(
+  input: NavigationInput,
+  resource: string,
+  action: string,
+): SectionAccess {
   if (input.grantsPending) return 'unavailable'
   if (input.organizationId == null) return 'unavailable'
   if (!input.enforceGrants) return 'not-enforced'
   if (input.systemCapabilities.includes('corporate_superadmin')) return 'allowed'
-  const access = permissionAccess(input, { resource: 'organizations', action: 'read' }, 'organization')
+  const access = permissionAccess(input, { resource, action }, 'organization')
   return access === 'allowed' ? 'allowed' : 'unavailable'
 }
 
 export function visibleOrganizationModules(input: NavigationInput): AppSection[] {
-  const access = organizationModuleSection(input)
-  if (access !== 'allowed' && access !== 'not-enforced') return []
-  return APP_SECTIONS.filter((section) =>
-    section.id === 'organization-personnel' || section.id === 'organization-reference',
-  )
+  return APP_SECTIONS.filter((section) => {
+    if (section.id !== 'organization-personnel' && section.id !== 'organization-reference') return false
+    const access = sectionAccess(section, input)
+    return access === 'allowed' || access === 'not-enforced'
+  })
 }
 
 /** Direct project management. Menu visibility is separate and does not grant this. */
@@ -365,9 +382,8 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.id === 'home' || section.id === 'profile' || section.id === 'notifications') return 'allowed'
   if (section.id === 'access') return accessSection(input)
   if (section.id === 'organizations-settings') return organizationsSection(input)
-  if (section.id === 'organization-personnel' || section.id === 'organization-reference') {
-    return organizationModuleSection(input)
-  }
+  if (section.id === 'organization-personnel') return organizationModuleAccess(input, 'personnel', 'read')
+  if (section.id === 'organization-reference') return organizationModuleAccess(input, 'directories', 'read')
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
@@ -382,7 +398,7 @@ export function sectionIsNavigable(access: SectionAccess): boolean {
 
 export function visibleNavigation(input: NavigationInput): AppSection[] {
   return APP_SECTIONS.filter((section) =>
-    section.surface === 'navigation' && sectionIsNavigable(sectionAccess(section, input)),
+    section.surface === 'navigation' && section.listed !== false && sectionIsNavigable(sectionAccess(section, input)),
   )
 }
 
@@ -411,7 +427,8 @@ function actionVisible(
 export function visibleQuickActions(input: NavigationInput): QuickActionId[] {
   const actions: QuickActionId[] = []
   if (actionVisible(input, TASKS_READ, TASKS_CREATE, 'project')) actions.push('create-task')
-  if (actionVisible(input, SCHEMA_READ, SCHEMA_READ, 'organization')) actions.push('open-constructor')
+  const constructor = APP_SECTIONS.find((section) => section.id === 'constructor')
+  if (constructor?.listed !== false && actionVisible(input, SCHEMA_READ, SCHEMA_READ, 'organization')) actions.push('open-constructor')
   if (actionVisible(input, REPORTS_READ, REPORTS_GENERATE, 'organization')) actions.push('build-report')
   return actions
 }
@@ -446,6 +463,21 @@ function sectionMatchScore(pattern: string, path: string): number | null {
   }
   if (pathParts.length !== patternParts.length && patternParts.some((part) => part.startsWith(':'))) return null
   return patternParts.length
+}
+
+/** Organization card, not a personnel or reference module. */
+export function isOrganizationDetailPath(pathname: string): boolean {
+  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  return /^\/settings\/organizations\/[1-9]\d*$/.test(path)
+}
+
+/** Organization id carried by a settings path, including its personnel and reference pages. */
+export function organizationIdFromPath(pathname: string): number | null {
+  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  const match = /^\/settings\/organizations\/([1-9]\d*)(?:\/|$)/.exec(path)
+  if (!match) return null
+  const id = Number(match[1])
+  return Number.isSafeInteger(id) ? id : null
 }
 
 export function sectionByPath(pathname: string): AppSection | null {

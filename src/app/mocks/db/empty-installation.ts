@@ -61,6 +61,13 @@ export function createEmptyInstallation(namespace: string): MockState {
     sectionDrafts: [],
     sectionVersions: [],
     notifications: [],
+    departments: [],
+    workplaces: [],
+    directoryDefinitions: [],
+    directoryEntries: [],
+    personnelConfigs: [],
+    employees: [],
+    organizationWorkspaces: [],
     fault: null,
   }
 }

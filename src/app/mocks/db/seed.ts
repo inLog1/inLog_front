@@ -5,6 +5,8 @@ import { SECTION_DELEGATION_IDS, SECTION_GRANT_DEFINITIONS } from './section-gra
 import { TABLE_VIEW_DELEGATION_IDS, TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constants'
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
+import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
+import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import type { MockState } from './types'
 
 const corporation = { type: 'corporation' as const, corporationId: 1 }
@@ -105,6 +107,7 @@ export function createSeed(): MockState {
       ...SECTION_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...ROLE_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       ...DIRECTORY_CATALOG_GRANTS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
+      ...PERSONNEL_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
     ],
     roles: [
       {
@@ -200,10 +203,18 @@ export function createSeed(): MockState {
     sectionDrafts: [],
     sectionVersions: [],
     notifications: [],
+    departments: [],
+    workplaces: [],
+    directoryDefinitions: [],
+    directoryEntries: [],
+    personnelConfigs: [],
+    employees: [],
+    organizationWorkspaces: [],
     fault: null,
   }
-  return {
+  const withPasswords = {
     ...state,
     users: state.users.map((user) => ({ ...user, fixturePassword: true })),
   }
+  return ensureOrganizationWorkspaces(withPasswords)
 }

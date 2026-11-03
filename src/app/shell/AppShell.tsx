@@ -8,6 +8,7 @@ import { sectionIcon } from '../../features/section-builder/ui/icons'
 import { useOrganizationSectionLinks } from '../navigation/use-section-navigation'
 import {
   APP_SECTIONS,
+  isOrganizationDetailPath,
   sectionByPath,
   showsProjectSelector,
   visibleNavigation,
@@ -104,11 +105,17 @@ function Shell() {
       icon: ICONS[section.id] ?? Building2,
       end: true,
     }))
-    const settings = sections.filter((section) => section.group === 'settings').map((section) => {
+    const settings: SidebarLinkModel[] = []
+    let modulesPlaced = false
+    for (const section of sections.filter((item) => item.group === 'settings')) {
       const link = toLink(section)
-      if (section.id !== 'organizations-settings') return link
-      return { ...link, end: true, children: moduleLinks }
-    })
+      settings.push(section.id === 'organizations-settings' ? { ...link, end: true, alsoActive: isOrganizationDetailPath } : link)
+      if (section.id === 'organizations-settings') {
+        settings.push(...moduleLinks)
+        modulesPlaced = true
+      }
+    }
+    if (!modulesPlaced) settings.push(...moduleLinks)
     return [
       { id: 'primary', label: t('home.title'), items: primary.map(toLink) },
       { id: 'work', label: t('shell.work'), items: [...published, ...work] },
@@ -122,12 +129,9 @@ function Shell() {
   const onWorkSection = matchPath({ path: '/workspace/sections/:sectionId', end: true }, location.pathname)
   const profileTo = profile ? href(profile.path, 'app') : '/settings/profile'
   const homeTo = home ? href(home.path, 'app') : href(routes.dashboard(), 'app')
-  const area = t('shell.area')
   const currentLabel = pageLabel
     ?? (onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
-  const crumbs: PageCrumb[] = currentLabel
-    ? [{ label: area, to: homeTo }, { label: currentLabel }]
-    : [{ label: area }]
+  const crumbs: PageCrumb[] = currentLabel ? [{ label: currentLabel }] : []
   const accountNote = navigation.systemCapabilities.includes('corporate_superadmin')
     ? t('home.owner-badge')
     : undefined
@@ -143,7 +147,7 @@ function Shell() {
       <div className="flex h-full min-w-0 flex-1 flex-col">
         <Header
           crumbs={crumbs}
-          showProject={showsProjectSelector(location.pathname)}
+          showWorkspace={showsProjectSelector(location.pathname)}
           menuOpen={menuOpen}
           onOpenMenu={openMenu}
         />

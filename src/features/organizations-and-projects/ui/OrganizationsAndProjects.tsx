@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Building2, FolderOpen, Loader2, MapPin, Pencil, Plus } from 'lucide-react'
 import { useGetOrganizationDirectoryQuery, useGetOrganizationsQuery } from '../../../entities/organization/model/organizationSlice'
 import type { DirectoryOrganization, DirectoryProject, OrganizationDirectory } from '../../../entities/organization/model/directory'
@@ -15,8 +15,7 @@ import { CreateProjectDialog } from './CreateProjectDialog'
 import { EditOrganizationDialog } from './EditOrganizationDialog'
 import { EditProjectDialog } from './EditProjectDialog'
 import { DIRECTORY_FOCUS_PARAM, resolveDirectoryFocus } from '../model/directory-focus'
-import { OrganizationModuleNav } from './OrganizationModuleNav'
-
+import { createdOrganizationPersonnelPath } from '../model/created-organization'
 export type DirectoryMode = 'organizations' | 'projects'
 
 function selectOrganization(current: URLSearchParams, organizationId: number) {
@@ -53,6 +52,7 @@ function MockDirectory({ mode }: { mode: DirectoryMode }) {
 
 function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; mode: DirectoryMode }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [createOrg, setCreateOrg] = useState(false)
@@ -89,6 +89,9 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
   const choose = (organizationId: number) => {
     setSearchParams((current) => selectOrganization(current, organizationId), { replace: true })
   }
+  const openCreated = (organizationId: number) => {
+    navigate(createdOrganizationPersonnelPath(organizationId))
+  }
   useEffect(() => {
     if (searchParams.get(DIRECTORY_FOCUS_PARAM)) return
     const org = searchParams.get('org')
@@ -108,7 +111,7 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
           title={t('settings-page.projects-need-organization')}
           action={(
             <Button asChild>
-              <Link to={routes.settings.organizations()}>{t('nav.organizations')}</Link>
+              <Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link>
             </Button>
           )}
           dialog={null}
@@ -128,7 +131,7 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
           <CreateOrganizationDialog
             open={createOrg}
             onOpenChange={setCreateOrg}
-            onCreated={(organizationId) => choose(organizationId)}
+            onCreated={openCreated}
           />
         )}
       />
@@ -253,9 +256,6 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
           </header>
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
-          {mode === 'organizations' && focus.status === 'open' && selected ? (
-            <OrganizationModuleNav organizationId={selected.id} />
-          ) : null}
           {mode === 'projects' && focus.status === 'open' ? (
             <ProjectList
               projects={selectedProjects}
@@ -270,7 +270,7 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
         </div>
       </section>
       {mode === 'organizations' ? (
-        <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} />
+        <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} />
       ) : null}
       {mode === 'projects' ? (
         <CreateProjectDialog
@@ -385,6 +385,7 @@ function OrganizationRow({
 
 function LiveDirectory({ mode }: { mode: DirectoryMode }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOrg, setCreateOrg] = useState(false)
   const [createProjectFor, setCreateProjectFor] = useState<number | null>(null)
@@ -399,6 +400,9 @@ function LiveDirectory({ mode }: { mode: DirectoryMode }) {
   const projectRows = mode === 'projects' && projects.originalArgs?.organization === selectedId ? (projects.currentData ?? []) : []
   const choose = (organizationId: number) => {
     setSearchParams((current) => selectOrganization(current, organizationId), { replace: true })
+  }
+  const openCreated = (organizationId: number) => {
+    navigate(createdOrganizationPersonnelPath(organizationId))
   }
   useEffect(() => {
     if (searchParams.get(DIRECTORY_FOCUS_PARAM)) return
@@ -420,7 +424,7 @@ function LiveDirectory({ mode }: { mode: DirectoryMode }) {
           title={t('settings-page.projects-need-organization')}
           action={(
             <Button asChild>
-              <Link to={routes.settings.organizations()}>{t('nav.organizations')}</Link>
+              <Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link>
             </Button>
           )}
           dialog={null}
@@ -436,7 +440,7 @@ function LiveDirectory({ mode }: { mode: DirectoryMode }) {
             {t('settings-page.owner-empty-action')}
           </Button>
         )}
-        dialog={<CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} />}
+        dialog={<CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} />}
       />
     )
   }
@@ -469,7 +473,6 @@ function LiveDirectory({ mode }: { mode: DirectoryMode }) {
         {selected ? (
           <div>
             <h2 className="break-words text-xl font-semibold">{selected.fullName}</h2>
-            {mode === 'organizations' ? <div className="mt-4"><OrganizationModuleNav organizationId={selected.id} /></div> : null}
             {mode === 'projects' ? (
               <>
                 <Button className="mt-4" onClick={() => setCreateProjectFor(selected.id)}>
@@ -489,7 +492,7 @@ function LiveDirectory({ mode }: { mode: DirectoryMode }) {
           <p className="text-sm text-muted-foreground">{t('settings-page.select-organization-first')}</p>
         ) : null}
       </section>
-      {mode === 'organizations' ? <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} /> : null}
+      {mode === 'organizations' ? <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} /> : null}
       {mode === 'projects' ? (
         <CreateProjectDialog
           open={createProjectFor != null}

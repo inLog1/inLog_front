@@ -491,7 +491,10 @@ export function updateRole(state: MockState, token: string | null, roleId: strin
   if (!owner || !can(snapshot, who.user.id, 'roles', 'update', owner)) return fail(state, 403, 'forbidden')
   if (write.ownerScope && !sameScope(write.ownerScope, owner)) return fail(state, 403, 'scope_expansion')
   if (!grantsFitRole(state, current, write)) return fail(state, 403, 'forbidden')
-  const role = nextRole(current.id, write, current.ownerScope)
+  const role: AccessRole = {
+    ...nextRole(current.id, write, current.ownerScope),
+    ...(current.origin ? { origin: current.origin } : {}),
+  }
   const affected = state.assignments.filter((item) => item.roleId === current.id)
   for (const assignment of affected) {
     if (!scopeCovers(owner, assignment.scope, snapshot.projects, snapshot.organizations)) {

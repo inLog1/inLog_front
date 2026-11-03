@@ -20,6 +20,7 @@ import TasksPage from '../../pages/dashboard/scheduler/tasks'
 import TemplatesPage from '../../pages/dashboard/scheduler/templates'
 import SettingsPage from '../../pages/dashboard/settings'
 import OrganizationsPage from '../../pages/dashboard/settings/organizations'
+import { OrganizationDetailPage } from '../../pages/app/organizations/ui/OrganizationDetailPage'
 import { OrganizationModulePage } from '../../pages/app/organizations/ui/OrganizationModulePage'
 import { ProjectManagementRoute } from './ProjectManagementRoute'
 import ProfilePage from '../../pages/dashboard/settings/profile'
@@ -112,6 +113,7 @@ export function AppRouter() {
               <Route path={routes.settings.organizationReference(':organizationId')} element={<OrganizationModulePage module="reference" />} />
               <Route path="/settings/organizations/personnel" element={<OrganizationModulePage module="personnel" />} />
               <Route path="/settings/organizations/reference" element={<OrganizationModulePage module="reference" />} />
+              <Route path={routes.settings.organization(':organizationId')} element={<OrganizationDetailPage />} />
               <Route path={routes.settings.organizations()} element={<OrganizationsPage />} />
               <Route path={routes.settings.projects()} element={<ProjectManagementRoute />} />
               <Route path={routes.settings.organizationsAndProjects()} element={<RedirectKeepingSearch to={routes.settings.organizations()} />} />

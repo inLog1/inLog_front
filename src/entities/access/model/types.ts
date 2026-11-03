@@ -50,6 +50,11 @@ export type AccessRole = {
    * A missing value is not a grant and is not filled in by migration.
    */
   ownerScope?: AccessScope
+  /**
+   * Set only by the organization starter role. Absent on older roles.
+   * A display name is not this marker, and migration does not fill it in.
+   */
+  origin?: { template: 'organization-administrator' }
 }
 
 export type AccessAuditAction =

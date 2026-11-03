@@ -116,6 +116,10 @@ function canUpdateOrganizationRecord(state: MockState, userId: number, organizat
   return can(toSnapshot(state), userId, 'organizations', 'update', organizationScope(organization))
 }
 
+function canDeleteOrganizationRecord(state: MockState, userId: number, organization: MockOrganization): boolean {
+  return can(toSnapshot(state), userId, 'organizations', 'delete', organizationScope(organization))
+}
+
 function canReadProjectRecord(state: MockState, userId: number, project: MockProject): boolean {
   return can(toSnapshot(state), userId, 'projects', 'read', projectScope(project))
 }
@@ -235,6 +239,71 @@ export function updateOrganizationRecord(
       kind: next.kind,
       revision: next.revision,
     },
+  }
+}
+
+function scopeBelongsToOrganization(scope: AccessScope | undefined, organizationId: number): boolean {
+  if (!scope || (scope.type !== 'organization' && scope.type !== 'project')) return false
+  return scope.organizationId === organizationId
+}
+
+/**
+ * Removes one organization and the records that exist only inside it.
+ * Update does not imply this. The organization administrator role does not receive it.
+ */
+export function deleteOrganizationRecord(
+  state: MockState,
+  token: string | null,
+  organizationId: number,
+): FlowResult {
+  const who = principal(state, token)
+  if (!who.ok) return who.result
+  const corporationId = verifiedInstallationId(state)
+  if (corporationId == null) return fail(state, 403, 'forbidden')
+  const organization = installationOrganizations(state, corporationId).find((item) => item.id === organizationId)
+  if (!organization) return fail(state, 404, 'not_found')
+  if (!canDeleteOrganizationRecord(state, who.user.id, organization)) return fail(state, 403, 'forbidden')
+  const projectIds = new Set(state.projects.filter((item) => item.organizationId === organizationId).map((item) => item.id))
+  const taskIds = new Set(state.tasks.filter((item) => projectIds.has(item.projectId)).map((item) => item.id))
+  const formIds = new Set(state.forms.filter((item) => item.organizationId === organizationId).map((item) => item.id))
+  const sectionIds = new Set(state.sections.filter((item) => item.organizationId === organizationId).map((item) => item.id))
+  return {
+    state: {
+      ...state,
+      organizations: state.organizations.filter((item) => item.id !== organizationId),
+      projects: state.projects.filter((item) => item.organizationId !== organizationId),
+      memberships: state.memberships.filter((item) => item.organizationId !== organizationId),
+      roles: state.roles.filter((item) => !scopeBelongsToOrganization(item.ownerScope, organizationId)),
+      assignments: state.assignments.filter((item) => !scopeBelongsToOrganization(item.scope, organizationId)),
+      delegations: state.delegations.filter((item) => !scopeBelongsToOrganization(item.grant.scope, organizationId)),
+      taskStatuses: state.taskStatuses.filter((item) => !projectIds.has(item.projectId)),
+      taskTags: state.taskTags.filter((item) => !projectIds.has(item.projectId)),
+      tasks: state.tasks.filter((item) => !projectIds.has(item.projectId)),
+      taskComments: state.taskComments.filter((item) => !taskIds.has(item.taskId)),
+      taskFiles: state.taskFiles.filter((item) => !taskIds.has(item.taskId)),
+      constructorNodes: state.constructorNodes.filter((item) => item.organizationId !== organizationId),
+      constructorTabs: state.constructorTabs.filter((item) => item.organizationId !== organizationId),
+      constructorFields: state.constructorFields.filter((item) => item.organizationId !== organizationId),
+      constructorRecords: state.constructorRecords.filter((item) => item.organizationId !== organizationId),
+      forms: state.forms.filter((item) => item.organizationId !== organizationId),
+      formDrafts: state.formDrafts.filter((item) => !formIds.has(item.formId)),
+      formVersions: state.formVersions.filter((item) => item.organizationId !== organizationId),
+      formRecords: state.formRecords.filter((item) => item.organizationId !== organizationId),
+      tableViews: state.tableViews.filter((item) => item.organizationId !== organizationId),
+      sections: state.sections.filter((item) => item.organizationId !== organizationId),
+      sectionDrafts: state.sectionDrafts.filter((item) => !sectionIds.has(item.sectionId)),
+      sectionVersions: state.sectionVersions.filter((item) => item.organizationId !== organizationId),
+      departments: state.departments.filter((item) => item.organizationId !== organizationId),
+      workplaces: state.workplaces.filter((item) => item.organizationId !== organizationId),
+      directoryDefinitions: state.directoryDefinitions.filter((item) => item.organizationId !== organizationId),
+      directoryEntries: state.directoryEntries.filter((item) => item.organizationId !== organizationId),
+      personnelConfigs: state.personnelConfigs.filter((item) => item.organizationId !== organizationId),
+      employees: state.employees.filter((item) => item.organizationId !== organizationId),
+      organizationWorkspaces: state.organizationWorkspaces.filter((item) => item.organizationId !== organizationId),
+      directoryEmployees: (state.directoryEmployees ?? []).filter((item) => item.organizationId !== organizationId),
+    },
+    status: 200,
+    body: { id: organizationId },
   }
 }
 

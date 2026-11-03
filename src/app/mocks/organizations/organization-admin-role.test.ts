@@ -117,6 +117,7 @@ describe('organization administrator role', () => {
     expect(can(snapshot, 6, 'organizations', 'read', scopeB)).toBe(false)
     expect(can(snapshot, 6, 'organizations', 'update', scopeB)).toBe(false)
     expect(can(snapshot, 6, 'organizations', 'create', { type: 'corporation', corporationId: 1 })).toBe(false)
+    expect(can(snapshot, 6, 'organizations', 'delete', scopeA)).toBe(false)
     expect(can(snapshot, 6, 'roles', 'delete', scopeB)).toBe(false)
     expect(hasCorporateSuperadmin(snapshot, 6)).toBe(false)
     expect(capabilityFromRoleDisplayName(ORGANIZATION_ADMINISTRATOR_ROLE_NAME)).toEqual([])

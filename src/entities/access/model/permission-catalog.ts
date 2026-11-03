@@ -16,6 +16,8 @@ export type PermissionGroupId =
   | 'access'
   | 'organizations'
   | 'projects'
+  | 'personnel'
+  | 'directories'
 
 export type CatalogPermission = {
   group: PermissionGroupId
@@ -65,9 +67,21 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'organizations', resource: 'organizations', action: 'read', labelKey: 'access.perm.organizations.read' },
   { group: 'organizations', resource: 'organizations', action: 'create', labelKey: 'access.perm.organizations.create' },
   { group: 'organizations', resource: 'organizations', action: 'update', labelKey: 'access.perm.organizations.update' },
+  { group: 'organizations', resource: 'organizations', action: 'delete', labelKey: 'access.perm.organizations.delete' },
   { group: 'projects', resource: 'projects', action: 'read', labelKey: 'access.perm.projects.read' },
   { group: 'projects', resource: 'projects', action: 'create', labelKey: 'access.perm.projects.create' },
   { group: 'projects', resource: 'projects', action: 'update', labelKey: 'access.perm.projects.update' },
+  { group: 'personnel', resource: 'personnel', action: 'read', labelKey: 'access.perm.personnel.read' },
+  { group: 'personnel', resource: 'personnel', action: 'create', labelKey: 'access.perm.personnel.create' },
+  { group: 'personnel', resource: 'personnel', action: 'update', labelKey: 'access.perm.personnel.update' },
+  { group: 'personnel', resource: 'personnel', action: 'archive', labelKey: 'access.perm.personnel.archive' },
+  { group: 'personnel', resource: 'personnel.structure', action: 'update', labelKey: 'access.perm.personnel.structure' },
+  { group: 'personnel', resource: 'personnel.account', action: 'update', labelKey: 'access.perm.personnel.account' },
+  { group: 'directories', resource: 'directories', action: 'read', labelKey: 'access.perm.directories.read' },
+  { group: 'directories', resource: 'directories', action: 'update', labelKey: 'access.perm.directories.update' },
+  { group: 'directories', resource: 'directories', action: 'archive', labelKey: 'access.perm.directories.archive' },
+  { group: 'directories', resource: 'directories', action: 'delete', labelKey: 'access.perm.directories.delete' },
+  { group: 'directories', resource: 'directories.structure', action: 'update', labelKey: 'access.perm.directories.structure' },
 ]
 
 export function isOfferedPermission(resource: string, action: string): boolean {

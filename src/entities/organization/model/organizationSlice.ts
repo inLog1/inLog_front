@@ -1,6 +1,7 @@
 import { createApi } from "@reduxjs/toolkit/query/react"
 import { accessApi } from "../../access/model/accessApi"
 import { baseQuery } from "../../../shared/api/clientApi"
+import { platformApi } from "../../../shared/api/platformApi"
 import type { OrganizationRequest, OrganizationResponse } from "../../../shared/types/dto/organization"
 import type { Organization } from "./types"
 import { directoryFromWire, type OrganizationDirectory } from "./directory"
@@ -54,6 +55,7 @@ export const organizationApi = createApi({
               try {
                 await queryFulfilled
                 dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
               } catch {
                 // A rejected create stays rejected and is not sent again.
               }
@@ -82,6 +84,7 @@ export const organizationApi = createApi({
               try {
                 await queryFulfilled
                 dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
               } catch {
                 // A conflict or refusal is not retried and is not treated as a saved change.
               }
@@ -93,6 +96,15 @@ export const organizationApi = createApi({
               method: 'DELETE',
             }),
             invalidatesTags: ['Organization'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
+              } catch {
+                // A refused delete stays on the card.
+              }
+            },
           }),
     }),
 })

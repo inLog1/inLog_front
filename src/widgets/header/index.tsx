@@ -13,12 +13,12 @@ import { NotificationsMenu } from './ui/NotificationsMenu'
 
 type HeaderProps = {
   crumbs: PageCrumb[]
-  showProject: boolean
+  showWorkspace: boolean
   menuOpen: boolean
   onOpenMenu: () => void
 }
 
-export function Header({ crumbs, showProject, menuOpen, onOpenMenu }: HeaderProps) {
+export function Header({ crumbs, showWorkspace, menuOpen, onOpenMenu }: HeaderProps) {
   const { t } = useTranslation()
 
   return (
@@ -28,7 +28,7 @@ export function Header({ crumbs, showProject, menuOpen, onOpenMenu }: HeaderProp
           type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0 text-shell-header-foreground hover:bg-shell-subtle hover:text-shell-header-foreground md:hidden"
+          className="h-9 w-9 shrink-0 text-shell-header-foreground hover:bg-shell-chip hover:text-shell-header-foreground md:hidden"
           aria-label={t('shell.open-menu')}
           aria-controls="app-sidebar"
           aria-expanded={menuOpen}
@@ -37,17 +37,19 @@ export function Header({ crumbs, showProject, menuOpen, onOpenMenu }: HeaderProp
           <Menu className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1 text-shell-header-foreground">
-          <PageCrumbs items={crumbs} />
+          {crumbs.length > 0 ? <PageCrumbs items={crumbs} /> : null}
         </div>
         <CompactTools className="md:hidden" />
       </div>
 
       <div className="mt-2 flex min-w-0 items-center gap-2 md:mt-0 md:flex-1 md:justify-end">
-        <OrgProjectSelector
-          appearance="toolbar"
-          persist={false}
-          type={showProject ? 'all' : 'organization'}
-        />
+        {showWorkspace ? (
+          <OrgProjectSelector
+            appearance="toolbar"
+            persist={false}
+            type="all"
+          />
+        ) : null}
         <CompactTools className="hidden md:flex" />
       </div>
     </header>

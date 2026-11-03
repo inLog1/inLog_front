@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { ChevronRight, LogOut, PanelLeftClose } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -18,6 +18,8 @@ export type SidebarLinkModel = {
   to: string
   icon: LucideIcon
   end?: boolean
+  /** Extra paths that keep this item lit without matching every descendant. */
+  alsoActive?: (pathname: string) => boolean
   /** Subsections of this item. They are not separate sections of the menu. */
   children?: SidebarLinkModel[]
 }
@@ -38,15 +40,17 @@ type SidebarProps = {
 
 function SidebarEntry({ item, onNavigate, nested = false }: { item: SidebarLinkModel; onNavigate?: () => void; nested?: boolean }) {
   const { t } = useTranslation()
+  const location = useLocation()
   const children = item.children ?? []
   const [open, setOpen] = useState(true)
   const submenuId = `sidebar-sub-${item.id}`
+  const detailActive = item.alsoActive?.(location.pathname) ?? false
   return (
     <div>
       <div className="flex items-center gap-0.5">
         <NavLink
           to={item.to}
-          end={item.end}
+          end={detailActive ? false : item.end}
           onClick={onNavigate}
           className={({ isActive }) => cn(
             'flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -94,7 +98,7 @@ export function Sidebar({ homeTo, groups, profileTo, accountNote, onNavigate }: 
   const userName = useSelector(selectUserFullName) || user?.email
 
   return (
-    <aside className="flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
+    <aside className="app-sidebar flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
       <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-shell-line px-3">
         <NavLink
           to={homeTo}

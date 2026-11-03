@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useGetOrganizationByIdQuery } from '../../../../entities/organization/model/organizationSlice'
 import { ReferenceSection } from '../../../../features/reference'
+import { getApiMode } from '../../../../shared/config/runtime'
+import { PersonnelSection } from '../../../../features/personnel'
 import { parseRouteId } from '../../../../features/org-project-selector/model/workspace-context'
 import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
@@ -40,6 +42,7 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
       const next = new URLSearchParams(search)
       next.set('org', String(selected.id))
       next.set('directoryOrg', String(selected.id))
+      next.delete('employee')
       navigate({ pathname: path, search: next.toString() }, { replace: true })
       return
     }
@@ -58,7 +61,7 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
           description={t('settings-page.modules-choose')}
           action={(
             <Button asChild>
-              <Link to={routes.settings.organizations()}>{t('nav.organizations')}</Link>
+              <Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link>
             </Button>
           )}
         />
@@ -104,19 +107,26 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
     )
   }
 
-  const scopeLabel = loaded.fullName || loaded.shortName
+  const scopeLabel = loaded.fullName || loaded.shortName || String(loaded.id)
+  if (getApiMode() !== 'mock') {
+    return (
+      <WorkPage>
+        <PageHeader title={title} description={scopeLabel} />
+        <PageState kind="empty" description={t('personnel.unavailable')} />
+      </WorkPage>
+    )
+  }
   if (module === 'reference') {
     return (
       <WorkPage>
-        <ReferenceSection scopeLabel={scopeLabel} />
+        <ReferenceSection organizationId={loaded.id} scopeLabel={scopeLabel} />
       </WorkPage>
     )
   }
 
   return (
     <WorkPage>
-      <PageHeader title={title} description={scopeLabel} />
-      <p className="text-sm text-muted-foreground">{t('settings-page.modules-later')}</p>
+      <PersonnelSection organizationId={loaded.id} organizationName={scopeLabel} />
     </WorkPage>
   )
 }

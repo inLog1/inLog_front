@@ -1,4 +1,5 @@
 import type { AccessAuditEntry, AccessRole } from '../../../entities/access/model/types'
+import { PERSONNEL_GRANT_DEFINITIONS } from '../db/personnel-grants'
 import type { MockOrganization, MockState } from '../db/types'
 
 /**
@@ -52,6 +53,7 @@ export const ORGANIZATION_ADMINISTRATOR_GRANTS = [
   { id: 'g-projects', resource: 'projects', action: 'read' },
   { id: 'g-projects-create', resource: 'projects', action: 'create' },
   { id: 'g-projects-update', resource: 'projects', action: 'update' },
+  ...PERSONNEL_GRANT_DEFINITIONS,
 ] as const
 
 export function organizationAdministratorGrantIds(): string[] {
@@ -85,6 +87,7 @@ export function withOrganizationAdministrator(
       organizationId: organization.id,
       corporationId: organization.corporationId,
     },
+    origin: { template: 'organization-administrator' },
   }
   const audit: AccessAuditEntry = {
     id: `audit-${crypto.randomUUID()}`,

@@ -63,7 +63,7 @@ export function WorkspaceStatus({
                 {status === 'empty' && reason === 'organizations-empty' ? (
                     <Button asChild variant="outline">
                         <Link to={routes.settings.organizations()}>
-                            {t('nav.organizations')}
+                            {t('nav.corporation')}
                         </Link>
                     </Button>
                 ) : null}

@@ -20,6 +20,7 @@ import { listOrganizations, listProjects, loginWithPassword, switchUser, toSnaps
 import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import { ORGANIZATION_READ_GRANT, ORGANIZATION_UPDATE_GRANT, PROJECT_UPDATE_GRANT } from '../db/organization-grants'
 import {
+  deleteOrganizationRecord,
   readDirectory,
   updateOrganizationRecord,
   updateProjectRecord,
@@ -71,7 +72,7 @@ describe('organization directory', () => {
     expect(can(snapshot, 1, 'organizations', 'create', corporation)).toBe(true)
     expect(can(snapshot, 1, 'organizations', 'update', corporation)).toBe(true)
     expect(can(snapshot, 1, 'projects', 'create', corporation)).toBe(true)
-    expect(can(snapshot, 1, 'organizations', 'delete', corporation)).toBe(false)
+    expect(can(snapshot, 1, 'organizations', 'delete', corporation)).toBe(true)
     expect(can(snapshot, 1, 'equipment', 'read', corporation)).toBe(false)
     expect(loginWithPassword(ready, 'owner@personal.test', PUBLIC_FIXTURE_PASSWORD).status).toBe(401)
     expect(readDirectory(ready, 'missing').status).toBe(401)
@@ -99,6 +100,20 @@ describe('organization directory', () => {
     expect(created.state.assignments).toEqual(ready.assignments)
     expect(created.state.systemCapabilities).toEqual(ready.systemCapabilities)
     expect(created.state.users.find((user) => user.id === 1)?.legacyRole).toBe('member')
+  })
+
+  it('deletes one organization for the installation owner and leaves the rest', () => {
+    const owner = session('owner@example.test')
+    const removed = deleteOrganizationRecord(owner.state, owner.token, 101)
+    expect(removed.status).toBe(200)
+    expect(removed.state.organizations.some((item) => item.id === 101)).toBe(false)
+    expect(removed.state.organizations.some((item) => item.id === 102)).toBe(true)
+    expect(removed.state.projects.some((item) => item.organizationId === 101)).toBe(false)
+    expect(removed.state.projects.some((item) => item.organizationId === 102)).toBe(true)
+    const reader = session('employee.a@example.test')
+    const denied = deleteOrganizationRecord(reader.state, reader.token, 101)
+    expect(denied.status).toBe(403)
+    expect(denied.state.organizations.some((item) => item.id === 101)).toBe(true)
   })
 
   it('keeps workspace lists for domain grants and hides full requisites from the directory', () => {

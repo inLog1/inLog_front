@@ -75,7 +75,7 @@ export const accessApi = platformApi.injectEndpoints({
     }),
     updateAccessRole: build.mutation<{ role: AccessRoleView }, { roleId: string; body: RoleWrite }>({
       query: ({ roleId, body }) => ({ url: `access/roles/${roleId}/`, method: 'PATCH', body }),
-      invalidatesTags: ['AccessControl', 'SessionAccess'],
+      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
     }),
     deleteAccessRole: build.mutation<{ deleted: string }, { roleId: string; expectedAccessVersion?: number }>({
       query: ({ roleId, expectedAccessVersion }) => ({
@@ -84,11 +84,11 @@ export const accessApi = platformApi.injectEndpoints({
           : `access/roles/${roleId}/?expectedAccessVersion=${expectedAccessVersion}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['AccessControl', 'SessionAccess'],
+      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
     }),
     createAccessAssignment: build.mutation<{ assignment: AccessDirectory['assignments'][number]; idempotent: boolean }, AssignmentWrite>({
       query: (body) => ({ url: 'access/assignments/', method: 'POST', body }),
-      invalidatesTags: ['AccessControl', 'SessionAccess'],
+      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
     }),
     revokeAccessAssignment: build.mutation<{ revoked: string }, { assignmentId: string; expectedAccessVersion?: number }>({
       query: ({ assignmentId, expectedAccessVersion }) => ({
@@ -97,7 +97,7 @@ export const accessApi = platformApi.injectEndpoints({
           : `access/assignments/${assignmentId}/?expectedAccessVersion=${expectedAccessVersion}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['AccessControl', 'SessionAccess'],
+      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
     }),
   }),
 })
