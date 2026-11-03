@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { formatAnswer, showsRequiredMark } from '../model/display'
 import { FORM_SCHEMA_VERSION, type FormAnswer, type FormAnswers, type FormSchema } from '../model/types'
 import { Checkbox } from '../../../shared/ui/checkbox'
+import { CalendarDatePicker } from '../../../shared/ui/calendar-date-picker'
 import { Input } from '../../../shared/ui/input'
 import { Label } from '../../../shared/ui/label'
 import { Textarea } from '../../../shared/ui/textarea'
@@ -114,14 +115,13 @@ function FieldControl({
   }
   if (type === 'date') {
     return (
-      <Input
+      <CalendarDatePicker
         id={id}
-        type="date"
-        value={typeof value === 'string' ? value : ''}
+        value={typeof value === 'string' ? value : null}
         disabled={readOnly}
         aria-invalid={invalid}
         aria-describedby={describedBy || undefined}
-        onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
+        onChange={(next) => onChange(next)}
       />
     )
   }

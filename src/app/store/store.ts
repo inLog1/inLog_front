@@ -10,6 +10,7 @@ import { platformAdminApi } from '../../entities/platform-admin/model/platformAd
 import { notificationApi } from '../../entities/notification/model/notificationSlice'
 import { platformApi } from '../../shared/api/platformApi'
 import '../../entities/access/model/accessApi'
+import '../../entities/personnel/model/personnelApi'
 
 export const store = configureStore({
   reducer: {

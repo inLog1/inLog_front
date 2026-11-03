@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ACCESS_PERMISSION_CATALOG, type AccessGrantView, type PermissionGroupId } from '../../../entities/access'
 import { Button } from '../../../shared/ui/button'
@@ -16,6 +16,9 @@ const GROUPS: PermissionGroupId[] = [
   'access',
   'organizations',
   'projects',
+  'personnel',
+  'directories',
+  'system-registries',
 ]
 
 type PermissionSetsProps = {
@@ -35,6 +38,7 @@ type MatrixRow = {
   grant: AccessGrantView
   label: string
   group: PermissionGroupId | 'preserved'
+  sectionKey?: string
 }
 
 function toggle(ids: readonly string[], id: string, checked: boolean): string[] {
@@ -61,7 +65,7 @@ export function PermissionSets(props: PermissionSetsProps) {
   const catalogRows: MatrixRow[] = ACCESS_PERMISSION_CATALOG.flatMap((item) => {
     const grant = props.offered.find((entry) => entry.resource === item.resource && entry.action === item.action)
     if (!grant) return []
-    return [{ grant, label: t(item.labelKey), group: item.group }]
+    return [{ grant, label: t(item.labelKey), group: item.group, sectionKey: item.sectionKey }]
   })
   const preservedIds = new Set<string>()
   const preservedRows: MatrixRow[] = []
@@ -155,6 +159,15 @@ export function PermissionSets(props: PermissionSetsProps) {
   )
 }
 
+function sectionBlocks(rows: MatrixRow[]): Array<{ key: string; rows: MatrixRow[] }> {
+  const order: string[] = []
+  for (const row of rows) {
+    const key = row.sectionKey ?? ''
+    if (!order.includes(key)) order.push(key)
+  }
+  return order.map((key) => ({ key, rows: rows.filter((row) => (row.sectionKey ?? '') === key) }))
+}
+
 function GroupMatrix({
   title,
   rows,
@@ -228,7 +241,16 @@ function GroupMatrix({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {sectionBlocks(rows).map((block) => (
+              <Fragment key={block.key || 'plain'}>
+                {block.key ? (
+                  <tr className="border-b border-border">
+                    <th colSpan={3} className="px-2 pb-1 pt-3 text-left text-sm font-semibold text-foreground">
+                      {t(`access.registry-sections.${block.key}`)}
+                    </th>
+                  </tr>
+                ) : null}
+                {block.rows.map((row) => {
               const performOn = operational.has(row.grant.id)
               const grantOn = delegation.has(row.grant.id)
               const performDisabled = !editable || (!performOn && !mayPerform(row.grant.id))
@@ -264,7 +286,9 @@ function GroupMatrix({
                   </td>
                 </tr>
               )
-            })}
+                })}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { indexedDB } from 'fake-indexeddb'
 import { loginWithPassword } from '../auth/flow'
 import { migrateMockDocument } from '../db/migrate'
-import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import { PUBLIC_FIXTURE_PASSWORD, MOCK_SCHEMA_VERSION } from '../db/constants'
 import { ensureMockState, MockWriterHeldError, StaleMockWriteError, updateMockState } from '../db/repository'
 import { createSeed } from '../db/seed'
 import type { MockState } from '../db/types'
@@ -232,7 +232,7 @@ describe('constructor and report mocks', () => {
       roles: rest.roles.map((role) => role.id === 'role-owner' ? { ...role, grantIds: ['g-projects'] } : role),
     } as MockState
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(9)
+    expect(migrated?.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
     expect(migrated?.state.forms).toEqual([])
     expect(migrated?.state.formDrafts).toEqual([])
     expect(migrated?.state.formVersions).toEqual([])

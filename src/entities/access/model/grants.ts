@@ -20,6 +20,7 @@ const ACTION_COVERS: Record<string, readonly string[]> = {
   create: ['create'],
   update: ['update'],
   delete: ['delete'],
+  archive: ['archive'],
   manage: ['manage'],
   assign: ['assign'],
   delegate: ['delegate'],

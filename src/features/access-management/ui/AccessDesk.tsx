@@ -1,20 +1,26 @@
-import { useState, type ReactNode } from 'react'
+﻿import { useEffect, useState, type ReactNode } from 'react'
+import { ArrowRight, Eye, Info, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
-  useCreateAccessAssignmentMutation,
+  useDeleteAccessRoleMutation,
   useGetAccessDirectoryQuery,
-  useRevokeAccessAssignmentMutation,
   type AccessDirectory,
-  type AccessScope,
+  type AccessRoleView,
 } from '../../../entities/access'
+import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/tabs'
 import { accessErrorKey, accessFailure } from '../model/errors'
-import { permissionSummary } from './permission-summary'
+import { permissionPreview } from './permission-summary'
+import { RoleDeleteDialog } from './RoleDeleteDialog'
 import { scopeLabel } from './scope-label'
 import { UserDirectory } from './UserDirectory'
+
+const NO_ROLES: readonly { id: string; displayName: string }[] = []
 
 type AccessDeskProps = {
   area: 'organization' | 'corporation'
@@ -26,11 +32,21 @@ type AccessDeskProps = {
   userHref: (userId: number) => string
 }
 
+const tabTriggerClass = 'rounded-lg px-4 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground'
+
 export function AccessDesk({ area, organizationId, canManageCorporation, installationSuperadmin, onArea, roleHref, userHref }: AccessDeskProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useSearchParams()
   const requestedTab = search.get('tab')
-  const tab = requestedTab === 'users' || requestedTab === 'assignments' ? requestedTab : 'roles'
+  const tab = requestedTab === 'users' || requestedTab === 'assignments' ? 'users' : 'roles'
+  useEffect(() => {
+    if (search.get('tab') !== 'assignments') return
+    setSearch((prev) => {
+      const copy = new URLSearchParams(prev)
+      copy.set('tab', 'users')
+      return copy
+    }, { replace: true })
+  }, [search, setSearch])
   const skip = area === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
     area === 'corporation' ? { scope: 'corporation' } : { scope: 'organization', organizationId: organizationId ?? 0 },
@@ -48,53 +64,98 @@ export function AccessDesk({ area, organizationId, canManageCorporation, install
 
   return (
     <WorkPage>
-      <PageHeader title={t('nav.access')} description={t('access.lead')} />
+      <PageHeader
+        title={t('nav.access')}
+        description={t(tab === 'users' ? 'access.desk-lead-users' : 'access.desk-lead-roles')}
+      />
       {installationSuperadmin ? (
         <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
           <span className="font-medium">{t('access.installation-superadmin')}</span>
           <span className="mt-1 block text-muted-foreground">{t('access.installation-superadmin-note')}</span>
         </p>
       ) : null}
-      <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0" />
-        {canManageCorporation ? (
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant={area === 'organization' ? 'default' : 'outline'} onClick={() => onArea('organization')}>
-              {t('access.area.organization')}
-            </Button>
-            <Button type="button" variant={area === 'corporation' ? 'default' : 'outline'} onClick={() => onArea('corporation')}>
-              {t('access.area.corporation')}
-            </Button>
-          </div>
-        ) : null}
-      </div>
       {area === 'organization' && organizationId == null ? (
         <p className="text-sm text-muted-foreground">{t('access.choose-organization')}</p>
       ) : null}
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start">
-          <TabsTrigger value="roles">{t('access.tabs.roles')}</TabsTrigger>
-          <TabsTrigger value="users">{t('access.tabs.users')}</TabsTrigger>
-          <TabsTrigger value="assignments">{t('access.tabs.assignments')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="roles" className="min-w-0">
-          <DirectoryGate query={directory} empty={skip}>
-            {directoryView ? <RoleList directory={directoryView} roleHref={roleHref} /> : null}
-          </DirectoryGate>
-        </TabsContent>
-        <TabsContent value="users" className="min-w-0">
-          <UserDirectory userHref={userHref} />
-        </TabsContent>
-        <TabsContent value="assignments" className="min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="h-auto justify-start gap-1 bg-transparent p-0">
+            <TabsTrigger value="roles" className={tabTriggerClass}>{t('access.tabs.roles')}</TabsTrigger>
+            <TabsTrigger value="users" className={tabTriggerClass}>{t('access.tabs.users')}</TabsTrigger>
+          </TabsList>
+          {canManageCorporation ? (
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t('access.scope.corporation')}>
+              <Button type="button" size="sm" variant={area === 'organization' ? 'default' : 'ghost'} onClick={() => onArea('organization')}>
+                {t('access.area.organization')}
+              </Button>
+              <Button type="button" size="sm" variant={area === 'corporation' ? 'default' : 'ghost'} onClick={() => onArea('corporation')}>
+                {t('access.area.corporation')}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        {area === 'corporation' ? <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p> : null}
+        <AccessGuide kind={tab} />
+        <TabsContent value="roles" className="mt-4 min-w-0">
           <DirectoryGate query={directory} empty={skip}>
             {directoryView ? (
-              <AssignmentDesk key={`${directoryView.scope}:${directoryView.organizationId ?? ''}`} directory={directoryView} />
+              <RoleList
+                directory={directoryView}
+                roleHref={roleHref}
+                usersHref={usersTabHref(search)}
+                onRefresh={() => void directory.refetch()}
+              />
             ) : null}
           </DirectoryGate>
         </TabsContent>
+        <TabsContent value="users" className="mt-4 min-w-0">
+          <UserDirectory
+            userHref={userHref}
+            area={area}
+            roles={directoryView?.roles ?? NO_ROLES}
+          />
+        </TabsContent>
       </Tabs>
     </WorkPage>
+  )
+}
+
+function AccessGuide({ kind }: { kind: 'roles' | 'users' }) {
+  const { t } = useTranslation()
+  const steps = kind === 'roles'
+    ? [
+        { title: t('access.guide.roles.1'), hint: t('access.guide.roles.1-hint') },
+        { title: t('access.guide.roles.2'), hint: t('access.guide.roles.2-hint') },
+        { title: t('access.guide.roles.3'), hint: t('access.guide.roles.3-hint') },
+      ]
+    : [
+        { title: t('access.guide.users.1'), hint: '' },
+        { title: t('access.guide.users.2'), hint: '' },
+        { title: t('access.guide.users.3'), hint: '' },
+      ]
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-primary/15 bg-primary/10 px-4 py-3 lg:flex-row lg:items-center" role="note">
+      <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-background text-primary">
+          <Info className="size-4" aria-hidden />
+        </span>
+        {kind === 'roles' ? <span>{t('access.guide.roles-title')}</span> : null}
+      </div>
+      <ol className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        {steps.map((step, index) => (
+          <li key={step.title} className="flex items-center gap-2">
+            {index > 0 ? <ArrowRight className="hidden size-4 shrink-0 text-muted-foreground sm:block" aria-hidden /> : null}
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-background text-xs font-semibold text-primary">
+              {index + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{step.title}</span>
+              {step.hint ? <span className="block text-xs text-muted-foreground">{step.hint}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -116,191 +177,151 @@ function DirectoryGate({
   return children
 }
 
-function RoleList({ directory, roleHref }: { directory: AccessDirectory; roleHref: (roleId: string | 'new') => string }) {
+function usersTabHref(search: URLSearchParams): string {
+  const copy = new URLSearchParams(search)
+  copy.set('tab', 'users')
+  return `${routes.settings.access()}?${copy.toString()}`
+}
+
+function RoleList({
+  directory,
+  roleHref,
+  usersHref,
+  onRefresh,
+}: {
+  directory: AccessDirectory
+  roleHref: (roleId: string | 'new') => string
+  usersHref: string
+  onRefresh: () => void
+}) {
   const { t } = useTranslation()
+  const [pendingRole, setPendingRole] = useState<AccessRoleView | null>(null)
+  const [conflict, setConflict] = useState(false)
+  const [deleteRole, deleteState] = useDeleteAccessRoleMutation()
+  const remove = async () => {
+    if (!pendingRole || deleteState.isLoading || pendingRole.assignmentCount > 0 || conflict) return
+    try {
+      await deleteRole({ roleId: pendingRole.id }).unwrap()
+      toast.success(t('access.role-deleted'))
+      setPendingRole(null)
+      setConflict(false)
+    } catch (error) {
+      const parsed = accessFailure(error)
+      if (parsed.code === 'role_in_use') {
+        setConflict(true)
+        onRefresh()
+      }
+      toast.error(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? pendingRole.assignmentCount }))
+    }
+  }
+  const heading = directory.scope === 'corporation' ? t('access.roles-heading-corporation') : t('access.roles-heading')
   return (
-    <div className="mt-4 flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         {directory.canCreateRole ? (
           <Button asChild>
-            <Link to={roleHref('new')}>{t('access.create-role')}</Link>
+            <Link to={roleHref('new')}><Plus />{t('access.create-role')}</Link>
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground">{t('access.create-denied')}</p>
         )}
       </div>
-      {directory.roles.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.roles-empty')}</p> : null}
-      {directory.roles.length > 0 ? (
-        <div className="min-w-0 overflow-x-auto">
-          <div className="hidden min-w-[40rem] grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] gap-3 px-3 text-xs text-muted-foreground md:grid">
-            <span>{t('access.name')}</span>
-            <span>{t('access.owner')}</span>
-            <span>{t('access.assignments')}</span>
-            <span>{t('access.summary')}</span>
-            <span>{t('access.row-actions')}</span>
-          </div>
-          <ul className="mt-1 flex flex-col gap-2">
-            {directory.roles.map((role) => {
-              const scope = scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)
-              const summary = permissionSummary(role.operational) || t('access.no-permissions')
-              return (
-                <li key={role.id} className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex flex-col gap-2 md:grid md:min-w-[40rem] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_minmax(0,1.4fr)_6rem] md:items-center md:gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{role.displayName}</p>
-                      {role.description ? <p className="truncate text-xs text-muted-foreground">{role.description}</p> : null}
-                    </div>
-                    <p className="text-sm">{scope}</p>
-                    <p className="text-sm">{t('access.assignment-count', { count: role.assignmentCount })}</p>
-                    <p className="text-sm text-muted-foreground">{summary}</p>
-                    {role.canEdit ? (
-                      <Button asChild variant="outline" size="sm" className="w-fit">
-                        <Link to={roleHref(role.id)}>{t('access.edit-role')}</Link>
-                      </Button>
-                    ) : <span className="text-xs text-muted-foreground">{t('access.edit-denied')}</span>}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Shield className="size-4 text-muted-foreground" aria-hidden />
+          <h2 className="text-base font-semibold">{heading}</h2>
         </div>
-      ) : null}
-      <RecentChanges directory={directory} />
-    </div>
-  )
-}
-
-function AssignmentDesk({ directory }: { directory: AccessDirectory }) {
-  const { t } = useTranslation()
-  const [userId, setUserId] = useState('')
-  const [roleId, setRoleId] = useState('')
-  const [projectId, setProjectId] = useState('')
-  const [failure, setFailure] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [createAssignment, createState] = useCreateAccessAssignmentMutation()
-  const [revokeAssignment, revokeState] = useRevokeAccessAssignmentMutation()
-  const role = directory.roles.find((item) => item.id === roleId)
-
-  const scope = (): AccessScope | null => {
-    if (directory.scope === 'corporation') return { type: 'corporation', corporationId: directory.corporationId }
-    if (directory.organizationId == null) return null
-    if (projectId) {
-      const project = directory.projects.find((item) => String(item.id) === projectId)
-      if (!project) return null
-      return {
-        type: 'project',
-        projectId: project.id,
-        organizationId: project.organizationId,
-        corporationId: directory.corporationId,
-      }
-    }
-    return { type: 'organization', organizationId: directory.organizationId, corporationId: directory.corporationId }
-  }
-
-  const assign = async () => {
-    setFailure(null)
-    setNotice(null)
-    const next = scope()
-    const parsedUser = Number(userId)
-    if (!next || !roleId || !Number.isInteger(parsedUser)) {
-      setFailure(t('access.errors.invalid-scope'))
-      return
-    }
-    try {
-      const result = await createAssignment({
-        userId: parsedUser,
-        roleId,
-        scope: next,
-      }).unwrap()
-      setNotice(result.idempotent ? t('access.assignment-exists') : t('access.assignment-saved'))
-    } catch (error) {
-      setFailure(t(accessErrorKey(accessFailure(error).code)))
-    }
-  }
-
-  const revoke = async (assignmentId: string) => {
-    setFailure(null)
-    setNotice(null)
-    try {
-      await revokeAssignment({ assignmentId }).unwrap()
-      setNotice(t('access.assignment-revoked'))
-    } catch (error) {
-      setFailure(t(accessErrorKey(accessFailure(error).code)))
-    }
-  }
-
-  return (
-    <div className="mt-4 flex min-w-0 flex-col gap-4">
-      <form
-        className="grid min-w-0 gap-3 rounded-lg border border-border bg-card p-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void assign()
-        }}
-      >
-        <h2 className="text-base font-semibold">{t('access.assign-title')}</h2>
-        <label className="grid min-w-0 gap-1 text-sm">
-          {t('access.user')}
-          <select className="h-9 rounded-md border border-border bg-background px-2" value={userId} onChange={(event) => setUserId(event.target.value)}>
-            <option value="">{t('access.choose')}</option>
-            {directory.candidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>{candidate.fullName} · {candidate.position}</option>
-            ))}
-          </select>
-        </label>
-        <label className="grid min-w-0 gap-1 text-sm">
-          {t('access.role')}
-          <select className="h-9 rounded-md border border-border bg-background px-2" value={roleId} onChange={(event) => setRoleId(event.target.value)}>
-            <option value="">{t('access.choose')}</option>
-            {directory.roles.map((item) => (
-              <option key={item.id} value={item.id}>{item.displayName}</option>
-            ))}
-          </select>
-        </label>
-        {role ? (
-          <p className="text-sm text-muted-foreground">
-            {t('access.role-summary')}: {permissionSummary(role.operational) || t('access.no-permissions')}
-          </p>
-        ) : null}
-        {directory.scope === 'organization' ? (
-          <label className="grid min-w-0 gap-1 text-sm">
-            {t('access.assignment-scope')}
-            <select className="h-9 rounded-md border border-border bg-background px-2" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-              <option value="">{t('access.scope.this-organization')}</option>
-              {directory.projects.map((project) => (
-                <option key={project.id} value={project.id}>{project.name}</option>
-              ))}
-            </select>
-          </label>
+        {directory.roles.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-muted-foreground">{t('access.roles-empty')}</p>
         ) : (
-          <p className="text-sm">{t('access.scope.corporation')}</p>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-4">{t('access.column-role-name')}</TableHead>
+                  <TableHead>{t('access.column-scope')}</TableHead>
+                  <TableHead>{t('access.column-users')}</TableHead>
+                  <TableHead>{t('access.column-permissions')}</TableHead>
+                  <TableHead className="pr-4">{t('access.row-actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {directory.roles.map((role) => {
+                  const scope = scopeLabel(role.ownerScope, directory.organizations, directory.projects, t)
+                  const preview = permissionPreview(role.operational, t)
+                  return (
+                    <TableRow key={role.id}>
+                      <TableCell className="pl-4">
+                        <p className="font-medium">{role.displayName}</p>
+                        {role.description ? <p className="text-xs text-primary">{role.description}</p> : null}
+                      </TableCell>
+                      <TableCell className="text-sm">{scope}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5 text-sm">
+                          <Users className="size-3.5 text-muted-foreground" aria-hidden />
+                          {role.affectedUserCount}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-xs text-sm text-muted-foreground">
+                        {preview.lead || t('access.no-permissions')}
+                        {preview.extra > 0 ? <span className="ml-1 font-medium text-primary">+{preview.extra}</span> : null}
+                      </TableCell>
+                      <TableCell className="pr-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={roleHref(role.id)}><Eye />{t('access.view-role')}</Link>
+                          </Button>
+                          {role.canEdit ? (
+                            <Button asChild variant="outline" size="sm">
+                              <Link to={roleHref(role.id)}><Pencil />{t('access.edit-role')}</Link>
+                            </Button>
+                          ) : null}
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`${roleHref(role.id)}#role-permissions`}><Shield />{t('access.open-permissions')}</Link>
+                          </Button>
+                          {role.canDelete ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deleteState.isLoading}
+                              aria-label={t('access.delete-role')}
+                              onClick={() => {
+                                setConflict(false)
+                                setPendingRole(role)
+                              }}
+                            >
+                              <Trash2 />
+                            </Button>
+                          ) : null}
+                          {!role.canEdit && !role.canDelete ? (
+                            <span className="text-xs text-muted-foreground">{t('access.edit-denied')}</span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
-        <Button type="submit" disabled={createState.isLoading} className="w-full sm:w-auto">
-          {t('access.assign')}
-        </Button>
-        {notice ? <p className="text-sm" role="status">{notice}</p> : null}
-        {failure ? <p className="text-sm text-destructive" role="alert">{failure}</p> : null}
-      </form>
-      {directory.assignments.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.assignments-empty')}</p> : null}
-      <ul className="flex flex-col gap-3">
-        {directory.assignments.map((assignment) => (
-          <li key={assignment.id} className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 text-sm">
-              <p className="font-medium">{assignment.userName}</p>
-              <p>{assignment.roleName}</p>
-              <p className="text-muted-foreground">{scopeLabel(assignment.scope, directory.organizations, directory.projects, t)}</p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={revokeState.isLoading || !assignment.canRevoke}
-              onClick={() => void revoke(assignment.id)}
-            >
-              {t('access.revoke')}
-            </Button>
-          </li>
-        ))}
-      </ul>
+      </section>
+      <RecentChanges directory={directory} />
+      <RoleDeleteDialog
+        open={pendingRole != null}
+        name={pendingRole?.displayName ?? ''}
+        pending={deleteState.isLoading}
+        blocked={(pendingRole?.assignmentCount ?? 0) > 0 || conflict}
+        usersHref={usersHref}
+        onOpenChange={(open) => {
+          if (open) return
+          setPendingRole(null)
+          setConflict(false)
+        }}
+        onConfirm={() => void remove()}
+      />
     </div>
   )
 }

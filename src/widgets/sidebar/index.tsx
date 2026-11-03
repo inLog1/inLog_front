@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { LogOut, PanelLeftClose } from 'lucide-react'
+import { ChevronRight, LogOut, PanelLeftClose } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { selectUser, selectUserFullName } from '../../entities/user/model/selectors'
 import { requestLogout } from '../../shared/api/session-events'
@@ -18,6 +18,10 @@ export type SidebarLinkModel = {
   to: string
   icon: LucideIcon
   end?: boolean
+  /** Extra paths that keep this item lit without matching every descendant. */
+  alsoActive?: (pathname: string) => boolean
+  /** Subsections of this item. They are not separate sections of the menu. */
+  children?: SidebarLinkModel[]
 }
 
 export type SidebarGroupModel = {
@@ -34,6 +38,55 @@ type SidebarProps = {
   onNavigate?: () => void
 }
 
+function SidebarEntry({ item, onNavigate, nested = false }: { item: SidebarLinkModel; onNavigate?: () => void; nested?: boolean }) {
+  const { t } = useTranslation()
+  const location = useLocation()
+  const children = item.children ?? []
+  const [open, setOpen] = useState(true)
+  const submenuId = `sidebar-sub-${item.id}`
+  const detailActive = item.alsoActive?.(location.pathname) ?? false
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <NavLink
+          to={item.to}
+          end={detailActive ? false : item.end}
+          onClick={onNavigate}
+          className={({ isActive }) => cn(
+            'flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            nested ? 'px-2 pl-3' : 'px-3',
+            isActive && 'bg-shell-accent font-medium text-shell-accent-foreground hover:bg-shell-accent',
+          )}
+        >
+          <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0 leading-tight">{item.label}</span>
+        </NavLink>
+        {children.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-shell-foreground hover:bg-shell-subtle hover:text-shell-foreground"
+            aria-expanded={open}
+            aria-controls={submenuId}
+            aria-label={open ? t('shell.collapse-subsections', { section: item.label }) : t('shell.expand-subsections', { section: item.label })}
+            onClick={() => setOpen((current) => !current)}
+          >
+            <ChevronRight className={cn('h-4 w-4 transition-transform', open && 'rotate-90')} aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+      {children.length > 0 && open ? (
+        <div id={submenuId} className="ml-5 mt-0.5 space-y-0.5 border-l border-shell-line pl-1">
+          {children.map((child) => (
+            <SidebarEntry key={child.id} item={child} onNavigate={onNavigate} nested />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2)
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
@@ -45,7 +98,7 @@ export function Sidebar({ homeTo, groups, profileTo, accountNote, onNavigate }: 
   const userName = useSelector(selectUserFullName) || user?.email
 
   return (
-    <aside className="flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
+    <aside className="app-sidebar flex h-full w-60 min-w-60 flex-col border-r border-shell-line bg-shell text-shell-foreground">
       <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-shell-line px-3">
         <NavLink
           to={homeTo}
@@ -76,19 +129,7 @@ export function Sidebar({ homeTo, groups, profileTo, accountNote, onNavigate }: 
               <div className="px-3 pb-1 text-xs font-medium text-shell-muted">{group.label}</div>
             )}
             {group.items.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.to}
-                end={item.end}
-                onClick={onNavigate}
-                className={({ isActive }) => cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-shell-foreground transition-colors hover:bg-shell-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive && 'bg-shell-accent font-medium text-shell-accent-foreground hover:bg-shell-accent',
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="min-w-0 leading-tight">{item.label}</span>
-              </NavLink>
+              <SidebarEntry key={item.id} item={item} onNavigate={onNavigate} />
             ))}
           </div>
         ))}

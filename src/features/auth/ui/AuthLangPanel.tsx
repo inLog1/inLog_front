@@ -28,7 +28,7 @@ export function AuthLangPanel({ tone = 'overlay' }: { tone?: 'overlay' | 'light'
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         className={tone === 'light'
-          ? 'flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-[var(--auth-muted)] hover:bg-white'
+          ? 'flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-muted-foreground hover:bg-shell-chip hover:text-shell-header-foreground'
           : 'cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'}
       >
         <Globe className="h-4 w-4" />

@@ -7,10 +7,15 @@ import {
   APP_SECTIONS,
   homeSetupCards,
   homeWorkCards,
+  isOrganizationDetailPath,
+  organizationIdFromPath,
+  canOpenProjectManagement,
   sectionAccess,
+  sectionByPath,
   shouldLoadProjectTasks,
   showRequestsNotice,
   visibleNavigation,
+  visibleOrganizationModules,
   visibleQuickActions,
   type NavigationInput,
 } from './catalog'
@@ -30,6 +35,7 @@ function input(patch: Partial<NavigationInput> = {}): NavigationInput {
     grants: [],
     organizationId: null,
     projectId: null,
+    hasOrganizations: false,
     systemCapabilities: [],
     ...patch,
   }
@@ -91,16 +97,18 @@ describe('navigation catalog', () => {
       organizationId: 101,
     })
     expect(visibleNavigation(schema).some((item) => item.id === 'forms')).toBe(false)
-    expect(visibleNavigation(schema).some((item) => item.id === 'constructor')).toBe(true)
+    expect(visibleNavigation(schema).some((item) => item.id === 'constructor')).toBe(false)
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'constructor')!, schema)).toBe('allowed')
     const forms = input({
       grants: [grant('forms', 'read')],
       organizationId: 101,
     })
-    expect(visibleNavigation(forms).some((item) => item.id === 'forms')).toBe(true)
+    expect(visibleNavigation(forms).some((item) => item.id === 'forms')).toBe(false)
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'forms')!, forms)).toBe('allowed')
     expect(visibleNavigation(forms).some((item) => item.id === 'constructor')).toBe(false)
     expect(visibleNavigation(forms).some((item) => item.id === 'reports')).toBe(false)
     expect(sectionAccess(
-      visibleNavigation(forms).find((item) => item.id === 'forms')!,
+      APP_SECTIONS.find((item) => item.id === 'forms')!,
       input({ grants: [grant('forms', 'update')], organizationId: 101 }),
     )).toBe('unavailable')
   })
@@ -110,7 +118,8 @@ describe('navigation catalog', () => {
       grants: [grant('constructor.schema', 'read'), grant('constructor.schema', 'update')],
       organizationId: 101,
     })
-    expect(visibleQuickActions(schemaOnly)).toEqual(['open-constructor'])
+    expect(visibleQuickActions(schemaOnly)).toEqual([])
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'constructor')!, schemaOnly)).toBe('allowed')
     expect(shouldLoadProjectTasks(schemaOnly)).toBe(false)
     const recordsOnly = input({
       grants: [grant('constructor.records', 'read')],
@@ -146,9 +155,9 @@ describe('navigation catalog', () => {
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'reports', 'forms', 'sections', 'constructor', 'organizations-settings', 'access',
+      'home', 'tasks', 'reports', 'organizations-settings', 'access',
     ])
-    expect(visibleQuickActions(live)).toEqual(['create-task', 'open-constructor', 'build-report'])
+    expect(visibleQuickActions(live)).toEqual(['create-task', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)
     expect(shouldLoadProjectTasks({ ...live, organizationId: 101, projectId: 1001 })).toBe(true)
     expect(showRequestsNotice(live)).toBe(false)
@@ -176,6 +185,12 @@ describe('navigation catalog', () => {
     expect(sectionAccess(access, input({ grants: [grant('access-users', 'read', otherOrganization)], organizationId: 101 }))).toBe('denied-here')
     expect(visibleNavigation(input({ grants: [grant('access-users', 'read')], grantsPending: true, organizationId: 101 })).some((item) => item.id === 'access')).toBe(false)
     expect(sectionAccess(access, input({ systemCapabilities: ['corporate_superadmin'] }))).toBe('allowed')
+    expect(visibleNavigation(input({ grants: [grant('roles', 'read')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('roles', 'create')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('roles', 'update')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('roles', 'delete')], organizationId: 101 })).some((item) => item.id === 'access')).toBe(true)
+    expect(sectionAccess(access, input({ grants: [grant('roles', 'read', otherOrganization)], organizationId: 101 }))).toBe('denied-here')
+    expect(visibleNavigation(input({ grants: [grant('roles', 'delete')] })).some((item) => item.id === 'access')).toBe(true)
   })
 
   it('opens organizations from capability or an operational directory permission, not from a delegation or a title', () => {
@@ -188,7 +203,12 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(owner).some((item) => item.id === 'tasks')).toBe(false)
     expect(homeSetupCards(owner).some((item) => item.id === 'organizations-settings')).toBe(true)
     expect(visibleNavigation(input({ grants: [grant('organizations', 'create', { type: 'corporation', corporationId: 1 })] })).some((item) => item.id === 'organizations-settings')).toBe(true)
-    expect(visibleNavigation(input({ grants: [grant('projects', 'read', project)] })).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('personnel', 'read')] })).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('personnel', 'create')] })).some((item) => item.id === 'organizations-settings')).toBe(true)
+    expect(visibleNavigation(input({ grants: [grant('projects', 'read', project)] })).some((item) => item.id === 'organizations-settings')).toBe(false)
+    expect(visibleNavigation(input({ grants: [grant('projects', 'create', project), grant('projects', 'update', project)] })).some((item) => item.id === 'organizations-settings')).toBe(false)
+    expect(canOpenProjectManagement(input({ grants: [grant('projects', 'read', project)] }))).toBe(true)
+    expect(homeSetupCards(input({ grants: [grant('projects', 'read', project)] })).some((item) => item.id === 'projects-settings')).toBe(false)
     expect(visibleNavigation(input({ grants: [grant('organizations', 'read', { type: 'own', userId: 3 })] })).some((item) => item.id === 'organizations-settings')).toBe(false)
     expect(visibleNavigation(input({ grants: [grant('tasks', 'read')] })).some((item) => item.id === 'organizations-settings')).toBe(false)
     expect(sectionAccess(screen, input({ grants: [grant('forms', 'read')], organizationId: 101 }))).toBe('unavailable')
@@ -223,8 +243,10 @@ describe('navigation catalog', () => {
       context: 'organization' as const,
       surface: 'navigation' as const,
     }
-    expect(visibleNavigation(input({ grants: [grant('sections', 'update')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(true)
-    expect(visibleNavigation(input({ grants: [grant('sections', 'create')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(true)
+    expect(sectionAccess(desk, input({ grants: [grant('sections', 'update')], organizationId: 101 }))).toBe('allowed')
+    expect(sectionAccess(desk, input({ grants: [grant('sections', 'create')], organizationId: 101 }))).toBe('allowed')
+    expect(visibleNavigation(input({ grants: [grant('sections', 'update')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(false)
+    expect(visibleNavigation(input({ grants: [grant('sections', 'create')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(false)
     expect(visibleNavigation(input({ grants: [grant('sections', 'read')], organizationId: 101 })).some((item) => item.id === 'sections')).toBe(false)
     expect(sectionAccess(desk, input({ systemCapabilities: ['corporate_superadmin'], organizationId: 101 }))).toBe('unavailable')
     expect(APP_SECTIONS.filter((item) => item.path.startsWith('/workspace/sections'))).toEqual([])
@@ -246,7 +268,74 @@ describe('navigation catalog', () => {
       organizationId: 101,
     })
     expect(homeWorkCards(employee).map((item) => item.id)).toEqual(['tasks', 'reports'])
-    expect(homeSetupCards(employee).map((item) => item.id)).toEqual(['forms'])
+    expect(homeSetupCards(employee).map((item) => item.id)).toEqual([])
+    expect(APP_SECTIONS.find((item) => item.id === 'forms')?.listed).toBe(false)
+    expect(APP_SECTIONS.find((item) => item.id === 'sections')?.listed).toBe(false)
+    expect(APP_SECTIONS.find((item) => item.id === 'constructor')?.listed).toBe(false)
     expect(visibleNavigation(employee).some((item) => item.id === 'profile' || item.id === 'notifications' || item.id === 'access')).toBe(false)
+  })
+
+  it('shows personnel and reference once the corporation has an organization the subject can read', () => {
+    const personnel = input({ grants: [grant('personnel', 'read')], organizationId: 101 })
+    const directories = input({ grants: [grant('directories', 'read')], organizationId: 101 })
+    expect(visibleOrganizationModules(personnel).map((item) => item.id)).toEqual(['organization-personnel'])
+    expect(visibleOrganizationModules(directories).map((item) => item.id)).toEqual(['organization-reference'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('registry.workplaces.records', 'read')],
+      organizationId: 101,
+    })).map((item) => item.id)).toEqual(['organization-reference'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('registry.workplaces.records', 'create')],
+      organizationId: 101,
+    }))).toEqual([])
+    expect(visibleOrganizationModules(input({ grants: [grant('organizations', 'read')], organizationId: 101 }))).toEqual([])
+    expect(visibleNavigation(personnel).some((item) => item.id === 'organization-personnel')).toBe(false)
+    expect(homeSetupCards(personnel).some((item) => item.id === 'organization-personnel' || item.id === 'organization-reference')).toBe(false)
+    expect(visibleOrganizationModules(input({ grants: [grant('personnel', 'read')] }))).toEqual([])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('personnel', 'read', otherOrganization)],
+      organizationId: 101,
+    }))).toEqual([])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('projects', 'read', project)],
+      organizationId: 101,
+    }))).toEqual([])
+    expect(visibleOrganizationModules(input({ systemCapabilities: ['corporate_superadmin'], organizationId: 101 })).map((item) => item.id)).toEqual([
+      'organization-personnel',
+      'organization-reference',
+    ])
+    expect(visibleOrganizationModules(input({ systemCapabilities: ['corporate_superadmin'] }))).toEqual([])
+    expect(visibleOrganizationModules(input({
+      systemCapabilities: ['corporate_superadmin'],
+      hasOrganizations: true,
+    })).map((item) => item.id)).toEqual([
+      'organization-personnel',
+      'organization-reference',
+    ])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('personnel', 'read')],
+      hasOrganizations: true,
+    })).map((item) => item.id)).toEqual(['organization-personnel'])
+    expect(visibleOrganizationModules(input({
+      grants: [grant('organizations', 'read')],
+      hasOrganizations: true,
+    }))).toEqual([])
+    expect(sectionByPath('/settings/organizations')?.id).toBe('organizations-settings')
+    expect(sectionByPath('/settings/organizations/101')?.id).toBe('organizations-settings')
+    expect(isOrganizationDetailPath('/settings/organizations/101')).toBe(true)
+    expect(isOrganizationDetailPath('/settings/organizations/101/')).toBe(true)
+    expect(isOrganizationDetailPath('/settings/organizations')).toBe(false)
+    expect(isOrganizationDetailPath('/settings/organizations/101/personnel')).toBe(false)
+    expect(isOrganizationDetailPath('/settings/organizations/personnel')).toBe(false)
+    expect(organizationIdFromPath('/settings/organizations/101')).toBe(101)
+    expect(organizationIdFromPath('/settings/organizations/101/')).toBe(101)
+    expect(organizationIdFromPath('/settings/organizations/101/personnel')).toBe(101)
+    expect(organizationIdFromPath('/settings/organizations/101/reference')).toBe(101)
+    expect(organizationIdFromPath('/settings/organizations')).toBeNull()
+    expect(organizationIdFromPath('/settings/organizations/personnel')).toBeNull()
+    expect(sectionByPath('/settings/organizations/101/personnel')?.id).toBe('organization-personnel')
+    expect(sectionByPath('/settings/organizations/101/reference')?.id).toBe('organization-reference')
+    expect(sectionByPath('/settings/projects')?.id).toBe('projects-settings')
+    expect(APP_SECTIONS.find((item) => item.id === 'projects-settings')?.surface).toBe('preserved')
   })
 })

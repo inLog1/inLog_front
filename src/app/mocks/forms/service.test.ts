@@ -8,7 +8,7 @@ import { formsMode } from '../../../entities/form/model/availability'
 import { validateAnswers } from '../../../entities/form/model/values'
 import { createAssignment, createRole } from '../access/service'
 import { toSnapshot, loginWithPassword } from '../auth/flow'
-import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import { PUBLIC_FIXTURE_PASSWORD, MOCK_SCHEMA_VERSION } from '../db/constants'
 import { migrateMockDocument } from '../db/migrate'
 import { MockWriterHeldError, readMockState, replaceMockRecord, updateMockState } from '../db/repository'
 import { createSeed } from '../db/seed'
@@ -370,7 +370,7 @@ describe('form mock service', () => {
     delete (snapshot as { formVersions?: unknown }).formVersions
     delete (snapshot as { formRecords?: unknown }).formRecords
     const migrated = migrateMockDocument(snapshot)
-    expect(migrated?.state.schemaVersion).toBe(9)
+    expect(migrated?.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
     expect(migrated?.state.forms).toEqual([])
     expect(migrated?.state.formRecords).toEqual([])
     expect(migrated?.state.tableViews).toEqual([])

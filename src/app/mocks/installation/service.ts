@@ -1,6 +1,9 @@
 import { can } from '../../../entities/access/model/grants'
 import type { MockOrganization, MockProject, MockState, MockUser } from '../db/types'
+import { withResidentUsers } from '../db/resident-users'
 import { toSnapshot } from '../auth/flow'
+import { withOrganizationAdministrator } from '../organizations/organization-admin-role'
+import { ensureOrganizationWorkspace } from '../personnel/workspace'
 
 export class InstallationSetupError extends Error {
   readonly code: 'already_configured' | 'invalid_setup'
@@ -51,7 +54,7 @@ export function configureInstallation(state: MockState, draft: SetupDraft): Mock
     status: 'active',
     fixturePassword: false,
   }
-  return {
+  return withResidentUsers({
     ...state,
     installationPhase: 'ready',
     corporation: { id: SERVER_CORPORATION_ID, name: corporationName },
@@ -59,7 +62,7 @@ export function configureInstallation(state: MockState, draft: SetupDraft): Mock
     users: [owner],
     localCredentials: [{ userId: owner.id, salt: draft.salt, hash: draft.hash }],
     systemCapabilities: [{ userId: owner.id, code: 'corporate_superadmin' }],
-  }
+  })
 }
 
 export function createOrganization(
@@ -89,7 +92,12 @@ export function createOrganization(
     address,
     revision: 1,
   }
-  return { state: { ...state, organizations: [...state.organizations, organization] }, organization }
+  const drafted: MockState = { ...state, organizations: [...state.organizations, organization] }
+  const next = withOrganizationAdministrator(drafted, organization, userId)
+  if (!next) return { error: 'invalid_organization' }
+  const ready = ensureOrganizationWorkspace(next, organization.id)
+  if (!ready) return { error: 'invalid_organization' }
+  return { state: ready, organization }
 }
 
 export function createProject(

@@ -4,7 +4,7 @@ import type { FormSchema } from '../../../entities/form/model/types'
 import { sectionsMode } from '../../../entities/section/model/availability'
 import { SYSTEM_COLUMN_IDS } from '../../../entities/table-view/model/types'
 import { toSnapshot, loginWithPassword } from '../auth/flow'
-import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import { PUBLIC_FIXTURE_PASSWORD, MOCK_SCHEMA_VERSION } from '../db/constants'
 import { migrateMockDocument } from '../db/migrate'
 import { createSeed } from '../db/seed'
 import type { MockState, MockTableView } from '../db/types'
@@ -301,7 +301,7 @@ describe('section service', () => {
       sectionVersions: undefined,
     }
     const migrated = migrateMockDocument(snapshot as unknown as MockState)
-    expect(migrated?.state.schemaVersion).toBe(9)
+    expect(migrated?.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
     expect(migrated?.state.sections).toEqual([])
     expect(migrated?.state.sectionDrafts).toEqual([])
     expect(migrated?.state.sectionVersions).toEqual([])

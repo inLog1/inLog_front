@@ -6,6 +6,10 @@ import { SECTION_GRANT_DEFINITIONS } from './section-grants'
 import { TABLE_VIEW_GRANT_DEFINITIONS } from './table-view-grants'
 import { MOCK_SCHEMA_VERSION } from './constants'
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
+import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
+import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
+import { ensureOrganizationWorkspaces } from '../personnel/workspace'
+import { withResidentUsers } from './resident-users'
 import type { MockState } from './types'
 import type { AccessRole } from '../../../entities/access/model/types'
 
@@ -27,6 +31,13 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Other created-at strings stay exact timestamp comparisons.
  * Missing form, table-view, section and role-administration catalog rows are added so the editor can offer them.
  * Role grant lists already stored are not extended. ownerScope is not filled in.
+ * Version 10 adds empty personnel collections and the personnel grant rows.
+ * Organizations that have no workspace row receive the starter once. Existing workspace rows,
+ * edited records and stored role grant lists are left as they are. Role origin is not invented.
+ * A ready personal installation also receives the resident accounts when their emails are absent.
+ * Those accounts have no grants. Other namespaces are not extended.
+ * Version 11 adds the system-registry grant rows for departments and workplaces.
+ * Stored role grant lists are not extended. directories.* stays on manual directories only.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -61,13 +72,17 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const installationChanged = withInstallation !== withRoleGrants
   const withRevisions = ensureDirectoryRevisions(withInstallation)
   const revisionsChanged = withRevisions !== withInstallation
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged) {
+  const withPersonnel = ensurePersonnelCatalog(withRevisions)
+  const personnelChanged = withPersonnel !== withRevisions
+  const withResidents = withResidentUsers(withPersonnel)
+  const residentsChanged = withResidents !== withPersonnel
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withRevisions,
+      ...withResidents,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
@@ -291,6 +306,20 @@ function ensureTaskCatalog(record: MockState): MockState {
     taskComments: Array.isArray(source.taskComments) ? source.taskComments : catalog.taskComments,
     taskFiles: Array.isArray(source.taskFiles) ? source.taskFiles : catalog.taskFiles,
   }
+}
+
+function ensurePersonnelCatalog(record: MockState): MockState {
+  const grants = Array.isArray(record.grants) ? [...record.grants] : []
+  let grantsChanged = false
+  for (const definition of [...PERSONNEL_GRANT_DEFINITIONS, ...REGISTRY_GRANT_DEFINITIONS]) {
+    if (!grants.some((grant) => grant.id === definition.id)) {
+      grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
+      grantsChanged = true
+    }
+  }
+  const withGrants = grantsChanged ? { ...record, grants } : record
+  const ensured = ensureOrganizationWorkspaces(withGrants)
+  return ensured
 }
 
 function normalizeRole(role: AccessRole, onChange: () => void): AccessRole {

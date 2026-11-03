@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Wrench } from 'lucide-react'
+import { Bell, BookOpen, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Users, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
@@ -8,9 +8,11 @@ import { sectionIcon } from '../../features/section-builder/ui/icons'
 import { useOrganizationSectionLinks } from '../navigation/use-section-navigation'
 import {
   APP_SECTIONS,
+  isOrganizationDetailPath,
   sectionByPath,
   showsProjectSelector,
   visibleNavigation,
+  visibleOrganizationModules,
   type AppSection,
 } from '../navigation/catalog'
 import { useNavigationInput } from '../navigation/use-navigation'
@@ -32,6 +34,8 @@ const ICONS: Record<string, LucideIcon> = {
   access: Shield,
   sections: PanelsTopLeft,
   'organizations-settings': Building2,
+  'organization-personnel': Users,
+  'organization-reference': BookOpen,
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
@@ -88,26 +92,47 @@ function Shell() {
       icon: sectionIcon(item.iconKey),
     }))
     const work = sections.filter((section) => section.group === 'work').map(toLink)
-    const settings = sections.filter((section) => section.group === 'settings').map(toLink)
+    const organizationId = navigation.organizationId ?? navigation.listedOrganizationId
+    const moduleLinks: SidebarLinkModel[] = organizationId == null ? [] : visibleOrganizationModules(navigation).map((section) => ({
+      id: section.id,
+      label: t(section.labelKey),
+      to: href(
+        section.id === 'organization-personnel'
+          ? routes.settings.organizationPersonnel(organizationId)
+          : routes.settings.organizationReference(organizationId),
+        'organization',
+      ),
+      icon: ICONS[section.id] ?? Building2,
+      end: true,
+    }))
+    const settings: SidebarLinkModel[] = []
+    let modulesPlaced = false
+    for (const section of sections.filter((item) => item.group === 'settings')) {
+      const link = toLink(section)
+      settings.push(section.id === 'organizations-settings' ? { ...link, end: true, alsoActive: isOrganizationDetailPath } : link)
+      if (section.id === 'organizations-settings') {
+        settings.push(...moduleLinks)
+        modulesPlaced = true
+      }
+    }
+    if (!modulesPlaced) settings.push(...moduleLinks)
     return [
       { id: 'primary', label: t('home.title'), items: primary.map(toLink) },
       { id: 'work', label: t('shell.work'), items: [...published, ...work] },
       { id: 'settings', label: t('shell.settings'), items: settings },
     ].filter((group) => group.items.length > 0)
-  }, [href, organizationSections.items, sections, t])
+  }, [href, navigation, organizationSections.items, sections, t])
 
   const profile = APP_SECTIONS.find((section) => section.id === 'profile')
   const home = sections.find((section) => section.id === 'home')
   const current = sectionByPath(location.pathname)
   const onWorkSection = matchPath({ path: '/workspace/sections/:sectionId', end: true }, location.pathname)
+  const accessDesk = matchPath({ path: routes.settings.access(), end: true }, location.pathname)
   const profileTo = profile ? href(profile.path, 'app') : '/settings/profile'
   const homeTo = home ? href(home.path, 'app') : href(routes.dashboard(), 'app')
-  const area = t('shell.area')
   const currentLabel = pageLabel
-    ?? (onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
-  const crumbs: PageCrumb[] = currentLabel
-    ? [{ label: area, to: homeTo }, { label: currentLabel }]
-    : [{ label: area }]
+    ?? (accessDesk ? null : onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
+  const crumbs: PageCrumb[] = currentLabel ? [{ label: currentLabel }] : []
   const accountNote = navigation.systemCapabilities.includes('corporate_superadmin')
     ? t('home.owner-badge')
     : undefined
@@ -123,11 +148,11 @@ function Shell() {
       <div className="flex h-full min-w-0 flex-1 flex-col">
         <Header
           crumbs={crumbs}
-          showProject={showsProjectSelector(location.pathname)}
+          showWorkspace={showsProjectSelector(location.pathname)}
           menuOpen={menuOpen}
           onOpenMenu={openMenu}
         />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background pb-16">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background px-3 pb-16 md:px-4">
           <Outlet />
         </main>
       </div>

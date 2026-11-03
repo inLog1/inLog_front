@@ -1,11 +1,12 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Building2, FolderOpen, Loader2, MapPin, Pencil, Plus } from 'lucide-react'
 import { useGetOrganizationDirectoryQuery, useGetOrganizationsQuery } from '../../../entities/organization/model/organizationSlice'
 import type { DirectoryOrganization, DirectoryProject, OrganizationDirectory } from '../../../entities/organization/model/directory'
 import { useGetProjectsQuery } from '../../../entities/project/model/projectSlice'
 import { getApiMode } from '../../../shared/config/runtime'
+import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { Input } from '../../../shared/ui/input'
 import { cn } from '../../../shared/lib/utils'
@@ -14,6 +15,15 @@ import { CreateProjectDialog } from './CreateProjectDialog'
 import { EditOrganizationDialog } from './EditOrganizationDialog'
 import { EditProjectDialog } from './EditProjectDialog'
 import { DIRECTORY_FOCUS_PARAM, resolveDirectoryFocus } from '../model/directory-focus'
+import { createdOrganizationPersonnelPath } from '../model/created-organization'
+export type DirectoryMode = 'organizations' | 'projects'
+
+function selectOrganization(current: URLSearchParams, organizationId: number) {
+  const next = new URLSearchParams(current)
+  next.set(DIRECTORY_FOCUS_PARAM, String(organizationId))
+  next.set('org', String(organizationId))
+  return next
+}
 
 function initials(name?: string) {
   const parts = name?.trim().split(/\s+/).filter(Boolean).slice(0, 2) ?? []
@@ -21,13 +31,13 @@ function initials(name?: string) {
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('')
 }
 
-function OrganizationsAndProjects() {
+function OrganizationsAndProjects({ mode = 'organizations' }: { mode?: DirectoryMode }) {
   const mock = getApiMode() === 'mock'
-  if (mock) return <MockDirectory />
-  return <LiveDirectory />
+  if (mock) return <MockDirectory mode={mode} />
+  return <LiveDirectory mode={mode} />
 }
 
-function MockDirectory() {
+function MockDirectory({ mode }: { mode: DirectoryMode }) {
   const { t } = useTranslation()
   const directory = useGetOrganizationDirectoryQuery()
   const view = directory.currentData
@@ -37,11 +47,12 @@ function MockDirectory() {
   if (directory.isError || !view) {
     return <ErrorState onRetry={() => void directory.refetch()} />
   }
-  return <DirectoryView directory={view} />
+  return <DirectoryView directory={view} mode={mode} />
 }
 
-function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
+function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; mode: DirectoryMode }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [createOrg, setCreateOrg] = useState(false)
@@ -51,10 +62,12 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
   const allowedIds = useMemo(() => {
     const ids = new Set<number>()
     for (const organization of directory.organizations) ids.add(organization.id)
-    for (const target of directory.projectCreateTargets) ids.add(target.id)
-    for (const project of directory.projects) ids.add(project.organizationId)
+    if (mode === 'projects') {
+      for (const target of directory.projectCreateTargets) ids.add(target.id)
+      for (const project of directory.projects) ids.add(project.organizationId)
+    }
     return [...ids]
-  }, [directory])
+  }, [directory, mode])
   const focus = resolveDirectoryFocus(searchParams.get(DIRECTORY_FOCUS_PARAM), allowedIds)
   const needle = query.trim().toLowerCase()
   const organizations = directory.organizations.filter((organization) =>
@@ -74,14 +87,37 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
   const projectsConcealed = focus.status === 'open' && directory.projectsConcealedOrganizationIds.includes(focus.organizationId)
   const canCreateProject = focus.status === 'open' && directory.projectCreateTargets.some((target) => target.id === focus.organizationId)
   const choose = (organizationId: number) => {
+    setSearchParams((current) => selectOrganization(current, organizationId), { replace: true })
+  }
+  const openCreated = (organizationId: number) => {
+    navigate(createdOrganizationPersonnelPath(organizationId))
+  }
+  useEffect(() => {
+    if (searchParams.get(DIRECTORY_FOCUS_PARAM)) return
+    const org = searchParams.get('org')
+    if (!org || !allowedIds.some((id) => String(id) === org)) return
     setSearchParams((current) => {
+      if (current.get(DIRECTORY_FOCUS_PARAM)) return current
       const next = new URLSearchParams(current)
-      next.set(DIRECTORY_FOCUS_PARAM, String(organizationId))
+      next.set(DIRECTORY_FOCUS_PARAM, org)
       return next
     }, { replace: true })
-  }
+  }, [allowedIds, searchParams, setSearchParams])
 
   if (directory.corporationEmpty) {
+    if (mode === 'projects') {
+      return (
+        <EmptyPanel
+          title={t('settings-page.projects-need-organization')}
+          action={(
+            <Button asChild>
+              <Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link>
+            </Button>
+          )}
+          dialog={null}
+        />
+      )
+    }
     return (
       <EmptyPanel
         title={t('settings-page.owner-empty-title')}
@@ -95,7 +131,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
           <CreateOrganizationDialog
             open={createOrg}
             onOpenChange={setCreateOrg}
-            onCreated={(organizationId) => choose(organizationId)}
+            onCreated={openCreated}
           />
         )}
       />
@@ -107,7 +143,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
       <aside className="flex max-h-72 w-full shrink-0 flex-col border-b border-border bg-muted/30 md:max-h-none md:w-72 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between gap-3 px-4 py-4">
           <p className="text-sm font-semibold">{t('settings-page.organizations')}</p>
-          {directory.createOrganization ? (
+          {mode === 'organizations' && directory.createOrganization ? (
             <Button size="icon" className="h-8 w-8" aria-label={t('settings-page.new-organization')} onClick={() => setCreateOrg(true)}>
               <Plus className="h-4 w-4" />
             </Button>
@@ -136,7 +172,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
               {directory.createOrganization ? t('settings-page.hidden-organizations') : t('settings-page.no-accessible-organizations')}
             </p>
           ) : null}
-          {directory.projectCreateTargets
+          {mode === 'projects' ? directory.projectCreateTargets
             .filter((target) => !directory.organizations.some((organization) => organization.id === target.id))
             .filter((target) => !needle || target.shortName.toLowerCase().includes(needle))
             .map((target) => (
@@ -147,8 +183,8 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
                 subtitle={t('settings-page.create-project')}
                 onChoose={() => choose(target.id)}
               />
-            ))}
-          {directory.projects
+            )) : null}
+          {mode === 'projects' ? directory.projects
             .filter((project) => !directory.organizations.some((organization) => organization.id === project.organizationId))
             .filter((project) => !directory.projectCreateTargets.some((target) => target.id === project.organizationId))
             .filter((project, index, list) => list.findIndex((item) => item.organizationId === project.organizationId) === index)
@@ -160,7 +196,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
                 subtitle={t('settings-page.projects')}
                 onChoose={() => choose(project.organizationId)}
               />
-            ))}
+            )) : null}
         </div>
       </aside>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -184,13 +220,13 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {selected.canUpdate ? (
+              {mode === 'organizations' && selected.canUpdate ? (
                 <Button variant="outline" onClick={() => setEditOrganization(selected)}>
                   <Pencil className="h-4 w-4" />
                   {t('settings-page.edit-organization')}
                 </Button>
               ) : null}
-              {canCreateProject ? (
+              {mode === 'projects' && canCreateProject ? (
                 <Button onClick={() => setCreateProjectFor(selected.id)}>
                   <Plus className="h-4 w-4" />
                   {t('settings-page.new-project')}
@@ -199,7 +235,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
             </div>
           </header>
         ) : null}
-        {focus.status === 'open' && !selected && !selectedTarget ? (
+        {mode === 'projects' && focus.status === 'open' && !selected && !selectedTarget ? (
           <header className="border-b border-border px-4 py-5 sm:px-6">
             <h2 className="break-words text-xl font-semibold">
               {selectedProjects[0]?.organization.shortName || directory.projects.find((project) => project.organizationId === focus.organizationId)?.organization.shortName}
@@ -207,7 +243,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
             <p className="mt-1 text-sm text-muted-foreground">{t('settings-page.project-context')}</p>
           </header>
         ) : null}
-        {focus.status === 'open' && !selected && selectedTarget ? (
+        {mode === 'projects' && focus.status === 'open' && !selected && selectedTarget ? (
           <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-4 py-5 sm:px-6">
             <div className="min-w-0">
               <h2 className="break-words text-xl font-semibold">{selectedTarget.shortName}</h2>
@@ -220,7 +256,7 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
           </header>
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
-          {focus.status === 'open' ? (
+          {mode === 'projects' && focus.status === 'open' ? (
             <ProjectList
               projects={selectedProjects}
               concealed={projectsConcealed}
@@ -233,12 +269,16 @@ function DirectoryView({ directory }: { directory: OrganizationDirectory }) {
           ) : null}
         </div>
       </section>
-      <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} />
-      <CreateProjectDialog
-        open={createProjectFor != null}
-        onOpenChange={(open) => { if (!open) setCreateProjectFor(null) }}
-        organizationId={createProjectFor}
-      />
+      {mode === 'organizations' ? (
+        <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} />
+      ) : null}
+      {mode === 'projects' ? (
+        <CreateProjectDialog
+          open={createProjectFor != null}
+          onOpenChange={(open) => { if (!open) setCreateProjectFor(null) }}
+          organizationId={createProjectFor}
+        />
+      ) : null}
       <EditOrganizationDialog
         key={editOrganization?.id ?? 'organization'}
         organization={editOrganization}
@@ -343,8 +383,9 @@ function OrganizationRow({
   )
 }
 
-function LiveDirectory() {
+function LiveDirectory({ mode }: { mode: DirectoryMode }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOrg, setCreateOrg] = useState(false)
   const [createProjectFor, setCreateProjectFor] = useState<number | null>(null)
@@ -354,19 +395,42 @@ function LiveDirectory() {
   const selectedId = focus.status === 'open' ? focus.organizationId : null
   const projects = useGetProjectsQuery(
     { organization: selectedId ?? 0 },
-    { skip: selectedId == null },
+    { skip: mode !== 'projects' || selectedId == null },
   )
-  const projectRows = projects.originalArgs?.organization === selectedId ? (projects.currentData ?? []) : []
+  const projectRows = mode === 'projects' && projects.originalArgs?.organization === selectedId ? (projects.currentData ?? []) : []
   const choose = (organizationId: number) => {
+    setSearchParams((current) => selectOrganization(current, organizationId), { replace: true })
+  }
+  const openCreated = (organizationId: number) => {
+    navigate(createdOrganizationPersonnelPath(organizationId))
+  }
+  useEffect(() => {
+    if (searchParams.get(DIRECTORY_FOCUS_PARAM)) return
+    const org = searchParams.get('org')
+    if (!org || !rows.some((item) => String(item.id) === org)) return
     setSearchParams((current) => {
+      if (current.get(DIRECTORY_FOCUS_PARAM)) return current
       const next = new URLSearchParams(current)
-      next.set(DIRECTORY_FOCUS_PARAM, String(organizationId))
+      next.set(DIRECTORY_FOCUS_PARAM, org)
       return next
     }, { replace: true })
-  }
+  }, [rows, searchParams, setSearchParams])
   if (organizations.isLoading && !organizations.currentData) return <LoadingState label={t('workspace.loading')} />
   if (organizations.isError) return <ErrorState onRetry={() => void organizations.refetch()} />
   if (rows.length === 0) {
+    if (mode === 'projects') {
+      return (
+        <EmptyPanel
+          title={t('settings-page.projects-need-organization')}
+          action={(
+            <Button asChild>
+              <Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link>
+            </Button>
+          )}
+          dialog={null}
+        />
+      )
+    }
     return (
       <EmptyPanel
         title={t('settings-page.no-accessible-organizations')}
@@ -376,7 +440,7 @@ function LiveDirectory() {
             {t('settings-page.owner-empty-action')}
           </Button>
         )}
-        dialog={<CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} />}
+        dialog={<CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} />}
       />
     )
   }
@@ -385,10 +449,12 @@ function LiveDirectory() {
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border bg-card md:flex-row">
       <aside className="flex max-h-72 w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-72 md:border-r">
         <div className="flex items-center justify-between px-4 py-4">
-          <p className="text-sm font-semibold">{t('settings-page.organizations')}</p>
-          <Button size="icon" className="h-8 w-8" aria-label={t('settings-page.new-organization')} onClick={() => setCreateOrg(true)}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          <p className="text-sm font-semibold">{mode === 'projects' ? t('settings-page.projects') : t('settings-page.organizations')}</p>
+          {mode === 'organizations' ? (
+            <Button size="icon" className="h-8 w-8" aria-label={t('settings-page.new-organization')} onClick={() => setCreateOrg(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
         <div className="min-h-0 flex-1 space-y-1 overflow-auto px-2 pb-3">
           {rows.map((organization) => (
@@ -407,27 +473,33 @@ function LiveDirectory() {
         {selected ? (
           <div>
             <h2 className="break-words text-xl font-semibold">{selected.fullName}</h2>
-            <Button className="mt-4" onClick={() => setCreateProjectFor(selected.id)}>
-              <Plus className="h-4 w-4" />
-              {t('settings-page.new-project')}
-            </Button>
-            {projects.isFetching && projectRows.length === 0 ? <LoadingState label={t('workspace.loading')} /> : null}
-            <ul className="mt-4 space-y-2">
-              {projectRows.map((project) => (
-                <li key={project.id} className="rounded-xl border border-border px-3 py-2 text-sm">{project.name}</li>
-              ))}
-            </ul>
+            {mode === 'projects' ? (
+              <>
+                <Button className="mt-4" onClick={() => setCreateProjectFor(selected.id)}>
+                  <Plus className="h-4 w-4" />
+                  {t('settings-page.new-project')}
+                </Button>
+                {projects.isFetching && projectRows.length === 0 ? <LoadingState label={t('workspace.loading')} /> : null}
+                <ul className="mt-4 space-y-2">
+                  {projectRows.map((project) => (
+                    <li key={project.id} className="rounded-xl border border-border px-3 py-2 text-sm">{project.name}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </div>
         ) : focus.status === 'all' ? (
           <p className="text-sm text-muted-foreground">{t('settings-page.select-organization-first')}</p>
         ) : null}
       </section>
-      <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={choose} />
-      <CreateProjectDialog
-        open={createProjectFor != null}
-        onOpenChange={(open) => { if (!open) setCreateProjectFor(null) }}
-        organizationId={createProjectFor}
-      />
+      {mode === 'organizations' ? <CreateOrganizationDialog open={createOrg} onOpenChange={setCreateOrg} onCreated={openCreated} /> : null}
+      {mode === 'projects' ? (
+        <CreateProjectDialog
+          open={createProjectFor != null}
+          onOpenChange={(open) => { if (!open) setCreateProjectFor(null) }}
+          organizationId={createProjectFor}
+        />
+      ) : null}
     </div>
   )
 }

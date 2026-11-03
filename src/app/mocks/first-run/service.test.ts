@@ -33,6 +33,7 @@ import {
   setMockWriterId,
   updateMockState,
 } from '../db/repository'
+import { RESIDENT_USERS } from '../db/resident-users'
 import { createSeed } from '../db/seed'
 import type { MockState } from '../db/types'
 import { saveDirectoryEmployee, syncDirectory } from '../directory/service'
@@ -124,7 +125,7 @@ describe('mock first-run scenarios', () => {
     const setup = await draft()
     await updateMockState((state) => configureInstallation(state, setup), PERSONAL_MOCK_NAMESPACE)
     const again = await ensureMockState(PERSONAL_MOCK_NAMESPACE)
-    expect(again.ok && again.state.users).toHaveLength(1)
+    expect(again.ok && again.state.users).toHaveLength(1 + RESIDENT_USERS.length)
     expect(again.ok && again.state.corporation.name).toBe('Своя корпорация')
   })
 
@@ -188,7 +189,10 @@ describe('mock first-run scenarios', () => {
       email: 'second@personal.test',
     }), PERSONAL_MOCK_NAMESPACE)).rejects.toBeInstanceOf(InstallationSetupError)
     const stored = await readMockState(PERSONAL_MOCK_NAMESPACE)
-    expect(stored.ok && stored.state.users.map((user) => user.email)).toEqual(['owner@personal.test'])
+    expect(stored.ok && stored.state.users.map((user) => user.email)).toEqual([
+      'owner@personal.test',
+      ...RESIDENT_USERS.map((user) => user.email),
+    ])
     expect(stored.ok && stored.state.systemCapabilities).toEqual([{ userId: 1, code: 'corporate_superadmin' }])
     expect(stored.ok && stored.state.localCredentials).toHaveLength(1)
     expect(stored.ok && stored.state.organizations).toEqual([])
@@ -321,7 +325,7 @@ describe('mock first-run scenarios', () => {
     expect(first.report.created).toEqual(['hr-1'])
     expect(first.state.users).toHaveLength(2)
     expect(first.state.assignments).toEqual([])
-    expect(first.state.roles).toEqual([])
+    expect(first.state.roles.map((role) => role.id).sort()).toEqual(state.roles.map((role) => role.id).sort())
     expect(first.state.systemCapabilities).toEqual(state.systemCapabilities)
     expect(first.state.localCredentials?.[0]?.hash).toBe(ownerHash)
     const employee = first.state.users.find((user) => user.email === 'ilya@personal.test')

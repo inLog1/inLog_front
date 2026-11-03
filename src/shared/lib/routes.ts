@@ -67,6 +67,11 @@ export const routes = {
     settings: {
       list: () => '/settings',
       profile: () => '/settings/profile',
+      organizations: () => '/settings/organizations',
+      organization: (organizationId: string | number) => `/settings/organizations/${organizationId}`,
+      organizationPersonnel: (organizationId: string | number) => `/settings/organizations/${organizationId}/personnel`,
+      organizationReference: (organizationId: string | number) => `/settings/organizations/${organizationId}/reference`,
+      projects: () => '/settings/projects',
       organizationsAndProjects: () => '/settings/organizations-and-projects',
       notifications: () => '/settings/notifications',
       access: () => '/settings/access',

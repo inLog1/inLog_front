@@ -85,6 +85,7 @@ export function HomePage() {
     systemCapabilities: ready && access.data ? access.data.systemCapabilities : [],
     organizationId: workspace.currentOrgId,
     projectId: workspace.currentProjectId,
+    hasOrganizations: workspace.organizations.length > 0 || workspace.currentOrgId != null,
   }
   const explicitProject = workspace.currentProjectId != null
     && workspace.searchParams.get('project') === String(workspace.currentProjectId)
@@ -110,7 +111,7 @@ export function HomePage() {
   const workShowsChoose = !sectionsPending && !hasWork && contextKind === 'choose'
 
   return (
-    <div className="home-refresh flex min-h-full w-full min-w-0 max-w-[1600px] flex-col gap-5 px-4 py-4 md:gap-6 md:px-6 md:py-6 xl:px-8">
+    <div className="home-refresh flex min-h-full w-full min-w-0 max-w-[1600px] flex-col gap-5 py-4 md:gap-6 md:py-6">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight">{t('home.title')}</h1>
         {owner ? (
@@ -128,7 +129,7 @@ export function HomePage() {
             <h2 className="break-words text-[1.5rem] font-semibold leading-[1.2] sm:text-[1.75rem] lg:text-[2rem]">
               {greeting}
             </h2>
-            <p className="mt-1 text-sm text-[#D7E6FA] sm:text-base">{t('home.workspace')}</p>
+            <p className="mt-1 text-sm text-[var(--home-welcome-muted)] sm:text-base">{t('home.workspace')}</p>
             {userPending && !name ? (
               <span className="mt-3 block h-3 w-40 rounded-full bg-white/25" role="status" aria-label={t('workspace.loading')} />
             ) : null}
@@ -146,7 +147,7 @@ export function HomePage() {
             />
           </div>
           {owner ? (
-            <p className="max-w-xs text-sm leading-snug text-[#D7E6FA] lg:border-l lg:border-white/40 lg:pl-5">
+            <p className="max-w-xs text-sm leading-snug text-[var(--home-welcome-muted)] lg:border-l lg:border-white/40 lg:pl-5">
               {t('home.full-access')}
             </p>
           ) : null}
@@ -365,10 +366,12 @@ function WelcomeContext({
   if (message) {
     return (
       <div className="mt-4">
-        <p className="max-w-2xl break-words text-sm leading-relaxed text-white">{message}</p>
+        <p className="max-w-2xl break-words text-sm leading-relaxed text-white">
+          {canCreateOrganization && reason === 'organizations-empty' ? t('settings-page.owner-empty-title') : message}
+        </p>
         {canCreateOrganization && reason === 'organizations-empty' ? (
           <Button asChild variant="outline" size="sm" className="mt-3 border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-            <Link to={routes.settings.organizationsAndProjects()}>{t('scheduler-page.create-first-organization')}</Link>
+            <Link to={routes.settings.organizations()}>{t('scheduler-page.create-first-organization')}</Link>
           </Button>
         ) : null}
       </div>
@@ -404,7 +407,7 @@ function WelcomeContext({
           <span className="break-words">{project}</span>
         </span>
       ) : (
-        <span className="inline-flex max-w-full items-center rounded-full bg-white/10 px-3 py-1.5 text-sm text-[#D7E6FA] ring-1 ring-inset ring-white/20">
+        <span className="inline-flex max-w-full items-center rounded-full bg-white/10 px-3 py-1.5 text-sm text-[var(--home-welcome-muted)] ring-1 ring-inset ring-white/20">
           {t('home.choose-project')}
         </span>
       )}

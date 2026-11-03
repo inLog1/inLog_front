@@ -20,8 +20,14 @@ export {
   isDelegationSubset,
   roleOwnerScope,
 } from './model/grants'
-export { ACCESS_PERMISSION_CATALOG, isOfferedPermission } from './model/permission-catalog'
-export type { CatalogPermission, PermissionGroupId } from './model/permission-catalog'
+export {
+  ACCESS_PERMISSION_CATALOG,
+  SYSTEM_REGISTRIES,
+  isOfferedPermission,
+  registryRecordsResource,
+  registrySchemaResource,
+} from './model/permission-catalog'
+export type { CatalogPermission, PermissionGroupId, SystemRegistryId } from './model/permission-catalog'
 export { accessManagementMode } from './model/availability'
 export type {
   AccessAssignmentView,

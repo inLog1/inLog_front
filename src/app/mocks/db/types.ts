@@ -10,6 +10,15 @@ import type { FormAnswers, FormSchema } from '../../../entities/form/model/types
 import type { ViewFilter, ViewSort } from '../../../entities/table-view/model/types'
 import type { AuthMode } from '../../../shared/config/runtime'
 import type { InstallationPhase } from '../../../entities/access/model/accessApi'
+import type {
+  Department,
+  DirectoryDefinition,
+  DirectoryEntry,
+  Employee,
+  OrganizationWorkspace,
+  PersonnelConfig,
+  Workplace,
+} from '../../../entities/personnel/model/types'
 
 export type MockUser = {
   id: number
@@ -364,5 +373,13 @@ export type MockState = {
   sectionDrafts: MockSectionDraft[]
   sectionVersions: MockSectionVersion[]
   notifications: MockNotificationRecord[]
+  /** Empty until the personnel starter runs. Migration does not invent employees. */
+  departments: Department[]
+  workplaces: Workplace[]
+  directoryDefinitions: DirectoryDefinition[]
+  directoryEntries: DirectoryEntry[]
+  personnelConfigs: PersonnelConfig[]
+  employees: Employee[]
+  organizationWorkspaces: OrganizationWorkspace[]
   fault: MockFault
 }
