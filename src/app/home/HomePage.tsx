@@ -49,7 +49,7 @@ const CARD_ICONS: Record<string, LucideIcon> = {
 const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--home-bg)]'
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
-  if (section.context === 'project') return 'project'
+  if (section.id === 'home' || section.context === 'project') return 'project'
   if (section.context === 'organization') return 'organization'
   return 'app'
 }

@@ -33,6 +33,7 @@ export type {
   AccessAssignmentView,
   AccessCandidate,
   AccessGrantView,
+  AccessCreatableScope,
   AccessDirectory,
   AccessRoleDetail,
   AccessRoleView,
@@ -42,11 +43,15 @@ export type {
   AccessUsersPage,
   AccessUsersQueryEcho,
   AssignmentWrite,
+  RoleDuplicateBlockedGrant,
+  RoleDuplicateBlockReason,
+  RoleDuplicateWrite,
   RoleWrite,
 } from './model/directory'
 export {
   useCreateAccessAssignmentMutation,
   useCreateAccessRoleMutation,
+  useDuplicateAccessRoleMutation,
   useDeleteAccessRoleMutation,
   useGetAccessDirectoryQuery,
   useGetAccessUserQuery,

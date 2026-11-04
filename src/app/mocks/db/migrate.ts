@@ -38,6 +38,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Those accounts have no grants. Other namespaces are not extended.
  * Version 11 adds the system-registry grant rows for departments and workplaces.
  * Stored role grant lists are not extended. directories.* stays on manual directories only.
+ * Version 12 does not add a role field and does not rewrite ownerScope.
+ * A missing ownerScope stays missing. Stored role ids, grant lists and assignments stay as they are.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {

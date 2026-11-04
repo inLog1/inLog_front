@@ -1,5 +1,5 @@
 import { platformApi } from '../../../shared/api/platformApi'
-import type { AccessDirectory, AccessRoleDetail, AccessRoleView, AccessUserDetail, AccessUsersPage, AssignmentWrite, RoleWrite } from './directory'
+import type { AccessDirectory, AccessRoleDetail, AccessRoleView, AccessUserDetail, AccessUsersPage, AssignmentWrite, RoleDuplicateWrite, RoleWrite } from './directory'
 import type { SessionAccess } from './types'
 
 export type InstallationPhase = 'uninitialized' | 'owner-assigned' | 'configuring' | 'ready'
@@ -73,6 +73,10 @@ export const accessApi = platformApi.injectEndpoints({
       query: (body) => ({ url: 'access/roles/', method: 'POST', body }),
       invalidatesTags: ['AccessControl', 'SessionAccess'],
     }),
+    duplicateAccessRole: build.mutation<{ role: AccessRoleView }, RoleDuplicateWrite>({
+      query: (body) => ({ url: 'access/roles/duplicate/', method: 'POST', body }),
+      invalidatesTags: ['AccessControl', 'SessionAccess'],
+    }),
     updateAccessRole: build.mutation<{ role: AccessRoleView }, { roleId: string; body: RoleWrite }>({
       query: ({ roleId, body }) => ({ url: `access/roles/${roleId}/`, method: 'PATCH', body }),
       invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
@@ -111,6 +115,7 @@ export const {
   useGetAccessUsersQuery,
   useGetAccessRoleQuery,
   useCreateAccessRoleMutation,
+  useDuplicateAccessRoleMutation,
   useUpdateAccessRoleMutation,
   useDeleteAccessRoleMutation,
   useCreateAccessAssignmentMutation,

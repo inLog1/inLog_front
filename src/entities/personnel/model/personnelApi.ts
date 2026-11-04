@@ -87,6 +87,19 @@ export type DirectoryListResponse = {
   directories: DirectoryView[]
 }
 
+function appendDirectoryRecord(
+  options: Record<string, DirectoryOptions> | undefined,
+  directoryId: string,
+  record: ReferenceOption,
+) {
+  if (!options) return
+  for (const bucket of Object.values(options)) {
+    if (bucket.directoryId !== directoryId) continue
+    if (bucket.records.some((item) => item.id === record.id)) return
+    bucket.records.push(record)
+  }
+}
+
 export type DirectoryRecord = {
   id: string
   revision: number
@@ -150,7 +163,35 @@ export const personnelApi = platformApi.injectEndpoints({
     }),
     createDirectoryRecord: build.mutation<DirectoryRecord, { directoryId: string; body: Record<string, unknown> }>({
       query: ({ directoryId, body }) => ({ url: `directories/${directoryId}/records/`, method: 'POST', body }),
-      invalidatesTags: [{ type: 'Directories' }, { type: 'Personnel' }],
+      invalidatesTags: (_result, _error, arg) => [{ type: 'Directories' }, { type: 'Directories', id: arg.directoryId }],
+      async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data: created } = await queryFulfilled
+          const organizationId = typeof arg.body.organizationId === 'number' ? arg.body.organizationId : null
+          if (organizationId == null) return
+          const record: ReferenceOption = {
+            id: created.id,
+            label: created.label,
+            archived: created.archived,
+            ...(created.departmentId != null ? { departmentId: created.departmentId } : {}),
+          }
+          dispatch(
+            personnelApi.util.updateQueryData('getPersonnelConfig', { organizationId }, (draft) => {
+              appendDirectoryRecord(draft.options, arg.directoryId, record)
+            }),
+          )
+          for (const args of personnelApi.util.selectCachedArgsForQuery(getState(), 'getEmployee')) {
+            if (args.organizationId !== organizationId) continue
+            dispatch(
+              personnelApi.util.updateQueryData('getEmployee', args, (draft) => {
+                appendDirectoryRecord(draft.options, arg.directoryId, record)
+              }),
+            )
+          }
+        } catch {
+          // invalidatesTags will refetch if the optimistic patch is skipped
+        }
+      },
     }),
     updateDirectoryRecord: build.mutation<DirectoryRecord, { directoryId: string; recordId: string; body: Record<string, unknown> }>({
       query: ({ directoryId, recordId, body }) => ({ url: `directories/${directoryId}/records/${recordId}/`, method: 'PATCH', body }),

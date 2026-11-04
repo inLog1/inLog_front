@@ -31,7 +31,7 @@ import { routes } from '../../../shared/lib/routes'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { sameScopeKey, scopeKey } from '../model/users-context'
 import { permissionSummary } from './permission-summary'
-import { scopeLabel } from './scope-label'
+import { roleDefinitionLabel, scopeLabel } from './scope-label'
 
 export function UserAccess({ userId, backHref }: { userId: number; backHref: string }) {
   const { t } = useTranslation()
@@ -232,11 +232,17 @@ export function UserAccess({ userId, backHref }: { userId: number; backHref: str
               >
                 <option value="">{t('access.choose')}</option>
                 {activeRoles.map((choice) => (
-                  <option key={choice.id} value={choice.id}>{choice.displayName}</option>
+                  <option key={choice.id} value={choice.id}>
+                    {choice.displayName}
+                    {view ? ` — ${roleDefinitionLabel(choice.ownerScope, view.organizations, t)}` : ''}
+                  </option>
                 ))}
               </select>
             </label>
             {chosen ? <RolePreview choice={chosen} /> : null}
+            {chosen?.ownerScope.type === 'corporation' && selected?.type === 'organization' ? (
+              <p className="text-sm text-muted-foreground">{t('access.assign-corporate-note')}</p>
+            ) : null}
             {blockedRoles.length > 0 ? (
               <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
                 {blockedRoles.map((item) => (

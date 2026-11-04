@@ -223,7 +223,7 @@ function SectionScreen({
         title={title}
         description={description || undefined}
         breadcrumbs={[
-          { label: t('home.title'), to: href(routes.dashboard(), 'app') },
+          { label: t('home.title'), to: href(routes.dashboard(), 'project') },
           { label: title },
         ]}
         actions={mode === 'published' && showCreate && canCreate && createTo ? (

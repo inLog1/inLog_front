@@ -52,6 +52,15 @@ export function writeCorporateLocation(current: URLSearchParams, patch: Partial<
   return next
 }
 
+/** The corporation list has no header organization selector, so a carried workspace id is not part of this address. */
+export function omitWorkspaceSelection(current: URLSearchParams): URLSearchParams | null {
+  if (!current.has('org') && !current.has('project')) return null
+  const next = new URLSearchParams(current)
+  next.delete('org')
+  next.delete('project')
+  return next
+}
+
 /** Workspace selection for one organization. Other organizations' project and editor parameters are not copied. */
 export function organizationContextSearch(organizationId: number): string {
   const params = new URLSearchParams()

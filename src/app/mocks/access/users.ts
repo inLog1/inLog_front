@@ -1,4 +1,4 @@
-import { assignmentDenial, can, canManageAssignment, hasCorporateSuperadmin, hasInstallationCapability, installationCorporationId, roleOwnerScope, scopeCovers, scopeIsCanonical } from '../../../entities/access/model/grants'
+import { can, canManageAssignment, hasCorporateSuperadmin, hasInstallationCapability, installationCorporationId, roleOwnerScope, rolePlacementDenial, scopeIsCanonical } from '../../../entities/access/model/grants'
 import { isOfferedPermission } from '../../../entities/access/model/permission-catalog'
 import type {
   AccessGrantView,
@@ -193,21 +193,16 @@ function roleChoices(state: MockState, actorId: number, userId: number): AccessU
   const snapshot = toSnapshot(state)
   const scopes = assignableScopes(state, actorId, userId)
   return state.roles.flatMap((role) => {
-    if (!roleVisible(state, actorId, role)) return []
     const owner = roleOwnerScope(role, snapshot)
     if (!owner) return []
     const evaluated = scopes.map((scope) => {
-      let reason: AccessUserRoleChoice['scopes'][number]['reason'] = null
-      if (!canManageAssignment(snapshot, actorId, owner) || !canManageAssignment(snapshot, actorId, scope)) {
-        reason = 'forbidden'
-      } else if (!scopeCovers(owner, scope, snapshot.projects, snapshot.organizations)) {
-        reason = 'scope_expansion'
-      } else {
-        reason = assignmentDenial(snapshot, actorId, role, scope, userId)
-      }
+      const reason = rolePlacementDenial(snapshot, actorId, role, scope, userId)
       return { scope, assignable: reason == null, reason }
     })
     if (evaluated.length === 0) return []
+    const applicable = evaluated.some((item) => item.reason !== 'scope_expansion')
+    if (!applicable) return []
+    if (!roleVisible(state, actorId, role) && !evaluated.some((item) => item.assignable)) return []
     return [{
       id: role.id,
       displayName: role.displayName,

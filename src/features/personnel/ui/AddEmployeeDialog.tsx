@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useGetPersonnelConfigQuery,
@@ -25,7 +25,7 @@ import {
 } from '../../../shared/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
 import { DirectoryCreatePanel } from './DirectoryValueField'
-import { EmployeeForm, type DirectoryCreateRequest } from './EmployeeForm'
+import { EmployeeForm, type DirectoryCreateRequest, type PendingDirectoryPick } from './EmployeeForm'
 
 export interface EmployeeOrganizationTarget {
   id: number
@@ -52,9 +52,18 @@ export function AddEmployeeDialog({
   const [pendingOrganizationId, setPendingOrganizationId] = useState<number | null>(null)
   const [confirmClose, setConfirmClose] = useState(false)
   const [draft, setDraft] = useState<DirectoryCreateRequest | null>(null)
+  const draftRef = useRef<DirectoryCreateRequest | null>(null)
+  const [pendingDirectoryPick, setPendingDirectoryPick] = useState<PendingDirectoryPick | null>(null)
+  const clearPendingDirectoryPick = useCallback(() => setPendingDirectoryPick(null), [])
+
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
   useEffect(() => {
     if (!open) {
       setDraft(null)
+      setPendingDirectoryPick(null)
       return
     }
     setOrganizationId((current) => (
@@ -121,6 +130,8 @@ export function AddEmployeeDialog({
                 layout="columns"
                 hideOrganization
                 onCreateOption={setDraft}
+                pendingDirectoryPick={pendingDirectoryPick}
+                onPendingDirectoryPickApplied={clearPendingDirectoryPick}
                 onClose={(savedId) => {
                   if (savedId) onCreated(savedId)
                   else requestClose()
@@ -153,8 +164,11 @@ export function AddEmployeeDialog({
               option={draft.option}
               departments={draft.departments}
               onBack={() => setDraft(null)}
-              onCreated={(id) => {
-                draft.apply(id)
+              onCreated={(record) => {
+                const pending = draftRef.current
+                if (pending) {
+                  setPendingDirectoryPick({ fieldId: pending.fieldId, record })
+                }
                 setDraft(null)
               }}
             />

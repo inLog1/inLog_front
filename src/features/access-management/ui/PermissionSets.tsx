@@ -1,9 +1,10 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ACCESS_PERMISSION_CATALOG, type AccessGrantView, type PermissionGroupId } from '../../../entities/access'
 import { Button } from '../../../shared/ui/button'
 import { Checkbox } from '../../../shared/ui/checkbox'
 import { Input } from '../../../shared/ui/input'
+import { TabButton } from '../../../shared/ui/tab-button'
 
 const GROUPS: PermissionGroupId[] = [
   'tasks',
@@ -30,6 +31,7 @@ type PermissionSetsProps = {
   preservedOperational: readonly AccessGrantView[]
   preservedDelegation: readonly AccessGrantView[]
   editable?: boolean
+  generalPanel?: ReactNode
   onOperational: (ids: string[]) => void
   onDelegation: (ids: string[]) => void
 }
@@ -40,6 +42,9 @@ type MatrixRow = {
   group: PermissionGroupId | 'preserved'
   sectionKey?: string
 }
+
+type GroupTabId = PermissionGroupId | 'preserved'
+export type PermissionSectionTab = 'general' | GroupTabId
 
 function toggle(ids: readonly string[], id: string, checked: boolean): string[] {
   if (checked) return ids.includes(id) ? [...ids] : [...ids, id]
@@ -54,10 +59,14 @@ function addAvailable(selected: readonly string[], grants: readonly AccessGrantV
   return [...next]
 }
 
+function groupLabel(item: GroupTabId, t: (key: string) => string): string {
+  return item === 'preserved' ? t('access.preserved') : t(`access.groups.${item}`)
+}
+
 export function PermissionSets(props: PermissionSetsProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
-  const [group, setGroup] = useState<PermissionGroupId | 'preserved' | 'all'>('all')
+  const [section, setSection] = useState<PermissionSectionTab>('general')
   const delegable = useMemo(() => new Set(props.delegableIds), [props.delegableIds])
   const editable = props.editable !== false
   const needle = query.trim().toLowerCase()
@@ -81,80 +90,71 @@ export function PermissionSets(props: PermissionSetsProps) {
     return row.label.toLowerCase().includes(needle) || code.includes(needle)
   }
   const visibleGroups = GROUPS.filter((item) => rows.some((row) => row.group === item))
-  const groupIds: Array<PermissionGroupId | 'preserved' | 'all'> = [
-    'all',
+  const groupIds: GroupTabId[] = [
     ...visibleGroups,
     ...(preservedRows.length > 0 ? ['preserved' as const] : []),
   ]
-  const selectedGroup = groupIds.includes(group) ? group : 'all'
-  const shown = rows.filter((row) => (selectedGroup === 'all' || row.group === selectedGroup) && matches(row))
-  const grouped = selectedGroup === 'all'
-    ? groupIds.filter((item) => item !== 'all').map((item) => ({
-      id: item,
-      rows: shown.filter((row) => row.group === item),
-    })).filter((item) => item.rows.length > 0)
-    : [{ id: selectedGroup, rows: shown }]
+  const activeGroup = section !== 'general' && groupIds.includes(section) ? section : groupIds[0]
+  const showGeneral = section === 'general' && props.generalPanel != null
 
   const mayPerform = (id: string) => delegable.has(id)
   const mayGrant = (id: string) => props.canDelegateFurther && delegable.has(id)
+  const tabRows = !showGeneral && activeGroup
+    ? rows.filter((row) => row.group === activeGroup && matches(row))
+    : []
+
+  const pickSection = (next: PermissionSectionTab) => {
+    if (next !== 'general' && !groupIds.includes(next)) return
+    setSection(next)
+  }
 
   return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <div className="min-w-0">
-        <label className="grid gap-1 text-sm">
-          {t('access.search')}
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('access.search')} />
-        </label>
-        <label className="mt-3 grid gap-1 text-sm lg:hidden">
-          {t('access.groups-label')}
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2"
-            value={selectedGroup}
-            onChange={(event) => setGroup(event.target.value as PermissionGroupId | 'preserved' | 'all')}
-          >
-            {groupIds.map((item) => (
-              <option key={item} value={item}>{item === 'all' ? t('access.all-groups') : item === 'preserved' ? t('access.preserved') : t(`access.groups.${item}`)}</option>
-            ))}
-          </select>
-        </label>
-        <div className="mt-3 hidden flex-col gap-1 lg:flex" role="tablist" aria-label={t('access.groups-label')}>
-          {groupIds.map((item) => (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={item === selectedGroup}
-              className={item === selectedGroup
-                ? 'rounded-lg bg-primary/10 px-3 py-2 text-left text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                : 'rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
-              onClick={() => setGroup(item)}
-            >
-              {item === 'all' ? t('access.all-groups') : item === 'preserved' ? t('access.preserved') : t(`access.groups.${item}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="min-w-0 space-y-4" role="tabpanel">
-        <p className="text-sm text-muted-foreground">{t('access.matrix-hint')}</p>
-        {grouped.length === 0 ? <p className="text-sm text-muted-foreground">{t('access.search-empty')}</p> : null}
-        {grouped.map((block) => (
-          <GroupMatrix
-            key={block.id}
-            title={block.id === 'preserved' ? t('access.preserved') : t(`access.groups.${block.id}`)}
-            rows={block.rows}
-            operationalIds={props.operationalIds}
-            delegationIds={props.delegationIds}
-            editable={editable}
-            mayPerform={mayPerform}
-            mayGrant={mayGrant}
-            performReason={t('access.not-delegable')}
-            grantReason={props.canDelegateFurther ? t('access.not-delegable') : t('access.no-further')}
-            lockedReason={t('access.edit-denied')}
-            onOperational={props.onOperational}
-            onDelegation={props.onDelegation}
-          />
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-border" role="tablist" aria-label={t('access.groups-label')}>
+        {props.generalPanel != null ? (
+          <TabButton active={section === 'general'} onClick={() => pickSection('general')}>
+            {t('access.tabs.general')}
+          </TabButton>
+        ) : null}
+        {groupIds.map((item) => (
+          <TabButton key={item} active={section === item} onClick={() => pickSection(item)}>
+            {groupLabel(item, t)}
+          </TabButton>
         ))}
       </div>
+      {showGeneral ? (
+        <div className="min-w-0" role="tabpanel">
+          {props.generalPanel}
+        </div>
+      ) : groupIds.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('access.search-empty')}</p>
+      ) : (
+        <div className="min-w-0 space-y-4" role="tabpanel">
+          <label className="grid max-w-md gap-1 text-sm">
+            {t('access.search')}
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('access.search')} />
+          </label>
+          <p className="text-sm text-muted-foreground">{t('access.matrix-hint')}</p>
+          {tabRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('access.search-empty')}</p>
+          ) : activeGroup ? (
+            <GroupMatrix
+              title={groupLabel(activeGroup, t)}
+              rows={tabRows}
+              operationalIds={props.operationalIds}
+              delegationIds={props.delegationIds}
+              editable={editable}
+              mayPerform={mayPerform}
+              mayGrant={mayGrant}
+              performReason={t('access.not-delegable')}
+              grantReason={props.canDelegateFurther ? t('access.not-delegable') : t('access.no-further')}
+              lockedReason={t('access.edit-denied')}
+              onOperational={props.onOperational}
+              onDelegation={props.onDelegation}
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

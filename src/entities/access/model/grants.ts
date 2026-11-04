@@ -354,3 +354,28 @@ export function assignmentDenial(
   if (!canManageAssignment(snapshot, actorId, scope)) return 'forbidden'
   return issuedSetDenial(snapshot, actorId, role, scope, assigneeId)
 }
+
+export type RolePlacementDenial = AssignmentDenial | 'scope_expansion'
+
+/**
+ * Whether this role definition may be assigned at this scope.
+ * The definition limits where a role can be used. The assignment scope is what
+ * the effective grants use. A corporation definition assigned in one organization
+ * does not require authority over the whole corporation and does not cover another organization.
+ * A local definition still requires authority over its home.
+ */
+export function rolePlacementDenial(
+  snapshot: AccessSnapshot,
+  actorId: number,
+  role: AccessRole,
+  scope: AccessScope,
+  assigneeId: number,
+): RolePlacementDenial | null {
+  if (!scopeIsCanonical(scope, snapshot.projects, snapshot.organizations)) return 'invalid_scope'
+  const owner = roleOwnerScope(role, snapshot)
+  if (!owner) return 'forbidden'
+  const installationId = installationCorporationId(snapshot)
+  if (!scopeCovers(owner, scope, snapshot.projects, snapshot.organizations, installationId)) return 'scope_expansion'
+  if (owner.type !== 'corporation' && !canManageAssignment(snapshot, actorId, owner)) return 'forbidden'
+  return assignmentDenial(snapshot, actorId, role, scope, assigneeId)
+}

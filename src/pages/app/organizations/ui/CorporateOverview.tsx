@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Briefcase, Building2, FlaskConical, MoreHorizontal, Plus } from 'lucide-react'
@@ -18,6 +18,7 @@ import {
   EditOrganizationDialog,
   organizationVisible,
   personnelVisible,
+  omitWorkspaceSelection,
   readCorporateLocation,
   writeCorporateLocation,
   type CorporateKindFilter,
@@ -50,7 +51,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { AddEmployeeDialog } from '../../../../features/personnel'
 import { PersonnelComposer } from './PersonnelComposer'
 
+function useCorporationAddress() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const next = omitWorkspaceSelection(searchParams)
+    if (!next) return
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+}
+
 export function CorporateOverview() {
+  useCorporationAddress()
   return personnelMode() === 'mock' ? <MockCorporation /> : <LiveCorporation />
 }
 

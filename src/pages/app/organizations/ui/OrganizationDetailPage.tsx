@@ -247,7 +247,7 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
           </div>
         ) : null}
       </div>
-      <OrganizationInfoCard organization={organization} kindLabel={kindLabel} />
+      {tab === 'details' ? <OrganizationInfoCard organization={organization} kindLabel={kindLabel} /> : null}
       {tab === 'personnel' ? (
         <section className="space-y-4">
           <div>
@@ -428,14 +428,16 @@ function LiveOrganizationDetail({ organizationId }: { organizationId: number | n
         <TabButton active={tab === 'details'} onClick={() => setTab('details')}>{t('corporation.details-title')}</TabButton>
         <TabButton active={tab === 'personnel'} onClick={() => setTab('personnel')}>{t('corporation.staff-tab')}</TabButton>
       </div>
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-medium text-muted-foreground">{t('corporation.details-card-title')}</h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Fact label={t('corporation.field-name')} value={row.fullName} />
-          <Fact label={t('corporation.field-short')} value={row.shortName} />
-          <Fact label={t('corporation.field-address')} value={row.address} />
-        </dl>
-      </section>
+      {tab === 'details' ? (
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-medium text-muted-foreground">{t('corporation.details-card-title')}</h2>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Fact label={t('corporation.field-name')} value={row.fullName} />
+            <Fact label={t('corporation.field-short')} value={row.shortName} />
+            <Fact label={t('corporation.field-address')} value={row.address} />
+          </dl>
+        </section>
+      ) : null}
       {tab === 'personnel' ? (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">{t('corporation.staff-tab')}</h2>

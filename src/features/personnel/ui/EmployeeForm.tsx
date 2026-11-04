@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Camera, Plus } from 'lucide-react'
@@ -13,6 +13,7 @@ import {
   useLinkEmployeeAccountMutation,
   useUpdateEmployeeMutation,
   type DirectoryOptions,
+  type DirectoryRecord,
   type EmployeeCard,
 } from '../../../entities/personnel'
 import type { PersonnelConfig, PersonnelField, PersonnelValue } from '../../../entities/personnel/model/types'
@@ -28,9 +29,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../../../shared/ui/tool
 import { DirectoryValueField } from './DirectoryValueField'
 
 export type DirectoryCreateRequest = {
+  fieldId: string
   option: DirectoryOptions
   departments: DirectoryOptions | undefined
-  apply: (id: string) => void
+}
+
+export type PendingDirectoryPick = {
+  fieldId: string
+  record: Pick<DirectoryRecord, 'id' | 'label'>
 }
 
 export function EmployeeForm({
@@ -41,6 +47,8 @@ export function EmployeeForm({
   layout = 'page',
   hideOrganization = false,
   onCreateOption,
+  pendingDirectoryPick,
+  onPendingDirectoryPickApplied,
 }: {
   organizationId: number
   organizationName: string
@@ -50,6 +58,8 @@ export function EmployeeForm({
   layout?: 'page' | 'columns'
   hideOrganization?: boolean
   onCreateOption?: (request: DirectoryCreateRequest) => void
+  pendingDirectoryPick?: PendingDirectoryPick | null
+  onPendingDirectoryPickApplied?: () => void
 }) {
   const { t } = useTranslation()
   const existing = useGetEmployeeQuery(
@@ -61,7 +71,7 @@ export function EmployeeForm({
   const sourceConfig = employeeId ? card?.config : config.data?.config
   const options = employeeId ? card?.options : config.data?.options
   const permissions = employeeId ? card?.employee.permissions : config.data?.permissions
-  if (employeeId && existing.isLoading) return <p className="text-sm text-muted-foreground">{t('personnel.loading')}</p>
+  if (employeeId && existing.isLoading && !card) return <p className="text-sm text-muted-foreground">{t('personnel.loading')}</p>
   if (employeeId && existing.isError) {
     return <p className="text-sm text-destructive" role="alert">{t(`personnel.errors.${personnelError(existing.error).code}`, { defaultValue: t('personnel.errors.generic') })}</p>
   }
@@ -81,6 +91,8 @@ export function EmployeeForm({
       layout={layout}
       hideOrganization={hideOrganization}
       onCreateOption={onCreateOption}
+      pendingDirectoryPick={pendingDirectoryPick}
+      onPendingDirectoryPickApplied={onPendingDirectoryPickApplied}
       onClose={onClose}
     />
   )
@@ -98,6 +110,8 @@ function EmployeeEditor({
   layout,
   hideOrganization,
   onCreateOption,
+  pendingDirectoryPick,
+  onPendingDirectoryPickApplied,
   onClose,
 }: {
   organizationId: number
@@ -111,11 +125,14 @@ function EmployeeEditor({
   layout: 'page' | 'columns'
   hideOrganization: boolean
   onCreateOption?: (request: DirectoryCreateRequest) => void
+  pendingDirectoryPick?: PendingDirectoryPick | null
+  onPendingDirectoryPickApplied?: () => void
   onClose: (savedId?: string) => void
 }) {
   const { t } = useTranslation()
   const initial = useMemo(() => employee?.values ?? {}, [employee])
   const [values, setValues] = useState<Record<string, PersonnelValue>>(initial)
+  const [recordHints, setRecordHints] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [formTab, setFormTab] = useState('employee')
   const [workplaceNote, setWorkplaceNote] = useState(false)
@@ -170,23 +187,37 @@ function EmployeeEditor({
 
   const changeValue = (field: PersonnelField, next: PersonnelValue) => {
     if (field.key !== 'department') {
-      setValues({ ...values, [field.id]: next })
+      setValues((current) => ({ ...current, [field.id]: next }))
       return
     }
     const workplace = config.fields.find((item) => item.key === 'workplace')
-    const currentId = workplace ? values[workplace.id] : null
-    const record = typeof currentId === 'string'
-      ? options.workplaces?.records.find((item) => item.id === currentId)
-      : undefined
-    const nextDepartment = typeof next === 'string' ? next : ''
-    if (workplace && nextDepartment && record?.departmentId && record.departmentId !== nextDepartment) {
-      setValues({ ...values, [field.id]: next, [workplace.id]: null })
-      setWorkplaceNote(true)
-      return
-    }
-    setWorkplaceNote(false)
-    setValues({ ...values, [field.id]: next })
+    let mismatch = false
+    setValues((current) => {
+      const currentId = workplace ? current[workplace.id] : null
+      const record = typeof currentId === 'string'
+        ? options.workplaces?.records.find((item) => item.id === currentId)
+        : undefined
+      const nextDepartment = typeof next === 'string' ? next : ''
+      mismatch = Boolean(workplace && nextDepartment && record?.departmentId && record.departmentId !== nextDepartment)
+      if (mismatch && workplace) {
+        return { ...current, [field.id]: next, [workplace.id]: null }
+      }
+      return { ...current, [field.id]: next }
+    })
+    setWorkplaceNote(mismatch)
   }
+
+  useEffect(() => {
+    if (!pendingDirectoryPick) return
+    const field = config.fields.find((item) => item.id === pendingDirectoryPick.fieldId)
+    if (!field) return
+    const { id, label } = pendingDirectoryPick.record
+    setRecordHints((current) => ({ ...current, [id]: label }))
+    changeValue(field, id)
+    onPendingDirectoryPickApplied?.()
+    // Applied once per pendingDirectoryPick object from the dialog after create-and-select.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- changeValue is derived from latest render
+  }, [pendingDirectoryPick])
 
   if (layout === 'columns') {
     return (
@@ -204,6 +235,7 @@ function EmployeeEditor({
         canArchive={canArchive}
         canLink={canLink}
         onCreateOption={onCreateOption}
+        recordHints={recordHints}
         saving={createState.isLoading || updateState.isLoading}
         archiving={archiveState.isLoading}
         onTab={setFormTab}
@@ -373,6 +405,7 @@ function EmployeeSheet({
   canArchive,
   canLink,
   onCreateOption,
+  recordHints,
   saving,
   archiving,
   onTab,
@@ -394,6 +427,7 @@ function EmployeeSheet({
   canArchive: boolean
   canLink: boolean
   onCreateOption?: (request: DirectoryCreateRequest) => void
+  recordHints: Record<string, string>
   saving: boolean
   archiving: boolean
   onTab: (tab: string) => void
@@ -441,6 +475,7 @@ function EmployeeSheet({
             disabled={!canSave || (employee?.source === 'integration' && field.sourceOwned)}
             onChange={(next) => onChange(field, next)}
             onCreateOption={onCreateOption}
+            recordHints={recordHints}
           />
           {field.key === 'workplace' && workplaceNote ? (
             <p className="text-xs text-amber-700 md:col-span-2 xl:col-span-3">{t('personnel.workplace-cleared')}</p>
@@ -565,6 +600,7 @@ function FieldInput({
   disabled,
   onChange,
   onCreateOption,
+  recordHints,
 }: {
   field: PersonnelField
   className?: string
@@ -575,6 +611,7 @@ function FieldInput({
   disabled: boolean
   onChange: (value: PersonnelValue) => void
   onCreateOption?: (request: DirectoryCreateRequest) => void
+  recordHints?: Record<string, string>
 }) {
   const { t } = useTranslation()
   const label = `${field.label}${field.required ? ' *' : ''}`
@@ -586,9 +623,9 @@ function FieldInput({
     const showAdd = Boolean(onCreateOption && option.canAdd && !disabled)
     const requestAdd = showAdd && onCreateOption
       ? () => onCreateOption({
+        fieldId: field.id,
         option,
         departments: options.departments,
-        apply: (id) => onChange(id),
       })
       : undefined
     const labelNode = showAdd ? (
@@ -623,6 +660,7 @@ function FieldInput({
           departments={options.departments}
           value={typeof value === 'string' ? value : ''}
           disabled={disabled}
+          recordHints={recordHints}
           onChange={onChange}
           onRequestAdd={requestAdd ? () => requestAdd() : undefined}
         />
