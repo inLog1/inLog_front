@@ -45,9 +45,13 @@ export type AccessRole = {
    */
   delegationGrantIds?: string[]
   /**
-   * Who may change this role. Absent on an older snapshot means the installation
-   * corporation: only its corporate superadmin may change the role.
-   * A missing value is not a grant and is not filled in by migration.
+   * Where this role is defined and may be assigned.
+   * Corporation: the role can be assigned in that corporation, including one organization at a time.
+   * Organization: the role can be assigned only inside that organization.
+   * This is not an assignment and it does not grant access by itself.
+   * Effective permissions use the assignment scope.
+   * Absent on an older snapshot means the installation corporation.
+   * A missing value is not a grant. Migration does not fill it in.
    */
   ownerScope?: AccessScope
   /**

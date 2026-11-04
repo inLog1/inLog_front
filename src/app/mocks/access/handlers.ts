@@ -4,9 +4,11 @@ import {
   createAssignment,
   createRole,
   deleteRole,
+  duplicateRole,
   readAssignmentWrite,
   readDirectory,
   readRole,
+  readRoleDuplicateWrite,
   readRoleWrite,
   revokeAssignment,
   updateRole,
@@ -54,6 +56,14 @@ export const accessHandlers: HttpHandler[] = [
     const parsed = readRoleWrite(await readJson(request), true)
     if (!parsed.ok) return json({ code: parsed.code }, 400)
     return commit((state) => createRole(state, bearer(request), parsed.value))
+  }),
+
+  http.post(`${MOCK_PREFIX}/access/roles/duplicate/`, async ({ request }) => {
+    const ready = await load('access/roles/duplicate/')
+    if (ready instanceof Response) return ready
+    const parsed = readRoleDuplicateWrite(await readJson(request))
+    if (!parsed.ok) return json({ code: parsed.code }, 400)
+    return commit((state) => duplicateRole(state, bearer(request), parsed.value))
   }),
 
   http.get(`${MOCK_PREFIX}/access/roles/:roleId/`, async ({ request, params }) => {

@@ -8,19 +8,23 @@ import {
   useDeleteAccessRoleMutation,
   useGetAccessDirectoryQuery,
   useGetAccessRoleQuery,
-  useGetSessionAccessQuery,
   useUpdateAccessRoleMutation,
+  type AccessCreatableScope,
   type AccessGrantView,
+  type AccessRoleView,
   type AccessScope,
 } from '../../../entities/access'
+import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { Input } from '../../../shared/ui/input'
 import { Textarea } from '../../../shared/ui/textarea'
-import { EditorActions, PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
+import { PageHeader, PageState, WorkPage } from '../../../shared/ui/page'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { PermissionSets } from './PermissionSets'
+import { RoleAvailabilityField } from './RoleAvailabilityField'
 import { RoleDeleteDialog } from './RoleDeleteDialog'
-import { scopeLabel } from './scope-label'
+import { RoleDuplicateDialog } from './RoleDuplicateDialog'
+import { roleDefinitionLabel, scopeKey, scopeLabel } from './scope-label'
 
 type RoleEditorProps = {
   roleId: string | null
@@ -31,7 +35,7 @@ type RoleEditorProps = {
 }
 
 export function RoleEditor({ roleId, owner, organizationId, listHref, usersHref }: RoleEditorProps) {
-  if (roleId) return <ExistingRole roleId={roleId} listHref={listHref} usersHref={usersHref} />
+  if (roleId) return <ExistingRole roleId={roleId} organizationId={organizationId} listHref={listHref} usersHref={usersHref} />
   return <NewRole owner={owner} organizationId={organizationId} listHref={listHref} usersHref={usersHref} />
 }
 
@@ -42,23 +46,22 @@ function NewRole({ owner, organizationId, listHref, usersHref }: { owner: 'organ
     owner === 'corporation' ? { scope: 'corporation' } : { scope: 'organization', organizationId: organizationId ?? 0 },
     { skip },
   )
-  const ownerScope: AccessScope | null = directory.data == null
-    ? null
-    : owner === 'corporation'
-      ? { type: 'corporation', corporationId: directory.data.corporationId }
-      : directory.data.organizationId == null
-        ? null
-        : { type: 'organization', organizationId: directory.data.organizationId, corporationId: directory.data.corporationId }
   if (directory.isError && !directory.data) return <EditorStatus error={directory.error} />
-  if (directory.isLoading || !directory.data || !ownerScope) {
+  if (directory.isLoading || !directory.data) {
     return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
   }
-  if (!directory.data.canCreateRole) return <CreateDenied listHref={listHref} />
+  const initialScope = preferredScope(directory.data.creatableScopes, owner, organizationId)
+  if (!initialScope) return <CreateDenied listHref={listHref} />
   return (
     <RoleForm
       listHref={listHref}
       usersHref={usersHref}
-      ownerScope={ownerScope}
+      initialScope={initialScope}
+      organizationId={organizationId}
+      scopeLocked={false}
+      creatableScopes={directory.data.creatableScopes}
+      accessVersion={directory.data.accessVersion}
+      source={null}
       organizations={directory.data.organizations}
       projects={directory.data.projects}
       offered={directory.data.offeredGrants}
@@ -70,7 +73,7 @@ function NewRole({ owner, organizationId, listHref, usersHref }: { owner: 'organ
   )
 }
 
-function ExistingRole({ roleId, listHref, usersHref }: { roleId: string; listHref: string; usersHref: string }) {
+function ExistingRole({ roleId, organizationId, listHref, usersHref }: { roleId: string; organizationId: number | null; listHref: string; usersHref: string }) {
   const role = useGetAccessRoleQuery(roleId)
   if (role.isLoading || !role.data) {
     return <EditorStatus error={role.isError ? role.error : null} />
@@ -80,7 +83,12 @@ function ExistingRole({ roleId, listHref, usersHref }: { roleId: string; listHre
       listHref={listHref}
       usersHref={usersHref}
       onRefresh={() => void role.refetch()}
-      ownerScope={role.data.role.ownerScope}
+      initialScope={role.data.role.ownerScope}
+      organizationId={organizationId}
+      scopeLocked={role.data.role.assignmentCount > 0}
+      creatableScopes={role.data.creatableScopes}
+      accessVersion={role.data.accessVersion}
+      source={role.data.role}
       organizations={role.data.organizations}
       projects={role.data.projects}
       offered={role.data.offeredGrants}
@@ -116,7 +124,12 @@ function RoleForm({
   listHref,
   usersHref,
   onRefresh,
-  ownerScope,
+  initialScope,
+  organizationId,
+  scopeLocked,
+  creatableScopes,
+  accessVersion,
+  source,
   organizations,
   projects,
   offered,
@@ -128,7 +141,12 @@ function RoleForm({
   listHref: string
   usersHref: string
   onRefresh?: () => void
-  ownerScope: AccessScope
+  initialScope: AccessScope
+  organizationId: number | null
+  scopeLocked: boolean
+  creatableScopes: readonly AccessCreatableScope[]
+  accessVersion: number
+  source: AccessRoleView | null
   organizations: Array<{ id: number; shortName: string }>
   projects: Array<{ id: number; name: string; organizationId: number }>
   offered: AccessGrantView[]
@@ -151,6 +169,8 @@ function RoleForm({
   const navigate = useNavigate()
   const [name, setName] = useState(initial?.displayName ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [scope, setScope] = useState(initialScope)
+  const [duplicateOpen, setDuplicateOpen] = useState(false)
   const [operationalIds, setOperationalIds] = useState(initial?.operational.map((item) => item.id) ?? [])
   const [delegationIds, setDelegationIds] = useState(initial?.delegation.map((item) => item.id) ?? [])
   const [failure, setFailure] = useState<string | null>(null)
@@ -167,6 +187,7 @@ function RoleForm({
   const dirty = !leaveClean && (
     name !== (initial?.displayName ?? '')
     || description !== (initial?.description ?? '')
+    || scopeKey(scope) !== scopeKey(initialScope)
     || !sameIds(operationalIds, initialOperational)
     || !sameIds(delegationIds, initialDelegation)
   )
@@ -177,12 +198,10 @@ function RoleForm({
     setUnsavedSource(initial ? `role-editor:${initial.id}` : 'role-editor:new', false)
     navigate(listHref, { replace: true })
   }
-  const session = useGetSessionAccessQuery(undefined, { skip: import.meta.env.VITE_API_MODE !== 'mock' })
   useEffect(() => {
     if (window.location.hash !== '#role-permissions') return
     document.getElementById('role-permissions')?.scrollIntoView({ block: 'start' })
   }, [])
-  const operatorOwner = session.data?.accessState === 'ready' && session.data.systemCapabilities.includes('corporate_superadmin')
   const offeredIds = new Set(offered.map((item) => item.id))
   const preservedOperational = (initial?.operational ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
   const preservedDelegation = (initial?.delegation ?? []).filter((item) => !item.offered && !offeredIds.has(item.id))
@@ -203,7 +222,8 @@ function RoleForm({
       description,
       grantIds: operationalIds,
       delegationGrantIds: delegationIds,
-      ownerScope,
+      ownerScope: scope,
+      expectedAccessVersion: accessVersion,
     }
     try {
       if (initial) await updateRole({ roleId: initial.id, body }).unwrap()
@@ -239,7 +259,11 @@ function RoleForm({
     }
   }
 
-  const scopeText = scopeLabel(ownerScope, organizations, projects, t)
+  const scopeText = roleDefinitionLabel(scope, organizations, t)
+  const selectedAvailability = creatableScopes.find((item) => scopeKey(item.scope) === scopeKey(scope)) ?? null
+  const sameArea = scopeKey(scope) === scopeKey(initialScope)
+  const activeDelegable = sameArea ? delegableIds : (selectedAvailability?.delegableGrantIds ?? [])
+  const activeFurther = sameArea ? canDelegateFurther : (selectedAvailability?.canDelegateFurther ?? false)
   const busy = !canEdit || pending
   const knownInUse = (initial?.assignmentCount ?? 0) > 0 || conflict
   const actionButtons = () => (
@@ -276,47 +300,14 @@ function RoleForm({
         ]}
         actions={actionButtons()}
       />
+      {initial && knownInUse && initial.canDelete ? <p className="text-sm text-foreground">{t('access.delete-blocked')}</p> : null}
       {notice ? <p className="text-sm" role="status">{notice}</p> : null}
       {failure ? <p className="text-sm text-destructive" role="alert">{failure}</p> : null}
-      {operatorOwner ? (
-        <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm" role="status">
-          <span className="font-medium">{t('access.installation-superadmin')}</span>
-          <span className="mt-1 block text-muted-foreground">{t('access.installation-superadmin-note')}</span>
-        </p>
-      ) : (
-        <p className="text-sm text-muted-foreground">{t('access.role-not-capability')}</p>
-      )}
-      <div className="grid max-w-xl gap-3">
-        <label className="grid min-w-0 gap-1 text-sm">
-          {t('access.name')}
-          <Input
-            value={name}
-            disabled={!canEdit}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
-              event.preventDefault()
-              void save()
-            }}
-            maxLength={80}
-          />
-        </label>
-        <div className="grid min-w-0 gap-1 text-sm">
-          <span>{t('access.owner')}</span>
-          <p className="flex h-9 items-center rounded-md border border-border bg-card px-3">{scopeText}</p>
-          {ownerScope.type === 'corporation' ? <p className="text-xs text-muted-foreground">{t('access.scope.corporation-help')}</p> : null}
-        </div>
-        <label className="grid min-w-0 gap-1 text-sm">
-          {t('access.description')}
-          <Textarea value={description} disabled={!canEdit} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
-        </label>
-      </div>
-      {!canEdit ? <p className="text-sm text-foreground">{t('access.edit-denied')}</p> : null}
       <div id="role-permissions" className="grid scroll-mt-6 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
         <PermissionSets
           offered={offered}
-          delegableIds={delegableIds}
-          canDelegateFurther={canDelegateFurther}
+          delegableIds={activeDelegable}
+          canDelegateFurther={activeFurther}
           operationalIds={operationalIds}
           delegationIds={delegationIds}
           preservedOperational={preservedOperational}
@@ -324,6 +315,45 @@ function RoleForm({
           editable={canEdit}
           onOperational={setOperationalIds}
           onDelegation={setDelegationIds}
+          generalPanel={(
+            <div className="max-w-xl rounded-lg border border-border bg-card p-4">
+              <div className="grid gap-3">
+              <label className="grid min-w-0 gap-1 text-sm">
+                {t('access.name')}
+                <Input
+                  value={name}
+                  disabled={!canEdit}
+                  onChange={(event) => setName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+                    event.preventDefault()
+                    void save()
+                  }}
+                  maxLength={80}
+                />
+              </label>
+              <RoleAvailabilityField
+                scopes={creatableScopes}
+                organizations={organizations}
+                value={scope}
+                preferredOrganizationId={organizationId}
+                onChange={setScope}
+                disabled={!canEdit || pending}
+                locked={scopeLocked}
+              />
+              {scopeLocked && source?.canDuplicate && creatableScopes.length > 0 ? (
+                <Button type="button" variant="outline" onClick={() => setDuplicateOpen(true)}>
+                  {t('access.duplicate')}
+                </Button>
+              ) : null}
+              <label className="grid min-w-0 gap-1 text-sm">
+                {t('access.description')}
+                <Textarea value={description} disabled={!canEdit} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
+              </label>
+              {!canEdit ? <p className="text-sm text-foreground">{t('access.edit-denied')}</p> : null}
+              </div>
+            </div>
+          )}
         />
         <RoleSummary
           scopeText={scopeText}
@@ -333,21 +363,6 @@ function RoleForm({
           assigned={initial != null}
         />
       </div>
-      <details className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
-        <summary className="cursor-pointer font-medium">{t('access.dependencies-title')}</summary>
-        <ul className="mt-2 space-y-1 text-muted-foreground">
-          <li>{t('access.dependencies.independent')}</li>
-          <li>{t('access.dependencies.schema')}</li>
-          <li>{t('access.dependencies.report')}</li>
-          <li>{t('access.dependencies.task')}</li>
-          <li>{t('access.dependencies.delegate')}</li>
-          <li>{t('access.dependencies.roles')}</li>
-          <li>{t('access.dependencies.users')}</li>
-          <li>{t('access.dependencies.forms')}</li>
-          <li>{t('access.dependencies.table-views')}</li>
-          <li>{t('access.dependencies.organizations')}</li>
-        </ul>
-      </details>
       {initial && initial.assignmentCount > 0 ? (
         <div className="rounded-lg border border-border bg-card p-4 text-sm" role="status">
           <p>{t('access.impact', { users: initial.affectedUserCount, count: initial.assignmentCount })}</p>
@@ -357,6 +372,23 @@ function RoleForm({
             ))}
           </ul>
         </div>
+      ) : null}
+      {source && duplicateOpen ? (
+        <RoleDuplicateDialog
+          open
+          role={source}
+          creatableScopes={creatableScopes}
+          organizations={organizations}
+          preferredOrganizationId={organizationId}
+          accessVersion={accessVersion}
+          onOpenChange={setDuplicateOpen}
+          onCreated={(roleId) => {
+            const query = listHref.includes('?') ? listHref.slice(listHref.indexOf('?')) : ''
+            setLeaveClean(true)
+            setUnsavedSource(initial ? `role-editor:${initial.id}` : 'role-editor:new', false)
+            navigate(`${routes.settings.accessRole(roleId)}${query}`)
+          }}
+        />
       ) : null}
       {initial ? (
         <RoleDeleteDialog
@@ -373,19 +405,22 @@ function RoleForm({
           onConfirm={() => void remove()}
         />
       ) : null}
-      <EditorActions
-        notice={(
-          <>
-            {initial && knownInUse && initial.canDelete ? <p className="text-foreground">{t('access.delete-blocked')}</p> : null}
-            {notice ? <p role="status">{notice}</p> : null}
-            {failure ? <p className="text-destructive" role="alert">{failure}</p> : null}
-          </>
-        )}
-      >
-        {actionButtons()}
-      </EditorActions>
     </WorkPage>
   )
+}
+
+function preferredScope(
+  scopes: readonly AccessCreatableScope[],
+  owner: 'organization' | 'corporation',
+  organizationId: number | null,
+): AccessScope | null {
+  const corporation = scopes.find((item) => item.scope.type === 'corporation')
+  const organization = scopes.find((item) => item.scope.type === 'organization' && item.scope.organizationId === organizationId)
+  if (owner === 'organization' && organization) return organization.scope
+  if (owner === 'corporation' && corporation) return corporation.scope
+  if (organization) return organization.scope
+  if (corporation) return corporation.scope
+  return scopes.find((item) => item.scope.type === 'organization')?.scope ?? null
 }
 
 function RoleSummary({
@@ -404,7 +439,7 @@ function RoleSummary({
   const { t } = useTranslation()
   const body = (
     <div className="space-y-3 text-sm">
-      <p><span className="text-muted-foreground">{t('access.owner')}: </span>{scopeText}</p>
+      <p><span className="text-muted-foreground">{t('access.availability.title')}: </span>{scopeText}</p>
       <p>{t('access.summary-operational', { count: operationalCount })}</p>
       <p>{delegationCount > 0 ? t('access.summary-delegation', { count: delegationCount }) : t('access.summary-none-delegation')}</p>
       <p>{assigned ? t('access.summary-people', { count: people }) : t('access.summary-unassigned')}</p>

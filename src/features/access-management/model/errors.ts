@@ -1,6 +1,15 @@
+export type AccessBlockedGrant = {
+  id: string
+  resource: string
+  action: string
+  kind: 'operational' | 'delegation'
+  reason: 'not_delegable' | 'not_offered' | 'not_applicable'
+}
+
 export type AccessFailure = {
   code: string
   assignmentCount?: number
+  blocked?: AccessBlockedGrant[]
 }
 
 export function accessFailure(error: unknown): AccessFailure {
@@ -14,7 +23,28 @@ export function accessFailure(error: unknown): AccessFailure {
   return {
     code,
     assignmentCount: typeof assignmentCount === 'number' ? assignmentCount : undefined,
+    blocked: readBlocked((data as { blocked?: unknown }).blocked),
   }
+}
+
+function readBlocked(value: unknown): AccessFailure['blocked'] {
+  if (!Array.isArray(value)) return undefined
+  const blocked: NonNullable<AccessFailure['blocked']> = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    if (typeof row.id !== 'string' || row.id.length === 0) continue
+    if (row.kind !== 'operational' && row.kind !== 'delegation') continue
+    if (row.reason !== 'not_delegable' && row.reason !== 'not_offered' && row.reason !== 'not_applicable') continue
+    blocked.push({
+      id: row.id,
+      resource: typeof row.resource === 'string' ? row.resource : '',
+      action: typeof row.action === 'string' ? row.action : '',
+      kind: row.kind,
+      reason: row.reason,
+    })
+  }
+  return blocked
 }
 
 export function accessErrorKey(code: string): string {
@@ -23,6 +53,7 @@ export function accessErrorKey(code: string): string {
     case 'self_elevation':
     case 'invalid_scope':
     case 'scope_expansion':
+    case 'scope_locked':
     case 'not_found':
     case 'role_in_use':
     case 'stale_write':
@@ -31,6 +62,8 @@ export function accessErrorKey(code: string): string {
     case 'invalid_name':
     case 'invalid_description':
     case 'invalid_grants':
+    case 'grants_not_delegable':
+    case 'unacknowledged_omissions':
     case 'invalid_user':
     case 'invalid_role':
     case 'invalid_version':

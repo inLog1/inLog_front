@@ -39,7 +39,7 @@ const ICONS: Record<string, LucideIcon> = {
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
-  if (section.context === 'project') return 'project'
+  if (section.id === 'home' || section.context === 'project') return 'project'
   if (section.context === 'organization') return 'organization'
   return 'app'
 }
@@ -127,11 +127,10 @@ function Shell() {
   const home = sections.find((section) => section.id === 'home')
   const current = sectionByPath(location.pathname)
   const onWorkSection = matchPath({ path: '/workspace/sections/:sectionId', end: true }, location.pathname)
-  const accessDesk = matchPath({ path: routes.settings.access(), end: true }, location.pathname)
   const profileTo = profile ? href(profile.path, 'app') : '/settings/profile'
-  const homeTo = home ? href(home.path, 'app') : href(routes.dashboard(), 'app')
+  const homeTo = home ? href(home.path, 'project') : href(routes.dashboard(), 'project')
   const currentLabel = pageLabel
-    ?? (accessDesk ? null : onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
+    ?? (onWorkSection ? t('nav.section-page') : current && current.id !== 'home' ? t(current.labelKey) : null)
   const crumbs: PageCrumb[] = currentLabel ? [{ label: currentLabel }] : []
   const accountNote = navigation.systemCapabilities.includes('corporate_superadmin')
     ? t('home.owner-badge')

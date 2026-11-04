@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readCorporateLocation, writeCorporateLocation } from './corporate-search'
+import { omitWorkspaceSelection, readCorporateLocation, writeCorporateLocation } from './corporate-search'
 
 describe('corporate overview location', () => {
   it('keeps filters and ignores an external return address', () => {
@@ -20,5 +20,14 @@ describe('corporate overview location', () => {
       personnelOrg: null,
       employee: null,
     })
+  })
+
+  it('drops a carried workspace organization from the corporation address', () => {
+    const next = omitWorkspaceSelection(new URLSearchParams('org=1&project=10&corpTab=personnel&corpQ=иван'))
+    expect(next?.get('org')).toBeNull()
+    expect(next?.get('project')).toBeNull()
+    expect(next?.get('corpTab')).toBe('personnel')
+    expect(next?.get('corpQ')).toBe('иван')
+    expect(omitWorkspaceSelection(new URLSearchParams('corpTab=organizations'))).toBeNull()
   })
 })

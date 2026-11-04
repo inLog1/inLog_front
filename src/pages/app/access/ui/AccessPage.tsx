@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
-import { accessManagementMode, useGetSessionAccessQuery } from '../../../../entities/access'
+import { accessManagementMode } from '../../../../entities/access'
 import { AccessDesk } from '../../../../features/access-management/ui/AccessDesk'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useEnsureOrgProjectParams } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
@@ -27,43 +26,23 @@ function AccessUnavailable() {
 function MockAccessPage() {
   const workspace = useEnsureOrgProjectParams('organization')
   const href = useWorkspaceHref()
-  const [search, setSearch] = useSearchParams()
-  const access = useGetSessionAccessQuery()
-  const capable = access.data?.systemCapabilities.includes('corporate_superadmin') === true
-  const workspaceBlocked = workspace.status === 'loading' || workspace.status === 'error' || workspace.status === 'forbidden' || workspace.status === 'not-found'
-  const corporateWithoutOrganization = capable && !workspaceBlocked && workspace.currentOrgId == null && search.get('owner') !== 'organization'
-  const area = ((capable && search.get('owner') === 'corporation') || corporateWithoutOrganization) ? 'corporation' : 'organization'
-  const setArea = (next: 'organization' | 'corporation') => {
-    setSearch((prev) => {
-      const copy = new URLSearchParams(prev)
-      if (next === 'corporation') copy.set('owner', 'corporation')
-      else copy.delete('owner')
-      return copy
-    }, { replace: true })
-  }
   if (workspace.status === 'loading' || workspace.status === 'error' || workspace.status === 'forbidden' || workspace.status === 'not-found') {
     return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
   }
-  if (workspace.status !== 'ready' && area !== 'corporation') {
+  if (workspace.status !== 'ready') {
     return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
   }
 
   return (
     <AccessDesk
-      area={area}
       organizationId={workspace.currentOrgId}
-      canManageCorporation={capable}
-      installationSuperadmin={capable}
-      onArea={setArea}
-      roleHref={(roleId) => roleLink(href, roleId, area)}
+      roleHref={(roleId) => roleLink(href, roleId)}
       userHref={(userId) => href(routes.settings.accessUser(userId), 'organization')}
     />
   )
 }
 
-function roleLink(href: (path: string, scope: 'organization') => string, roleId: string | 'new', owner: 'organization' | 'corporation'): string {
+function roleLink(href: (path: string, scope: 'organization') => string, roleId: string | 'new'): string {
   const path = roleId === 'new' ? routes.settings.accessRoleNew() : routes.settings.accessRole(roleId)
-  const base = href(path, 'organization')
-  if (owner !== 'corporation') return base
-  return `${base}${base.includes('?') ? '&' : '?'}owner=corporation`
+  return href(path, 'organization')
 }

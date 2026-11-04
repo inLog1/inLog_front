@@ -19,8 +19,16 @@ export type AccessRoleView = {
   assignmentCount: number
   affectedUserCount: number
   affectedScopes: AccessScope[]
+  canRead: boolean
   canEdit: boolean
   canDelete: boolean
+  /** Copy is allowed when this caller may inspect the source. The new role still needs a creatable area. */
+  canDuplicate: boolean
+  /**
+   * Starter or other protected role. A display name is not this flag.
+   * Duplication never copies it onto the new role.
+   */
+  system: boolean
 }
 
 export type AccessAssignmentView = {
@@ -50,6 +58,13 @@ export type AccessChangeView = {
   assignmentId: string | null
 }
 
+/** An area where this caller may create a role, with the grants they may hand on there. */
+export type AccessCreatableScope = {
+  scope: AccessScope
+  delegableGrantIds: string[]
+  canDelegateFurther: boolean
+}
+
 export type AccessDirectory = {
   scope: 'organization' | 'corporation'
   organizationId: number | null
@@ -58,6 +73,11 @@ export type AccessDirectory = {
   canManageCorporation: boolean
   /** Creating a role definition. Assigning an existing role uses assignments instead. */
   canCreateRole: boolean
+  /**
+   * Organization and corporation areas where this caller may create a role.
+   * Project areas are not offered: role creation in this desk does not use them.
+   */
+  creatableScopes: AccessCreatableScope[]
   offeredGrants: AccessGrantView[]
   delegableGrantIds: string[]
   canDelegateFurther: boolean
@@ -74,6 +94,7 @@ export type AccessRoleDetail = {
   offeredGrants: AccessGrantView[]
   delegableGrantIds: string[]
   canDelegateFurther: boolean
+  creatableScopes: AccessCreatableScope[]
   accessVersion: number
   organizations: Array<{ id: number; shortName: string }>
   projects: Array<{ id: number; name: string; organizationId: number }>
@@ -85,6 +106,35 @@ export type RoleWrite = {
   grantIds: string[]
   delegationGrantIds: string[]
   ownerScope?: AccessScope
+  expectedAccessVersion?: number
+}
+
+export type RoleDuplicateBlockReason = 'not_delegable' | 'not_offered' | 'not_applicable'
+
+/** A source grant that cannot be placed on the new role. It is never dropped quietly. */
+export type RoleDuplicateBlockedGrant = {
+  id: string
+  resource: string
+  action: string
+  kind: 'operational' | 'delegation'
+  reason: RoleDuplicateBlockReason
+}
+
+/**
+ * Copy an existing role into a new one.
+ * `grantIds` and `delegationGrantIds` are the grants to keep.
+ * Every other source grant must be listed in the matching omit list.
+ * Grants are catalog ids. The new role holds its own lists; it does not receive new catalog rows.
+ */
+export type RoleDuplicateWrite = {
+  sourceRoleId: string
+  displayName: string
+  description: string
+  grantIds: string[]
+  delegationGrantIds: string[]
+  omitGrantIds: string[]
+  omitDelegationGrantIds: string[]
+  ownerScope: AccessScope
   expectedAccessVersion?: number
 }
 

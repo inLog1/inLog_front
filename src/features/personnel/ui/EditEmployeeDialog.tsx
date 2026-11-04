@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { hasUnsavedWork } from '../../../shared/session/unsaved-work'
 import {
@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '../../../shared/ui/dialog'
 import { DirectoryCreatePanel } from './DirectoryValueField'
-import { EmployeeForm, type DirectoryCreateRequest } from './EmployeeForm'
+import { EmployeeForm, type DirectoryCreateRequest, type PendingDirectoryPick } from './EmployeeForm'
 
 export function EditEmployeeDialog({
   open,
@@ -39,9 +39,19 @@ export function EditEmployeeDialog({
   const { t } = useTranslation()
   const [confirmClose, setConfirmClose] = useState(false)
   const [draft, setDraft] = useState<DirectoryCreateRequest | null>(null)
+  const draftRef = useRef<DirectoryCreateRequest | null>(null)
+  const [pendingDirectoryPick, setPendingDirectoryPick] = useState<PendingDirectoryPick | null>(null)
+  const clearPendingDirectoryPick = useCallback(() => setPendingDirectoryPick(null), [])
 
   useEffect(() => {
-    if (!open) setDraft(null)
+    draftRef.current = draft
+  }, [draft])
+
+  useEffect(() => {
+    if (!open) {
+      setDraft(null)
+      setPendingDirectoryPick(null)
+    }
   }, [open])
 
   function requestClose() {
@@ -72,6 +82,8 @@ export function EditEmployeeDialog({
                 layout="columns"
                 hideOrganization
                 onCreateOption={setDraft}
+                pendingDirectoryPick={pendingDirectoryPick}
+                onPendingDirectoryPickApplied={clearPendingDirectoryPick}
                 onClose={(savedId) => {
                   if (savedId) {
                     onSaved(savedId)
@@ -88,8 +100,11 @@ export function EditEmployeeDialog({
               option={draft.option}
               departments={draft.departments}
               onBack={() => setDraft(null)}
-              onCreated={(id) => {
-                draft.apply(id)
+              onCreated={(record) => {
+                const pending = draftRef.current
+                if (pending) {
+                  setPendingDirectoryPick({ fieldId: pending.fieldId, record })
+                }
                 setDraft(null)
               }}
             />

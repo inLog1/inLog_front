@@ -1,11 +1,28 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { personnelError, useCreateDirectoryRecordMutation, type DirectoryOptions } from '../../../entities/personnel'
+import { personnelError, useCreateDirectoryRecordMutation, type DirectoryOptions, type DirectoryRecord } from '../../../entities/personnel'
 import { Button } from '../../../shared/ui/button'
 import { DialogTitle } from '../../../shared/ui/dialog'
 import { DirectoryRecordSelect } from '../../../shared/ui/directory-record-select'
 import { Input } from '../../../shared/ui/input'
+
+function directoryChoiceItems(
+  choices: DirectoryOptions['records'],
+  value: string,
+  labelFor: (id: string) => string,
+  archivedLabel: string,
+  missingLabel: string,
+) {
+  const items = choices.map((item) => ({
+    id: item.id,
+    label: `${item.label || item.id}${item.archived ? ` (${archivedLabel})` : ''}${item.missing ? ` (${missingLabel})` : ''}`,
+  }))
+  if (value && !items.some((item) => item.id === value)) {
+    items.unshift({ id: value, label: labelFor(value) })
+  }
+  return items
+}
 
 export function DirectoryValueField({
   organizationId,
@@ -15,6 +32,7 @@ export function DirectoryValueField({
   onChange,
   disabled,
   onRequestAdd,
+  recordHints,
 }: {
   organizationId: number
   option: DirectoryOptions
@@ -24,6 +42,7 @@ export function DirectoryValueField({
   disabled?: boolean
   /** When set, adding a value replaces the surrounding form instead of expanding inside it. */
   onRequestAdd?: () => void
+  recordHints?: Record<string, string>
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -33,13 +52,17 @@ export function DirectoryValueField({
   const [parentId, setParentId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [values, setValues] = useState<Record<string, string>>({})
+  const [localHints, setLocalHints] = useState<Record<string, string>>({})
   const [createRecord, createState] = useCreateDirectoryRecordMutation()
   const current = option.records.find((item) => item.id === value)
   const choices = option.records.filter((item) => !item.archived || item.id === value)
-  const choiceItems = choices.map((item) => ({
-    id: item.id,
-    label: `${item.label || item.id}${item.archived ? ` (${t('directories.archived')})` : ''}${item.missing ? ` (${t('personnel.missing-value')})` : ''}`,
-  }))
+  const choiceItems = directoryChoiceItems(
+    choices,
+    value,
+    (id) => recordHints?.[id] ?? localHints[id] ?? option.records.find((item) => item.id === id)?.label ?? id,
+    t('directories.archived'),
+    t('personnel.missing-value'),
+  )
   const registry = option.source.type === 'registry' ? option.source.registry : null
   const departmentChoices = (departments?.records ?? []).filter((item) => !item.archived)
   const extensionFields = option.fields.filter((field) => field.key === 'custom' && !field.archived)
@@ -54,6 +77,7 @@ export function DirectoryValueField({
         : { organizationId, values }
     try {
       const created = await createRecord({ directoryId: option.directoryId, body }).unwrap()
+      setLocalHints((prev) => ({ ...prev, [created.id]: created.label }))
       onChange(created.id)
       setOpen(false)
       setName('')
@@ -153,7 +177,7 @@ export function DirectoryCreatePanel({
   organizationName: string
   option: DirectoryOptions
   departments: DirectoryOptions | undefined
-  onCreated: (id: string) => void
+  onCreated: (record: DirectoryRecord) => void
   onBack: () => void
 }) {
   const { t } = useTranslation()
@@ -179,7 +203,7 @@ export function DirectoryCreatePanel({
         : { organizationId, values }
     try {
       const created = await createRecord({ directoryId: option.directoryId, body }).unwrap()
-      onCreated(created.id)
+      onCreated(created)
     } catch (caught) {
       setError(t(`directories.errors.${personnelError(caught).code}`, { defaultValue: t('directories.errors.generic') }))
     }
