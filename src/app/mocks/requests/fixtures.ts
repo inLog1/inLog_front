@@ -1,0 +1,53 @@
+import type { RequestRecord } from '../../../entities/request'
+
+/** Fresh demonstration rows. One collection covers customer filing and a laboratory filing for itself. */
+export const DEMO_REQUESTS: RequestRecord[] = [
+  {
+    id: 'req-customer-sent',
+    number: 'RQ-0001',
+    customerOrganizationId: 201,
+    executorOrganizationId: 101,
+    authorId: 5,
+    status: 'sent',
+    title: 'Проба грунта',
+    createdAt: '2026-11-01T09:00:00.000Z',
+    updatedAt: '2026-11-01T09:00:00.000Z',
+    revision: 1,
+  },
+  {
+    id: 'req-lab-self',
+    number: 'RQ-0002',
+    customerOrganizationId: 101,
+    executorOrganizationId: 101,
+    authorId: 2,
+    status: 'sent',
+    title: 'Внутренняя проверка',
+    createdAt: '2026-11-02T09:00:00.000Z',
+    updatedAt: '2026-11-02T09:00:00.000Z',
+    revision: 1,
+  },
+  {
+    id: 'req-customer-draft',
+    number: 'RQ-0003',
+    customerOrganizationId: 201,
+    executorOrganizationId: 101,
+    authorId: 5,
+    status: 'draft',
+    title: 'Черновик заказчика',
+    createdAt: '2026-11-03T09:00:00.000Z',
+    updatedAt: '2026-11-03T09:00:00.000Z',
+    revision: 1,
+  },
+  {
+    id: 'req-lab-draft',
+    number: 'RQ-0004',
+    customerOrganizationId: 101,
+    executorOrganizationId: 101,
+    authorId: 2,
+    status: 'draft',
+    title: 'Черновик лаборатории',
+    createdAt: '2026-11-04T09:00:00.000Z',
+    updatedAt: '2026-11-04T09:00:00.000Z',
+    revision: 1,
+  },
+]

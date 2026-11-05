@@ -1,4 +1,5 @@
 import { can } from '../../../entities/access/model/grants'
+import { organizationRequestTotal } from '../../../entities/request/model/count'
 import type { PersonnelConfig, PersonnelValue } from '../../../entities/personnel/model/types'
 import { principal, toSnapshot, type FlowResult } from '../auth/flow'
 import type { MockOrganization, MockState } from '../db/types'
@@ -73,9 +74,9 @@ export function readCorporateOverview(state: MockState, token: string | null): F
   })
 }
 
-/** Every stored request of this organization, regardless of status. A missing list is zero. */
+/** Every stored request of this organization, regardless of status. The request collection wins over the legacy list. */
 function organizationRequestCount(state: MockState, organizationId: number): number {
-  return (state.serviceRequests ?? []).filter((item) => item.organizationId === organizationId).length
+  return organizationRequestTotal(state.requests, state.serviceRequests, organizationId)
 }
 
 function positiveRevision(value: number | undefined): number {

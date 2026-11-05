@@ -40,6 +40,12 @@ export const routes = {
       roadmap: () => '/scheduler/roadmap',
     },
 
+    requests: {
+      list: () => '/requests',
+      new: () => '/requests/new',
+      edit: (requestId: string) => `/requests/${requestId}/edit`,
+    },
+
     forms: {
       list: () => '/forms',
       editor: (formId: string) => `/forms/${formId}`,

@@ -55,6 +55,7 @@ export type QuickActionId = 'create-task' | 'open-constructor' | 'build-report'
 
 const TASKS_READ = { resource: 'tasks', action: 'read' }
 const TASKS_CREATE = { resource: 'tasks', action: 'create' }
+const REQUESTS_READ = { resource: 'requests', action: 'read' }
 const SCHEMA_READ = { resource: 'constructor.schema', action: 'read' }
 const REPORTS_READ = { resource: 'reports', action: 'read' }
 const REPORTS_GENERATE = { resource: 'reports', action: 'generate' }
@@ -77,6 +78,15 @@ export const APP_SECTIONS: readonly AppSection[] = [
     path: routes.scheduler.tasks(),
     group: 'work',
     context: 'project',
+    surface: 'navigation',
+  },
+  {
+    id: 'requests',
+    labelKey: 'nav.requests',
+    descriptionKey: 'nav.requests-description',
+    path: routes.requests.list(),
+    group: 'work',
+    context: 'organization',
     surface: 'navigation',
   },
   {
@@ -414,6 +424,7 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.id === 'organization-reference') return referenceSection(input)
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
+  if (section.id === 'requests') return permissionAccess(input, REQUESTS_READ, 'organization')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
   if (section.id === 'forms') return permissionAccess(input, FORMS_READ, 'organization')
   if (section.id === 'reports') return permissionAccess(input, REPORTS_READ, 'organization')
@@ -461,7 +472,13 @@ export function visibleQuickActions(input: NavigationInput): QuickActionId[] {
   return actions
 }
 
+/**
+ * Placeholder from before the requests section existed.
+ * A listed section replaces it. The grant check remains for a build that has not added the section.
+ */
 export function showRequestsNotice(input: NavigationInput): boolean {
+  const section = APP_SECTIONS.find((item) => item.id === 'requests')
+  if (section && section.surface === 'navigation' && section.listed !== false) return false
   if (!input.enforceGrants || input.grantsPending) return false
   return hasOperational(input.grants, 'requests', 'read') || hasOperational(input.grants, 'requests', 'create')
 }
@@ -525,5 +542,5 @@ export function sectionByPath(pathname: string): AppSection | null {
 export function showsProjectSelector(pathname: string): boolean {
   const section = sectionByPath(pathname)
   if (!section) return false
-  return section.context === 'project' || section.id === 'home'
+  return section.context === 'project' || section.id === 'home' || section.id === 'requests'
 }

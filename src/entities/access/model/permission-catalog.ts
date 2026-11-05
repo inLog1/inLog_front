@@ -1,7 +1,7 @@
 /**
  * Permissions the access editor may offer.
  * Only capabilities the application already uses are listed.
- * Equipment, processes and other future domains are not invented here.
+ * Equipment and processes are not invented here. Request actions are listed because the request module uses them.
  * read, update, create, delete and delegate stay independent; this list does not imply one from another.
  * Installation capability covers exactly this list. A resource or action that is not here is not granted by that capability.
  */
@@ -16,6 +16,7 @@ export type PermissionGroupId =
   | 'access'
   | 'organizations'
   | 'projects'
+  | 'requests'
   | 'personnel'
   | 'directories'
   | 'system-registries'
@@ -106,6 +107,14 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'projects', resource: 'projects', action: 'read', labelKey: 'access.perm.projects.read' },
   { group: 'projects', resource: 'projects', action: 'create', labelKey: 'access.perm.projects.create' },
   { group: 'projects', resource: 'projects', action: 'update', labelKey: 'access.perm.projects.update' },
+  { group: 'requests', resource: 'requests', action: 'read', labelKey: 'access.perm.requests.read' },
+  { group: 'requests', resource: 'requests', action: 'create', labelKey: 'access.perm.requests.create' },
+  { group: 'requests', resource: 'requests', action: 'update', labelKey: 'access.perm.requests.update' },
+  { group: 'requests', resource: 'requests', action: 'send', labelKey: 'access.perm.requests.send' },
+  { group: 'requests', resource: 'requests', action: 'accept', labelKey: 'access.perm.requests.accept' },
+  { group: 'requests', resource: 'requests', action: 'reject', labelKey: 'access.perm.requests.reject' },
+  { group: 'requests', resource: 'requests', action: 'assign', labelKey: 'access.perm.requests.assign' },
+  { group: 'requests', resource: 'requests', action: 'cancel', labelKey: 'access.perm.requests.cancel' },
   { group: 'personnel', resource: 'personnel', action: 'read', labelKey: 'access.perm.personnel.read' },
   { group: 'personnel', resource: 'personnel', action: 'create', labelKey: 'access.perm.personnel.create' },
   { group: 'personnel', resource: 'personnel', action: 'update', labelKey: 'access.perm.personnel.update' },

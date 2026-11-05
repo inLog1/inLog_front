@@ -17,6 +17,7 @@ const GROUPS: PermissionGroupId[] = [
   'access',
   'organizations',
   'projects',
+  'requests',
   'personnel',
   'directories',
   'system-registries',

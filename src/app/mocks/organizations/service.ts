@@ -348,6 +348,13 @@ export function deleteOrganizationRecord(
       employees: state.employees.filter((item) => item.organizationId !== organizationId),
       organizationWorkspaces: state.organizationWorkspaces.filter((item) => item.organizationId !== organizationId),
       directoryEmployees: (state.directoryEmployees ?? []).filter((item) => item.organizationId !== organizationId),
+      ...(Array.isArray(state.requests)
+        ? {
+          requests: state.requests.filter((item) =>
+            item.customerOrganizationId !== organizationId && item.executorOrganizationId !== organizationId,
+          ),
+        }
+        : {}),
     },
     status: 200,
     body: { id: organizationId },

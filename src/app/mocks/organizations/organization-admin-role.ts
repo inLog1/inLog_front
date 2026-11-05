@@ -1,6 +1,7 @@
 import type { AccessAuditEntry, AccessRole, AccessScope } from '../../../entities/access/model/types'
 import { personWithPosition } from '../../../entities/organization/model/requisites'
 import { PERSONNEL_GRANT_DEFINITIONS } from '../db/personnel-grants'
+import { REQUEST_GRANT_DEFINITIONS } from '../db/request-grants'
 import type { MockOrganization, MockState } from '../db/types'
 
 /**
@@ -54,6 +55,7 @@ export const ORGANIZATION_ADMINISTRATOR_GRANTS = [
   { id: 'g-projects', resource: 'projects', action: 'read' },
   { id: 'g-projects-create', resource: 'projects', action: 'create' },
   { id: 'g-projects-update', resource: 'projects', action: 'update' },
+  ...REQUEST_GRANT_DEFINITIONS,
   ...PERSONNEL_GRANT_DEFINITIONS,
 ] as const
 

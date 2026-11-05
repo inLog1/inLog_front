@@ -110,7 +110,8 @@ describe('access boundaries', () => {
     const snapshot = toSnapshot(createSeed())
     expect(capabilityFromRoleDisplayName('corporate_superadmin')).toEqual([])
     expect(hasCorporateSuperadmin(snapshot, 1)).toBe(true)
-    expect(can(snapshot, 1, 'requests', 'create', { type: 'corporation', corporationId: 1 })).toBe(false)
+    expect(can(snapshot, 1, 'requests', 'create', { type: 'corporation', corporationId: 1 })).toBe(true)
+    expect(can(snapshot, 1, 'equipment', 'read', { type: 'corporation', corporationId: 1 })).toBe(false)
     expect(can(snapshot, 1, 'tasks', 'delete', { type: 'corporation', corporationId: 1 })).toBe(true)
     expect(can(snapshot, 2, 'tasks', 'read', { type: 'organization', organizationId: 101, corporationId: 1 })).toBe(false)
 

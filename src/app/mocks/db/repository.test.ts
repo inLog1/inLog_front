@@ -240,7 +240,7 @@ describe('mock repository', () => {
     expect(can(snapshot, 1, 'assignments', 'update', corporation)).toBe(true)
     expect(can(snapshot, 1, 'forms', 'read', laboratoryA)).toBe(true)
     expect(can(snapshot, 1, 'tasks', 'create', laboratoryA)).toBe(true)
-    expect(can(snapshot, 1, 'requests', 'create', corporation)).toBe(false)
+    expect(can(snapshot, 1, 'requests', 'create', corporation)).toBe(true)
     expect(can(snapshot, 2, 'forms', 'read', laboratoryA)).toBe(false)
     expect(canDelegate(snapshot, 1, 'delegations', 'delegate', corporation)).toBe(true)
     expect(canDelegate(snapshot, 2, 'members', 'read', laboratoryA)).toBe(true)

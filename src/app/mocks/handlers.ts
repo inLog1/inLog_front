@@ -10,6 +10,7 @@ import { json, MOCK_PREFIX } from './http'
 import { notificationHandlers } from './notifications/handlers'
 import { reportHandlers } from './reports/handlers'
 import { personnelHandlers } from './personnel/handlers'
+import { requestHandlers } from './requests/handlers'
 import { taskHandlers } from './tasks/handlers'
 
 export const handlers: HttpHandler[] = [
@@ -23,6 +24,7 @@ export const handlers: HttpHandler[] = [
   ...reportHandlers,
   ...notificationHandlers,
   ...personnelHandlers,
+  ...requestHandlers,
   http.all(`${MOCK_PREFIX}/*`, () => json({
     code: 'mock_coverage_gap',
     detail: 'This legacy endpoint has no mock handler yet.',

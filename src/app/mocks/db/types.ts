@@ -19,6 +19,7 @@ import type {
   PersonnelConfig,
   Workplace,
 } from '../../../entities/personnel/model/types'
+import type { RequestRecord } from '../../../entities/request/model/types'
 
 export type MockUser = {
   id: number
@@ -386,8 +387,14 @@ export type MockState = {
   employees: Employee[]
   organizationWorkspaces: OrganizationWorkspace[]
   /**
-   * Customer and laboratory requests of every status.
-   * Absent until that list is stored. A missing list counts as zero.
+   * Request records with both parties.
+   * Absent on an older document. While absent, serviceRequests still feeds the corporate counter.
+   * Once this array is stored, including when it is empty, it is the only counter source.
+   */
+  requests?: RequestRecord[]
+  /**
+   * Legacy counter rows from before requests existed.
+   * A missing list counts as zero. It is ignored while requests is stored.
    */
   serviceRequests?: Array<{ id: string; organizationId: number; status: string }>
   fault: MockFault

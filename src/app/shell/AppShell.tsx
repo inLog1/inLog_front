@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, BookOpen, Building2, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Users, Wrench } from 'lucide-react'
+import { Bell, BookOpen, Building2, ClipboardList, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Users, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
@@ -27,6 +27,7 @@ import { Sidebar, SidebarDrawer, type SidebarGroupModel, type SidebarLinkModel }
 const ICONS: Record<string, LucideIcon> = {
   home: LayoutDashboard,
   tasks: ListTodo,
+  requests: ClipboardList,
   constructor: Wrench,
   forms: FileText,
   reports: PieChart,

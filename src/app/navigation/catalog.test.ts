@@ -12,6 +12,7 @@ import {
   canOpenProjectManagement,
   sectionAccess,
   sectionByPath,
+  showsProjectSelector,
   shouldLoadProjectTasks,
   showRequestsNotice,
   visibleNavigation,
@@ -142,20 +143,31 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(empty).some((item) => item.id === 'platform-admin' || item.id === 'geo-mechanics')).toBe(false)
   })
 
-  it('shows the customer notice only from request grants and does not open laboratory sections', () => {
+  it('opens the requests section from requests.read and does not open other work sections from that grant', () => {
     const customer = input({
       grants: [grant('requests', 'read', { type: 'organization', organizationId: 201, corporationId: 1 }), grant('requests', 'create', { type: 'organization', organizationId: 201, corporationId: 1 })],
       organizationId: 201,
     })
-    expect(showRequestsNotice(customer)).toBe(true)
-    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home'])
+    expect(showRequestsNotice(customer)).toBe(false)
+    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home', 'requests'])
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'requests')!, customer)).toBe('allowed')
+    expect(homeWorkCards(customer).map((item) => item.id)).toEqual(['requests'])
     expect(shouldLoadProjectTasks(customer)).toBe(false)
+    const createOnly = input({
+      grants: [grant('requests', 'create', { type: 'organization', organizationId: 201, corporationId: 1 })],
+      organizationId: 201,
+    })
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'requests')!, createOnly)).toBe('unavailable')
+    expect(visibleNavigation(createOnly).some((item) => item.id === 'requests')).toBe(false)
+    expect(sectionByPath('/requests/new')?.id).toBe('requests')
+    expect(sectionByPath('/requests/req-customer-draft/edit')?.id).toBe('requests')
+    expect(showsProjectSelector('/requests/new')).toBe(true)
   })
 
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'reports', 'organizations-settings', 'access',
+      'home', 'tasks', 'requests', 'reports', 'organizations-settings', 'access',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)

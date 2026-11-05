@@ -73,7 +73,7 @@ describe('installation capability policy', () => {
       expect(holds(body, resource, action)).toBe(true)
       expect(body.delegationGrants.some((grant) => grant.resource === resource && grant.action === action)).toBe(true)
     }
-    expect(holds(body, 'requests', 'create')).toBe(false)
+    expect(holds(body, 'requests', 'create')).toBe(true)
     expect(holds(body, 'not-a-resource', 'read')).toBe(false)
     expect(body.systemCapabilities).toEqual(['corporate_superadmin'])
     const ownerRole = owner.state.roles.find((role) => role.id === 'role-owner')

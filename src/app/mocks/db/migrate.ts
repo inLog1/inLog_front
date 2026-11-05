@@ -8,6 +8,7 @@ import { MOCK_SCHEMA_VERSION } from './constants'
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
 import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
+import { REQUEST_GRANT_DEFINITIONS } from './request-grants'
 import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import { withResidentUsers } from './resident-users'
 import type { MockState } from './types'
@@ -42,6 +43,9 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * A missing ownerScope stays missing. Stored role ids, grant lists and assignments stay as they are.
  * Version 13 recognizes an optional organizationIds list on a local role.
  * The list is not invented for older roles. A missing list still means ownerScope alone.
+ * Version 14 adds the request grant rows that were not already stored.
+ * requests.read and requests.create keep their existing ids. Stored role grant lists are not extended.
+ * The requests collection is not invented and serviceRequests is left in place.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -80,13 +84,15 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const personnelChanged = withPersonnel !== withRevisions
   const withResidents = withResidentUsers(withPersonnel)
   const residentsChanged = withResidents !== withPersonnel
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged) {
+  const withRequests = ensureRequestGrants(withResidents)
+  const requestsChanged = withRequests !== withResidents
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged && !requestsChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withResidents,
+      ...withRequests,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles,
@@ -310,6 +316,19 @@ function ensureTaskCatalog(record: MockState): MockState {
     taskComments: Array.isArray(source.taskComments) ? source.taskComments : catalog.taskComments,
     taskFiles: Array.isArray(source.taskFiles) ? source.taskFiles : catalog.taskFiles,
   }
+}
+
+function ensureRequestGrants(record: MockState): MockState {
+  const grants = Array.isArray(record.grants) ? [...record.grants] : []
+  let changed = false
+  for (const definition of REQUEST_GRANT_DEFINITIONS) {
+    if (!grants.some((grant) => grant.id === definition.id)) {
+      grants.push({ id: definition.id, resource: definition.resource, action: definition.action })
+      changed = true
+    }
+  }
+  if (!changed) return record
+  return { ...record, grants }
 }
 
 function ensurePersonnelCatalog(record: MockState): MockState {

@@ -7,6 +7,8 @@ import { MOCK_NAMESPACE, MOCK_PROVIDER_ID, MOCK_SCHEMA_VERSION } from './constan
 import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
 import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
+import { REQUEST_AUTHOR_GRANT_IDS, REQUEST_GRANT_DEFINITIONS, REQUEST_GRANT_IDS } from './request-grants'
+import { DEMO_REQUESTS } from '../requests/fixtures'
 import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import type { MockState } from './types'
 
@@ -88,8 +90,7 @@ export function createSeed(): MockState {
       { id: 'g-tasks-update', resource: 'tasks', action: 'update' },
       { id: 'g-tasks-delete', resource: 'tasks', action: 'delete' },
       { id: 'g-tasks-assign', resource: 'tasks', action: 'assign' },
-      { id: 'g-requests-read', resource: 'requests', action: 'read' },
-      { id: 'g-requests-create', resource: 'requests', action: 'create' },
+      ...REQUEST_GRANT_DEFINITIONS.map((grant) => ({ id: grant.id, resource: grant.resource, action: grant.action })),
       { id: 'g-delegate', resource: 'delegations', action: 'delegate' },
       // Proposed section codes. Fresh seed only; migration does not copy them into a saved snapshot.
       { id: 'g-constructor-schema-read', resource: 'constructor.schema', action: 'read' },
@@ -125,7 +126,7 @@ export function createSeed(): MockState {
         delegationGrantIds: [
           'g-org-manage', 'g-assign', 'g-projects', 'g-test', 'g-members-manage',
           'g-members-read', 'g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign',
-          'g-requests-read', 'g-requests-create', 'g-delegate',
+          ...REQUEST_GRANT_IDS, 'g-delegate',
           'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
           'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
           'g-reports-read', 'g-reports-generate',
@@ -142,6 +143,7 @@ export function createSeed(): MockState {
           'g-constructor-schema-read', 'g-constructor-schema-create', 'g-constructor-schema-update', 'g-constructor-schema-delete',
           'g-constructor-records-read', 'g-constructor-records-create', 'g-constructor-records-update', 'g-constructor-records-delete',
           'g-reports-read', 'g-reports-generate',
+          ...REQUEST_GRANT_IDS,
         ],
         delegationGrantIds: ['g-members-read'],
       },
@@ -151,7 +153,7 @@ export function createSeed(): MockState {
         grantIds: ['g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign', 'g-projects'],
         delegationGrantIds: [],
       },
-      { id: 'role-customer', displayName: 'Заказчик', grantIds: ['g-requests-read', 'g-requests-create'], delegationGrantIds: [] },
+      { id: 'role-customer', displayName: 'Заказчик', grantIds: [...REQUEST_AUTHOR_GRANT_IDS], delegationGrantIds: [] },
       {
         id: 'role-constructor-reader',
         displayName: 'Чтение конструктора',
@@ -212,6 +214,7 @@ export function createSeed(): MockState {
     personnelConfigs: [],
     employees: [],
     organizationWorkspaces: [],
+    requests: DEMO_REQUESTS,
     fault: null,
   }
   const withPasswords = {

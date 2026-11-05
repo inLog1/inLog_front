@@ -11,6 +11,7 @@ import { notificationApi } from '../../entities/notification/model/notificationS
 import { platformApi } from '../../shared/api/platformApi'
 import '../../entities/access/model/accessApi'
 import '../../entities/personnel/model/personnelApi'
+import '../../entities/request/model/requestApi'
 
 export const store = configureStore({
   reducer: {
