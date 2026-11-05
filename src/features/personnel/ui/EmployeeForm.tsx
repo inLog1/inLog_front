@@ -737,7 +737,7 @@ function AccountLink({
         <p className="text-sm">
           {employee.account.name} · {employee.account.email}
           {' '}
-          <Link className="underline" to={`${routes.settings.accessUser(employee.account.id)}?org=${organizationId}`}>{t('personnel.open-access')}</Link>
+          <Link className="underline" to={routes.settings.accessUser(employee.account.id)} state={{ accessOrganizationId: organizationId }}>{t('personnel.open-access')}</Link>
         </p>
       ) : <p className="text-sm text-muted-foreground">{t('personnel.no-account')}</p>}
       {employee.roles ? (

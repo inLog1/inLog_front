@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowRight, Info, MoreHorizontal, Plus, Shield, Users } from 'lucide-react'
+import { ArrowRight, Info, MoreHorizontal, Plus, Search, Shield, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -17,10 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../../shared/ui/dropdown-menu'
+import { Input } from '../../../shared/ui/input'
+import { Label } from '../../../shared/ui/label'
 import { PageState, WorkPage } from '../../../shared/ui/page'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/tabs'
+import type { AccessDeskScope, AccessOrganizationFilter } from '../model/access-address'
 import { accessErrorKey, accessFailure } from '../model/errors'
 import { permissionPreview } from './permission-summary'
 import { RoleDeleteDialog } from './RoleDeleteDialog'
@@ -30,15 +33,27 @@ import { UserDirectory } from './UserDirectory'
 
 const NO_ROLES: readonly { id: string; displayName: string }[] = []
 
+export type { AccessDeskScope } from '../model/access-address'
+
 type AccessDeskProps = {
-  organizationId: number | null
+  deskScope: AccessDeskScope
+  organizationId: AccessOrganizationFilter | null
+  organizationOptions: readonly { id: number; shortName: string }[]
+  onOrganizationChange: (organizationId: AccessOrganizationFilter) => void
   roleHref: (roleId: string | 'new') => string
   userHref: (userId: number) => string
 }
 
 const tabTriggerClass = 'rounded-lg px-4 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground'
 
-export function AccessDesk({ organizationId, roleHref, userHref }: AccessDeskProps) {
+export function AccessDesk({
+  deskScope,
+  organizationId,
+  organizationOptions,
+  onOrganizationChange,
+  roleHref,
+  userHref,
+}: AccessDeskProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useSearchParams()
   const requestedTab = search.get('tab')
@@ -51,10 +66,12 @@ export function AccessDesk({ organizationId, roleHref, userHref }: AccessDeskPro
       return copy
     }, { replace: true })
   }, [search, setSearch])
-  const skip = organizationId == null
+  const skipOrganization = deskScope === 'organization' && organizationId == null
   const directory = useGetAccessDirectoryQuery(
-    { scope: 'organization', organizationId: organizationId ?? 0 },
-    { skip },
+    deskScope === 'corporation'
+      ? { scope: 'corporation' }
+      : { scope: 'organization', organizationId: organizationId ?? 'all' },
+    { skip: skipOrganization },
   )
   const directoryView = directory.currentData
   const setTab = (value: string) => {
@@ -68,7 +85,7 @@ export function AccessDesk({ organizationId, roleHref, userHref }: AccessDeskPro
 
   return (
     <WorkPage>
-      {organizationId == null ? (
+      {deskScope === 'organization' && organizationId == null ? (
         <p className="text-sm text-muted-foreground">{t('access.choose-organization')}</p>
       ) : null}
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
@@ -78,10 +95,12 @@ export function AccessDesk({ organizationId, roleHref, userHref }: AccessDeskPro
         </TabsList>
         <AccessGuide kind={tab} />
         <TabsContent value="roles" className="mt-4 min-w-0">
-          <DirectoryGate query={directory} empty={skip}>
+          <DirectoryGate query={directory} empty={skipOrganization}>
             {directoryView ? (
               <RoleList
                 directory={directoryView}
+                organizationOptions={organizationOptions}
+                onOrganizationChange={onOrganizationChange}
                 roleHref={roleHref}
                 usersHref={usersTabHref(search)}
                 organizationId={organizationId}
@@ -93,7 +112,7 @@ export function AccessDesk({ organizationId, roleHref, userHref }: AccessDeskPro
         <TabsContent value="users" className="mt-4 min-w-0">
           <UserDirectory
             userHref={userHref}
-            area="organization"
+            area={deskScope}
             roles={directoryView?.roles ?? NO_ROLES}
           />
         </TabsContent>
@@ -167,22 +186,26 @@ function usersTabHref(search: URLSearchParams): string {
 
 function RoleList({
   directory,
+  organizationOptions,
+  onOrganizationChange,
   roleHref,
   usersHref,
   organizationId,
   onRefresh,
 }: {
   directory: AccessDirectory
+  organizationOptions: readonly { id: number; shortName: string }[]
+  onOrganizationChange: (organizationId: AccessOrganizationFilter) => void
   roleHref: (roleId: string | 'new') => string
   usersHref: string
-  organizationId: number | null
+  organizationId: AccessOrganizationFilter | null
   onRefresh: () => void
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [pendingRole, setPendingRole] = useState<AccessRoleView | null>(null)
   const [duplicateRole, setDuplicateRole] = useState<AccessRoleView | null>(null)
-  const [areaFilter, setAreaFilter] = useState<'all' | 'corporate' | 'local'>('all')
+  const [query, setQuery] = useState('')
   const [conflict, setConflict] = useState(false)
   const [deleteRole, deleteState] = useDeleteAccessRoleMutation()
   const remove = async () => {
@@ -201,32 +224,62 @@ function RoleList({
       toast.error(t(accessErrorKey(parsed.code), { count: parsed.assignmentCount ?? pendingRole.assignmentCount }))
     }
   }
-  const heading = directory.scope === 'corporation' ? t('access.roles-heading-corporation') : t('access.roles-heading')
+  const heading = directory.scope === 'corporation'
+    ? t('access.roles-heading-corporation')
+    : directory.scope === 'all'
+      ? t('access.roles-heading-all')
+      : t('access.roles-heading')
+  const needle = query.trim().toLowerCase()
   const visibleRoles = directory.roles.filter((role) => {
-    if (areaFilter === 'corporate') return role.ownerScope.type === 'corporation'
-    if (areaFilter === 'local') return role.ownerScope.type !== 'corporation'
-    return true
+    if (!needle) return true
+    const scope = roleDefinitionLabel(role.ownerScope, directory.organizations, t)
+    return `${role.displayName} ${role.description} ${scope}`.toLowerCase().includes(needle)
   })
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
-        {directory.canCreateRole ? (
-          <Button asChild>
-            <Link to={roleHref('new')}><Plus />{t('access.create-role')}</Link>
-          </Button>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t('access.create-denied')}</p>
-        )}
-        <Select value={areaFilter} onValueChange={(value) => setAreaFilter(value as 'all' | 'corporate' | 'local')}>
-          <SelectTrigger className="w-full sm:w-56" aria-label={t('access.roles-filter.label')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('access.roles-filter.all')}</SelectItem>
-            <SelectItem value="corporate">{t('access.roles-filter.corporate')}</SelectItem>
-            <SelectItem value="local">{t('access.roles-filter.local')}</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          {directory.canCreateRole ? (
+            <Button asChild>
+              <Link to={roleHref('new')}><Plus />{t('access.create-role')}</Link>
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('access.create-denied')}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 sm:w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('access.roles-search')}
+              aria-label={t('access.roles-search')}
+              className="pl-9"
+            />
+          </div>
+          {organizationOptions.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="access-organization-filter" className="shrink-0">
+                {t('access.organization-filter.label')}
+              </Label>
+              <Select
+                value={organizationId == null ? undefined : String(organizationId)}
+                onValueChange={(value) => onOrganizationChange(value === 'all' ? 'all' : Number(value))}
+              >
+                <SelectTrigger id="access-organization-filter" className="w-full sm:w-[13rem]" aria-label={t('access.organization-filter.label')}>
+                  <SelectValue placeholder={t('access.availability.organization-placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('access.organization-filter.all')}</SelectItem>
+                  {organizationOptions.map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)}>{item.shortName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </div>
       </div>
       <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -347,7 +400,7 @@ function RoleList({
           role={duplicateRole}
           creatableScopes={directory.creatableScopes}
           organizations={directory.organizations}
-          preferredOrganizationId={organizationId}
+          preferredOrganizationId={typeof organizationId === 'number' ? organizationId : null}
           accessVersion={directory.accessVersion}
           onOpenChange={(open) => {
             if (!open) setDuplicateRole(null)

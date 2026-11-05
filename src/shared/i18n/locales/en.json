@@ -552,7 +552,7 @@
         "create-denied": "Creating a role needs its own permission. Assigning an existing role does not replace that permission.",
         "unavailable-title": "Access management is unavailable",
         "unavailable-body": "The role and assignment contract is not connected to the server in this mode. No request is sent.",
-        "choose-organization": "Choose an organization in the header to manage its roles and assignments.",
+        "choose-organization": "Choose an organization in the filter on this page to manage its roles and assignments.",
         "loading": "Loading access",
         "tabs": { "roles": "Roles", "users": "Users", "assignments": "Assignments", "general": "General" },
         "desk-lead-roles": "Manage roles, permissions and assignments for users.",
@@ -573,7 +573,17 @@
                 "3": "Check the access area"
             }
         },
+        "desk-scope": {
+            "label": "Role list scope",
+            "organization": "Selected organization",
+            "corporation": "Entire installation"
+        },
+        "organization-filter": {
+            "label": "Organization",
+            "all": "All organizations"
+        },
         "roles-heading": "Organization roles",
+        "roles-heading-all": "Roles",
         "roles-heading-corporation": "Corporation roles",
         "users-heading": "Organization users",
         "users-heading-corporation": "Corporation users",
@@ -633,6 +643,7 @@
             "no-organization": "There is no organization where you can create a role.",
             "locked": "This role is assigned to people. To use it in another area, create a copy."
         },
+        "roles-search": "Search roles",
         "roles-filter": {
             "label": "Which roles to show",
             "all": "All roles",

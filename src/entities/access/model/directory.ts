@@ -66,7 +66,7 @@ export type AccessCreatableScope = {
 }
 
 export type AccessDirectory = {
-  scope: 'organization' | 'corporation'
+  scope: 'organization' | 'corporation' | 'all'
   organizationId: number | null
   corporationId: number
   accessVersion: number

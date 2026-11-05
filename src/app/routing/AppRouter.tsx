@@ -12,6 +12,7 @@ import RecoveryMessagePage from '../../pages/auth/recovery-message'
 import RegisterPage from '../../pages/auth/register'
 import { HomePage } from '../home/HomePage'
 import { AccessPage, AccessUserPage, RoleEditorPage } from '../../pages/app/access'
+import { AccessRouteShell } from '../../pages/app/access/ui/AccessRouteShell'
 import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormViewCreatePage, FormViewEditPage, FormViewPage, FormViewsPage, FormsPage } from '../../pages/app/forms'
 import { SectionCreatePage, SectionEditorPage, SectionListPage, SectionPreviewPage, SectionWorkPage } from '../../pages/app/sections'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
@@ -105,10 +106,12 @@ export function AppRouter() {
               <Route path="/forms/:formId" element={<FormEditorPage />} />
               <Route path={routes.forms.list()} element={<FormsPage />} />
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
-              <Route path={routes.settings.access()} element={<AccessPage />} />
-              <Route path="/settings/access/users/:userId" element={<AccessUserPage />} />
-              <Route path={routes.settings.accessRoleNew()} element={<RoleEditorPage />} />
-              <Route path="/settings/access/roles/:roleId" element={<RoleEditorPage />} />
+              <Route element={<AccessRouteShell />}>
+                <Route path={routes.settings.access()} element={<AccessPage />} />
+                <Route path="/settings/access/users/:userId" element={<AccessUserPage />} />
+                <Route path={routes.settings.accessRoleNew()} element={<RoleEditorPage />} />
+                <Route path="/settings/access/roles/:roleId" element={<RoleEditorPage />} />
+              </Route>
               <Route path={routes.settings.organizationPersonnel(':organizationId')} element={<OrganizationModulePage module="personnel" />} />
               <Route path={routes.settings.organizationReference(':organizationId')} element={<OrganizationModulePage module="reference" />} />
               <Route path="/settings/organizations/personnel" element={<OrganizationModulePage module="personnel" />} />

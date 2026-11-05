@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { accessManagementMode } from '../../../../entities/access'
+import { accessRoleHref, readAccessDeskScope } from '../../../../features/access-management/model/access-address'
+import { useAccessOrganizationFilter } from '../../../../features/access-management/model/useAccessOrganizationFilter'
 import { AccessDesk } from '../../../../features/access-management/ui/AccessDesk'
-import { WorkspaceStatus } from '../../../../features/org-project-selector'
-import { useEnsureOrgProjectParams } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
-import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { routes } from '../../../../shared/lib/routes'
-import { PageHeader, WorkPage } from '../../../../shared/ui/page'
+import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 
 const mode = accessManagementMode(import.meta.env.VITE_API_MODE)
 
@@ -24,25 +24,46 @@ function AccessUnavailable() {
 }
 
 function MockAccessPage() {
-  const workspace = useEnsureOrgProjectParams('organization')
-  const href = useWorkspaceHref()
-  if (workspace.status === 'loading' || workspace.status === 'error' || workspace.status === 'forbidden' || workspace.status === 'not-found') {
-    return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
+  const { t } = useTranslation()
+  const [searchParams] = useSearchParams()
+  const deskScope = readAccessDeskScope(searchParams)
+  const filter = useAccessOrganizationFilter()
+
+  if (filter.loading) {
+    return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
   }
-  if (workspace.status !== 'ready') {
-    return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
+  if (filter.error) {
+    return (
+      <WorkPage>
+        <PageState
+          kind="error"
+          description={t('workspace.organizations-error')}
+          action={<button type="button" className="text-sm underline" onClick={filter.refetch}>{t('workspace.retry')}</button>}
+        />
+      </WorkPage>
+    )
   }
+  if (deskScope === 'organization' && filter.organizations.length === 0) {
+    return (
+      <WorkPage>
+        <PageState kind="empty" description={t('access.choose-organization')} />
+      </WorkPage>
+    )
+  }
+
+  const organizationOptions = filter.organizations.map((item) => ({
+    id: item.id,
+    shortName: item.shortName || item.fullName || `#${item.id}`,
+  }))
 
   return (
     <AccessDesk
-      organizationId={workspace.currentOrgId}
-      roleHref={(roleId) => roleLink(href, roleId)}
-      userHref={(userId) => href(routes.settings.accessUser(userId), 'organization')}
+      deskScope={deskScope}
+      organizationId={filter.organizationId}
+      organizationOptions={organizationOptions}
+      onOrganizationChange={filter.selectOrganization}
+      roleHref={(roleId) => accessRoleHref(roleId, deskScope)}
+      userHref={(userId) => routes.settings.accessUser(userId)}
     />
   )
-}
-
-function roleLink(href: (path: string, scope: 'organization') => string, roleId: string | 'new'): string {
-  const path = roleId === 'new' ? routes.settings.accessRoleNew() : routes.settings.accessRole(roleId)
-  return href(path, 'organization')
 }
