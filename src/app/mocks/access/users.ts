@@ -1,4 +1,4 @@
-import { can, canManageAssignment, hasCorporateSuperadmin, hasInstallationCapability, installationCorporationId, roleOwnerScope, rolePlacementDenial, scopeIsCanonical } from '../../../entities/access/model/grants'
+import { can, canManageAssignment, hasCorporateSuperadmin, hasInstallationCapability, installationCorporationId, roleDefinitionScopes, roleOrganizationIds, roleOwnerScope, rolePlacementDenial, scopeIsCanonical } from '../../../entities/access/model/grants'
 import { isOfferedPermission } from '../../../entities/access/model/permission-catalog'
 import type {
   AccessGrantView,
@@ -79,9 +79,8 @@ function grantViews(state: MockState, ids: readonly string[]): AccessGrantView[]
 
 function roleVisible(state: MockState, actorId: number, role: AccessRole): boolean {
   const snapshot = toSnapshot(state)
-  const owner = roleOwnerScope(role, snapshot)
-  if (!owner) return false
-  return can(snapshot, actorId, 'roles', 'read', owner) || canManageAssignment(snapshot, actorId, owner)
+  const homes = roleDefinitionScopes(role, snapshot)
+  return homes.some((scope) => can(snapshot, actorId, 'roles', 'read', scope) || canManageAssignment(snapshot, actorId, scope))
 }
 
 function recipientAllowed(state: MockState, actorId: number, userId: number, scope: AccessScope): boolean {
@@ -207,6 +206,7 @@ function roleChoices(state: MockState, actorId: number, userId: number): AccessU
       id: role.id,
       displayName: role.displayName,
       ownerScope: owner,
+      organizationIds: roleOrganizationIds(role),
       operational: grantViews(state, role.grantIds),
       hasDelegation: (role.delegationGrantIds ?? []).length > 0,
       scopes: evaluated,

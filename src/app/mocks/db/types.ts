@@ -70,6 +70,10 @@ export type MockOrganization = {
   fullName: string
   shortName: string
   address: string
+  /** Digits only. Absent on an older document until an organization is saved with requisites. */
+  inn?: string
+  /** Digits only. Absent on an older document until an organization is saved with requisites. */
+  kpp?: string
   /** Object version for this organization. Absent on older documents until migration writes 1. */
   revision?: number
 }
@@ -381,5 +385,10 @@ export type MockState = {
   personnelConfigs: PersonnelConfig[]
   employees: Employee[]
   organizationWorkspaces: OrganizationWorkspace[]
+  /**
+   * Customer and laboratory requests of every status.
+   * Absent until that list is stored. A missing list counts as zero.
+   */
+  serviceRequests?: Array<{ id: string; organizationId: number; status: string }>
   fault: MockFault
 }

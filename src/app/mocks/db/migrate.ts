@@ -40,6 +40,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Stored role grant lists are not extended. directories.* stays on manual directories only.
  * Version 12 does not add a role field and does not rewrite ownerScope.
  * A missing ownerScope stays missing. Stored role ids, grant lists and assignments stay as they are.
+ * Version 13 recognizes an optional organizationIds list on a local role.
+ * The list is not invented for older roles. A missing list still means ownerScope alone.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {

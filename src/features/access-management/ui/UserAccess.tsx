@@ -234,7 +234,7 @@ export function UserAccess({ userId, backHref }: { userId: number; backHref: str
                 {activeRoles.map((choice) => (
                   <option key={choice.id} value={choice.id}>
                     {choice.displayName}
-                    {view ? ` — ${roleDefinitionLabel(choice.ownerScope, view.organizations, t)}` : ''}
+                    {view ? ` — ${roleDefinitionLabel(choice.ownerScope, view.organizations, t, choice.organizationIds)}` : ''}
                   </option>
                 ))}
               </select>

@@ -312,6 +312,32 @@ export function roleOwnerScope(role: AccessRole, snapshot: AccessSnapshot): Acce
   return { type: 'corporation', corporationId }
 }
 
+/** Local homes of a role. Empty when the role is not tied to one organization. */
+export function roleOrganizationIds(role: AccessRole): number[] {
+  const owner = role.ownerScope
+  if (!owner || owner.type !== 'organization') return []
+  const listed = Array.isArray(role.organizationIds) ? role.organizationIds : []
+  const ids = listed.filter((id) => Number.isInteger(id) && id > 0)
+  const source = ids.length > 0 ? ids : [owner.organizationId]
+  if (!source.includes(owner.organizationId)) source.push(owner.organizationId)
+  return [...new Set(source)].sort((left, right) => left - right)
+}
+
+/**
+ * Scopes that bound where the role definition may be used.
+ * A corporation role has one scope. A local role has one scope per selected organization.
+ */
+export function roleDefinitionScopes(role: AccessRole, snapshot: AccessSnapshot): AccessScope[] {
+  const owner = roleOwnerScope(role, snapshot)
+  if (!owner) return []
+  if (owner.type !== 'organization') return [owner]
+  return roleOrganizationIds(role).map((organizationId) => ({
+    type: 'organization' as const,
+    organizationId,
+    corporationId: owner.corporationId,
+  }))
+}
+
 /**
  * Whether this actor may put this exact grant set on a role or assignment in this scope.
  * It does not decide whether the actor may edit the role definition or create the assignment.
@@ -372,10 +398,11 @@ export function rolePlacementDenial(
   assigneeId: number,
 ): RolePlacementDenial | null {
   if (!scopeIsCanonical(scope, snapshot.projects, snapshot.organizations)) return 'invalid_scope'
-  const owner = roleOwnerScope(role, snapshot)
-  if (!owner) return 'forbidden'
+  const homes = roleDefinitionScopes(role, snapshot)
+  if (homes.length === 0) return 'forbidden'
   const installationId = installationCorporationId(snapshot)
-  if (!scopeCovers(owner, scope, snapshot.projects, snapshot.organizations, installationId)) return 'scope_expansion'
-  if (owner.type !== 'corporation' && !canManageAssignment(snapshot, actorId, owner)) return 'forbidden'
+  const covering = homes.find((home) => scopeCovers(home, scope, snapshot.projects, snapshot.organizations, installationId))
+  if (!covering) return 'scope_expansion'
+  if (covering.type !== 'corporation' && !canManageAssignment(snapshot, actorId, covering)) return 'forbidden'
   return assignmentDenial(snapshot, actorId, role, scope, assigneeId)
 }

@@ -9,6 +9,8 @@ export type DirectoryOrganization = {
   fullName: string
   shortName: string
   address: string
+  inn: string
+  kpp: string
   kind: 'laboratory' | 'customer'
   revision: number
   canUpdate: boolean
@@ -45,6 +47,8 @@ type WireDirectory = {
     full_name?: string
     short_name?: string
     address?: string
+    inn?: string
+    kpp?: string
     kind?: 'laboratory' | 'customer'
     revision?: number
     can_update?: boolean
@@ -73,6 +77,8 @@ export function directoryFromWire(response: WireDirectory | null | undefined): O
       fullName: item.full_name ?? '',
       shortName: item.short_name ?? '',
       address: item.address ?? '',
+      inn: item.inn ?? '',
+      kpp: item.kpp ?? '',
       kind: item.kind === 'customer' ? 'customer' : 'laboratory',
       revision: item.revision ?? 1,
       canUpdate: item.can_update === true,

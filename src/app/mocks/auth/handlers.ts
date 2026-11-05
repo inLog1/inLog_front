@@ -361,6 +361,8 @@ export const authHandlers: HttpHandler[] = [
       fullName: optionalText(body, 'full_name'),
       shortName: optionalText(body, 'short_name'),
       address: optionalText(body, 'address'),
+      inn: optionalText(body, 'inn'),
+      kpp: optionalText(body, 'kpp'),
       kind: optionalText(body, 'kind'),
       expectedRevision: optionalRevision(body.expectedRevision),
       id: optionalField(body, 'id'),
@@ -382,6 +384,8 @@ export const authHandlers: HttpHandler[] = [
         shortName: text(body.short_name),
         address: text(body.address),
         kind: text(body.kind),
+        inn: text(body.inn),
+        kpp: text(body.kpp),
       })
       if ('error' in created) {
         return { state, status: created.error === 'forbidden' ? 403 : 400, body: { code: created.error } }
@@ -395,8 +399,10 @@ export const authHandlers: HttpHandler[] = [
           short_name: created.organization.shortName,
           address: created.organization.address,
           created_at: null,
-          inn: null,
-          kpp: null,
+          inn: created.organization.inn ?? '',
+          kpp: created.organization.kpp ?? '',
+          administrator_role_id: created.administratorRoleId,
+          corporation_id: created.organization.corporationId,
         },
       }
     })

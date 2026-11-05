@@ -12,6 +12,10 @@ const organization: CorporateOverviewOrganization = {
   canUpdate: true,
   canDelete: false,
   employeeCount: 1,
+  inn: '7701000001',
+  kpp: '770101001',
+  requestCount: 0,
+  administrator: null,
 }
 
 const row: CorporatePersonnelRow = {

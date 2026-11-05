@@ -17,6 +17,12 @@ export type CorporateOverviewOrganization = {
   canDelete: boolean
   /** Null when personnel of this organization cannot be read. Zero is a real empty list. */
   employeeCount: number | null
+  inn: string
+  kpp: string
+  /** Requests of every status. Zero is an empty list, not a hidden one. */
+  requestCount: number
+  /** Surname, initials and position. Null when nobody with those fields holds the administrator role. */
+  administrator: string | null
 }
 
 export type CorporateCreateTarget = {
@@ -95,6 +101,9 @@ export function parseCorporateOverview(response: unknown): CorporateOverview {
     const employeeCount = typeof row.employeeCount === 'number' && Number.isInteger(row.employeeCount) && row.employeeCount >= 0
       ? row.employeeCount
       : null
+    const requestCount = typeof row.requestCount === 'number' && Number.isInteger(row.requestCount) && row.requestCount >= 0
+      ? row.requestCount
+      : 0
     return [{
       id,
       fullName: text(row.fullName),
@@ -105,6 +114,10 @@ export function parseCorporateOverview(response: unknown): CorporateOverview {
       canUpdate: row.canUpdate === true,
       canDelete: row.canDelete === true,
       employeeCount,
+      inn: text(row.inn),
+      kpp: text(row.kpp),
+      requestCount,
+      administrator: typeof row.administrator === 'string' && row.administrator.trim() ? row.administrator : null,
     }]
   }) : []
   const createTargets = Array.isArray(source.createTargets) ? source.createTargets.flatMap((item): CorporateCreateTarget[] => {

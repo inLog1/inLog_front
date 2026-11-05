@@ -196,4 +196,54 @@ describe('corporate personnel overview', () => {
     expect(archivedRow?.archived).toBe(true)
     expect(afterBody.organizations.find((item) => item.id === opened.firstId)?.employeeCount).toBe(0)
   })
+
+  it('counts requests of every status and shows the organization administrator', () => {
+    const opened = twoOrganizations()
+    const role = opened.state.roles.find((item) =>
+      item.origin?.template === 'organization-administrator'
+      && item.ownerScope?.type === 'organization'
+      && item.ownerScope.organizationId === opened.firstId,
+    )
+    const prepared = {
+      ...opened.state,
+      users: [
+        ...opened.state.users,
+        {
+          id: 2,
+          email: 'lab@example.test',
+          name: 'Борис',
+          patronymic: 'Ильич',
+          surname: 'Лебедев',
+          position: 'Заведующий лабораторией',
+          legacyRole: 'member' as const,
+          status: 'active' as const,
+        },
+      ],
+      assignments: [
+        ...opened.state.assignments,
+        {
+          id: 'asg-admin',
+          userId: 2,
+          roleId: role?.id ?? '',
+          scope: { type: 'organization' as const, organizationId: opened.firstId, corporationId: 1 },
+        },
+      ],
+      serviceRequests: [
+        { id: 'req-1', organizationId: opened.firstId, status: 'new' },
+        { id: 'req-2', organizationId: opened.firstId, status: 'done' },
+        { id: 'req-3', organizationId: opened.secondId, status: 'cancelled' },
+      ],
+    }
+    const owner = tokenFor(prepared, 1)
+    const view = readCorporateOverview(owner.state, owner.token)
+    const body = view.body as {
+      organizations: Array<{ id: number; requestCount: number; administrator: string | null }>
+    }
+    expect(body.organizations.find((item) => item.id === opened.firstId)).toMatchObject({
+      requestCount: 2,
+      administrator: 'Лебедев Б.И. - Заведующий лабораторией',
+    })
+    expect(body.organizations.find((item) => item.id === opened.secondId)?.requestCount).toBe(1)
+    expect(body.organizations.find((item) => item.id === opened.secondId)?.administrator).toBeNull()
+  })
 })

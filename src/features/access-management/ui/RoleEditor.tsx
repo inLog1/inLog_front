@@ -24,7 +24,8 @@ import { PermissionSets } from './PermissionSets'
 import { RoleAvailabilityField } from './RoleAvailabilityField'
 import { RoleDeleteDialog } from './RoleDeleteDialog'
 import { RoleDuplicateDialog } from './RoleDuplicateDialog'
-import { roleDefinitionLabel, scopeKey, scopeLabel } from './scope-label'
+import { availabilityLimits, areaFromOwner, areaKey, preferredArea, writeArea, type RoleArea } from './role-area'
+import { roleDefinitionLabel, scopeLabel } from './scope-label'
 
 type RoleEditorProps = {
   roleId: string | null
@@ -50,13 +51,13 @@ function NewRole({ owner, organizationId, listHref, usersHref }: { owner: 'organ
   if (directory.isLoading || !directory.data) {
     return <WorkPage><PageState kind="loading" description={t('access.loading')} /></WorkPage>
   }
-  const initialScope = preferredScope(directory.data.creatableScopes, owner, organizationId)
-  if (!initialScope) return <CreateDenied listHref={listHref} />
+  const initialArea = preferredArea(directory.data.creatableScopes, owner, organizationId)
+  if (!initialArea) return <CreateDenied listHref={listHref} />
   return (
     <RoleForm
       listHref={listHref}
       usersHref={usersHref}
-      initialScope={initialScope}
+      initialArea={initialArea}
       organizationId={organizationId}
       scopeLocked={false}
       creatableScopes={directory.data.creatableScopes}
@@ -83,7 +84,7 @@ function ExistingRole({ roleId, organizationId, listHref, usersHref }: { roleId:
       listHref={listHref}
       usersHref={usersHref}
       onRefresh={() => void role.refetch()}
-      initialScope={role.data.role.ownerScope}
+      initialArea={areaFromOwner(role.data.role.ownerScope, role.data.role.organizationIds)}
       organizationId={organizationId}
       scopeLocked={role.data.role.assignmentCount > 0}
       creatableScopes={role.data.creatableScopes}
@@ -124,7 +125,7 @@ function RoleForm({
   listHref,
   usersHref,
   onRefresh,
-  initialScope,
+  initialArea,
   organizationId,
   scopeLocked,
   creatableScopes,
@@ -141,7 +142,7 @@ function RoleForm({
   listHref: string
   usersHref: string
   onRefresh?: () => void
-  initialScope: AccessScope
+  initialArea: RoleArea
   organizationId: number | null
   scopeLocked: boolean
   creatableScopes: readonly AccessCreatableScope[]
@@ -169,7 +170,7 @@ function RoleForm({
   const navigate = useNavigate()
   const [name, setName] = useState(initial?.displayName ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
-  const [scope, setScope] = useState(initialScope)
+  const [area, setArea] = useState(initialArea)
   const [duplicateOpen, setDuplicateOpen] = useState(false)
   const [operationalIds, setOperationalIds] = useState(initial?.operational.map((item) => item.id) ?? [])
   const [delegationIds, setDelegationIds] = useState(initial?.delegation.map((item) => item.id) ?? [])
@@ -187,7 +188,7 @@ function RoleForm({
   const dirty = !leaveClean && (
     name !== (initial?.displayName ?? '')
     || description !== (initial?.description ?? '')
-    || scopeKey(scope) !== scopeKey(initialScope)
+    || areaKey(area) !== areaKey(initialArea)
     || !sameIds(operationalIds, initialOperational)
     || !sameIds(delegationIds, initialDelegation)
   )
@@ -217,12 +218,20 @@ function RoleForm({
       toast.error(message)
       return
     }
+    const written = writeArea(area)
+    if (!written) {
+      const message = t('access.availability.choose-at-least-one')
+      setFailure(message)
+      toast.error(message)
+      return
+    }
     const body = {
       displayName,
       description,
       grantIds: operationalIds,
       delegationGrantIds: delegationIds,
-      ownerScope: scope,
+      ownerScope: written.ownerScope,
+      ...(written.organizationIds ? { organizationIds: written.organizationIds } : {}),
       expectedAccessVersion: accessVersion,
     }
     try {
@@ -259,11 +268,36 @@ function RoleForm({
     }
   }
 
-  const scopeText = roleDefinitionLabel(scope, organizations, t)
-  const selectedAvailability = creatableScopes.find((item) => scopeKey(item.scope) === scopeKey(scope)) ?? null
-  const sameArea = scopeKey(scope) === scopeKey(initialScope)
-  const activeDelegable = sameArea ? delegableIds : (selectedAvailability?.delegableGrantIds ?? [])
-  const activeFurther = sameArea ? canDelegateFurther : (selectedAvailability?.canDelegateFurther ?? false)
+  const scopeText = area.kind === 'corporation'
+    ? roleDefinitionLabel(area.scope, organizations, t)
+    : area.scopes.length === 0
+      ? t('access.availability.none')
+      : roleDefinitionLabel(
+        area.scopes[0] ?? { type: 'organization', organizationId: 0, corporationId: 0 },
+        organizations,
+        t,
+        area.scopes.flatMap((scope) => scope.type === 'organization' ? [scope.organizationId] : []),
+      )
+  const limitsFor = (next: RoleArea) => areaKey(next) === areaKey(initialArea)
+    ? { delegableGrantIds: delegableIds, canDelegateFurther }
+    : availabilityLimits(next, creatableScopes)
+  const limits = limitsFor(area)
+  const activeDelegable = limits.delegableGrantIds
+  const activeFurther = limits.canDelegateFurther
+  const preservedOperationalIds = new Set(preservedOperational.map((item) => item.id))
+  const preservedDelegationIds = new Set(preservedDelegation.map((item) => item.id))
+  const applyArea = (next: RoleArea) => {
+    const nextLimits = limitsFor(next)
+    const allowed = new Set(nextLimits.delegableGrantIds)
+    const operational = operationalIds.filter((id) => preservedOperationalIds.has(id) || allowed.has(id))
+    const delegation = delegationIds.filter((id) => preservedDelegationIds.has(id) || (nextLimits.canDelegateFurther && allowed.has(id)))
+    if (operational.length !== operationalIds.length || delegation.length !== delegationIds.length) {
+      setNotice(t('access.availability.grants-trimmed'))
+    }
+    setOperationalIds(operational)
+    setDelegationIds(delegation)
+    setArea(next)
+  }
   const busy = !canEdit || pending
   const knownInUse = (initial?.assignmentCount ?? 0) > 0 || conflict
   const actionButtons = () => (
@@ -335,9 +369,9 @@ function RoleForm({
               <RoleAvailabilityField
                 scopes={creatableScopes}
                 organizations={organizations}
-                value={scope}
+                value={area}
                 preferredOrganizationId={organizationId}
-                onChange={setScope}
+                onChange={applyArea}
                 disabled={!canEdit || pending}
                 locked={scopeLocked}
               />
@@ -407,20 +441,6 @@ function RoleForm({
       ) : null}
     </WorkPage>
   )
-}
-
-function preferredScope(
-  scopes: readonly AccessCreatableScope[],
-  owner: 'organization' | 'corporation',
-  organizationId: number | null,
-): AccessScope | null {
-  const corporation = scopes.find((item) => item.scope.type === 'corporation')
-  const organization = scopes.find((item) => item.scope.type === 'organization' && item.scope.organizationId === organizationId)
-  if (owner === 'organization' && organization) return organization.scope
-  if (owner === 'corporation' && corporation) return corporation.scope
-  if (organization) return organization.scope
-  if (corporation) return corporation.scope
-  return scopes.find((item) => item.scope.type === 'organization')?.scope ?? null
 }
 
 function RoleSummary({

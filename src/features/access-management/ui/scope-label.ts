@@ -12,11 +12,14 @@ export function roleDefinitionLabel(
   scope: AccessScope,
   organizations: readonly { id: number; shortName: string }[],
   t: TFunction,
+  organizationIds: readonly number[] = [],
 ): string {
   if (scope.type === 'corporation') return t('access.scope.all-organizations')
-  if (scope.type === 'organization') {
-    return organizations.find((item) => item.id === scope.organizationId)?.shortName
-      ?? t('access.scope.organization', { id: scope.organizationId })
+  if (scope.type === 'organization' || scope.type === 'project') {
+    const ids = organizationIds.length > 0 ? organizationIds : [scope.organizationId]
+    const names = ids.map((id) => organizations.find((item) => item.id === id)?.shortName
+      ?? t('access.scope.organization', { id }))
+    return names.join(', ')
   }
   return scopeLabel(scope, organizations, [], t)
 }

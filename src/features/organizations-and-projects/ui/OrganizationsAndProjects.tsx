@@ -16,6 +16,7 @@ import { EditOrganizationDialog } from './EditOrganizationDialog'
 import { EditProjectDialog } from './EditProjectDialog'
 import { DIRECTORY_FOCUS_PARAM, resolveDirectoryFocus } from '../model/directory-focus'
 import { createdOrganizationPersonnelPath } from '../model/created-organization'
+import { organizationKindLabelKey } from '../model/kind-label'
 export type DirectoryMode = 'organizations' | 'projects'
 
 function selectOrganization(current: URLSearchParams, organizationId: number) {
@@ -210,7 +211,7 @@ function DirectoryView({ directory, mode }: { directory: OrganizationDirectory; 
               <h2 className="mt-1 break-words text-xl font-semibold">{selected.fullName}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span>{selected.shortName}</span>
-                <span>{selected.kind === 'customer' ? t('settings-page.kind-customer') : t('settings-page.kind-laboratory')}</span>
+                <span>{t(organizationKindLabelKey(selected.kind))}</span>
                 {selected.address ? (
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5" />

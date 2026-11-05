@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next'
 import type { AccessCreatableScope, AccessScope } from '../../../entities/access'
 import { Label } from '../../../shared/ui/label'
 import { RadioGroup, RadioGroupItem } from '../../../shared/ui/radio-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
-import { scopeKey } from './scope-label'
+import { OrganizationMultiSelect } from './OrganizationMultiSelect'
+import type { RoleArea } from './role-area'
 
 type RoleAvailabilityFieldProps = {
   scopes: readonly AccessCreatableScope[]
   organizations: readonly { id: number; shortName: string }[]
-  value: AccessScope | null
-  onChange: (scope: AccessScope) => void
+  value: RoleArea
+  onChange: (area: RoleArea) => void
   preferredOrganizationId?: number | null
   disabled?: boolean
   locked?: boolean
@@ -30,32 +30,60 @@ export function RoleAvailabilityField({
   const baseId = useId()
   const corporation = scopes.find((item) => item.scope.type === 'corporation') ?? null
   const organizationScopes = organizationChoices(scopes, value)
-  const kind = value?.type === 'corporation' ? 'corporation' : value?.type === 'organization' ? 'organization' : ''
-  const selectedOrgKey = value?.type === 'organization' ? scopeKey(value) : ''
   const inactive = disabled || locked
-  const lastOrganizationId = useRef<number | null>(value?.type === 'organization' ? value.organizationId : null)
+  const selectedIds = value.kind === 'organizations'
+    ? value.scopes.flatMap((scope) => scope.type === 'organization' ? [scope.organizationId] : [])
+    : []
+  const lastOrganizationIds = useRef<number[]>(selectedIds.length > 0
+    ? selectedIds
+    : preferredOrganizationId != null ? [preferredOrganizationId] : [])
 
-  const chooseOrganization = (organizationId: number | null) => {
-    const current = organizationId == null
-      ? undefined
-      : organizationScopes.find((item) => item.scope.type === 'organization' && item.scope.organizationId === organizationId)
-    const fallback = current ?? organizationScopes[0]
-    if (!fallback || fallback.scope.type !== 'organization') return
-    lastOrganizationId.current = fallback.scope.organizationId
-    onChange(fallback.scope)
+  const scopesFor = (ids: readonly number[]): AccessScope[] => {
+    const chosen = ids.flatMap((id) => {
+      const match = organizationScopes.find((item) => item.scope.type === 'organization' && item.scope.organizationId === id)
+      return match ? [match.scope] : []
+    })
+    return chosen
+  }
+
+  const chooseOrganizations = (ids: number[]) => {
+    const next = scopesFor(ids.length > 0 ? ids : fallbackIds())
+    if (next.length === 0) {
+      onChange({ kind: 'organizations', scopes: [] })
+      return
+    }
+    lastOrganizationIds.current = next.flatMap((scope) => scope.type === 'organization' ? [scope.organizationId] : [])
+    onChange({ kind: 'organizations', scopes: next })
+  }
+
+  const fallbackIds = () => {
+    const remembered = lastOrganizationIds.current.filter((id) =>
+      organizationScopes.some((item) => item.scope.type === 'organization' && item.scope.organizationId === id),
+    )
+    if (remembered.length > 0) return remembered
+    if (preferredOrganizationId != null && organizationScopes.some((item) => item.scope.type === 'organization' && item.scope.organizationId === preferredOrganizationId)) {
+      return [preferredOrganizationId]
+    }
+    const first = organizationScopes.find((item) => item.scope.type === 'organization')
+    return first?.scope.type === 'organization' ? [first.scope.organizationId] : []
   }
 
   const choose = (next: string) => {
     if (inactive) return
-    if (next === 'corporation' && corporation) onChange(corporation.scope)
-    if (next === 'organization') chooseOrganization(lastOrganizationId.current ?? preferredOrganizationId)
+    if (next === 'corporation' && corporation) onChange({ kind: 'corporation', scope: corporation.scope })
+    if (next === 'organizations') chooseOrganizations(selectedIds.length > 0 ? selectedIds : fallbackIds())
   }
+
+  const options = organizationScopes.flatMap((item) => {
+    if (item.scope.type !== 'organization') return []
+    return [{ id: item.scope.organizationId, shortName: organizationName(item.scope, organizations, t) }]
+  })
 
   return (
     <fieldset className="grid min-w-0 gap-3" disabled={disabled}>
       <legend className="text-sm">{t('access.availability.title')}</legend>
       {locked ? <p className="text-sm text-foreground">{t('access.availability.locked')}</p> : null}
-      <RadioGroup value={kind || undefined} onValueChange={choose} disabled={inactive} className="gap-3">
+      <RadioGroup value={value.kind} onValueChange={choose} disabled={inactive} className="gap-3">
         <div className="grid gap-1">
           <div className="flex items-start gap-2">
             <RadioGroupItem
@@ -74,39 +102,36 @@ export function RoleAvailabilityField({
         <div className="grid gap-2">
           <div className="flex items-start gap-2">
             <RadioGroupItem
-              value="organization"
-              id={`${baseId}-organization`}
+              value="organizations"
+              id={`${baseId}-organizations`}
               disabled={inactive || organizationScopes.length === 0}
               className="mt-0.5"
             />
-            <Label htmlFor={`${baseId}-organization`} className="font-normal">
+            <Label htmlFor={`${baseId}-organizations`} className="font-normal">
               {t('access.availability.organization')}
             </Label>
           </div>
-          <div className="pl-6">
+          <div className="grid gap-1.5 pl-6">
             {organizationScopes.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t('access.availability.no-organization')}</p>
             ) : (
-              <Select
-                value={kind === 'organization' && selectedOrgKey ? selectedOrgKey : undefined}
-                disabled={inactive || kind !== 'organization'}
-                onValueChange={(key) => {
-                  const match = organizationScopes.find((item) => scopeKey(item.scope) === key)
-                  if (match?.scope.type === 'organization') chooseOrganization(match.scope.organizationId)
+              <OrganizationMultiSelect
+                options={options}
+                value={value.kind === 'organizations' ? selectedIds : []}
+                disabled={inactive}
+                onChange={(ids) => {
+                  lastOrganizationIds.current = ids
+                  onChange({ kind: 'organizations', scopes: scopesFor(ids) })
                 }}
-              >
-                <SelectTrigger aria-label={t('access.availability.organization-placeholder')}>
-                  <SelectValue placeholder={t('access.availability.organization-placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizationScopes.map((item) => (
-                    <SelectItem key={scopeKey(item.scope)} value={scopeKey(item.scope)}>
-                      {organizationName(item.scope, organizations, t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             )}
+            {organizationScopes.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {value.kind === 'organizations' && selectedIds.length === 0
+                  ? t('access.availability.choose-at-least-one')
+                  : t('access.availability.organization-help')}
+              </p>
+            ) : null}
           </div>
         </div>
       </RadioGroup>
@@ -114,11 +139,17 @@ export function RoleAvailabilityField({
   )
 }
 
-function organizationChoices(scopes: readonly AccessCreatableScope[], value: AccessScope | null): AccessCreatableScope[] {
+function organizationChoices(scopes: readonly AccessCreatableScope[], value: RoleArea): AccessCreatableScope[] {
   const organizations = scopes.filter((item) => item.scope.type === 'organization')
-  if (value?.type !== 'organization') return organizations
-  if (organizations.some((item) => scopeKey(item.scope) === scopeKey(value))) return organizations
-  return [{ scope: value, delegableGrantIds: [], canDelegateFurther: false }, ...organizations]
+  if (value.kind !== 'organizations') return organizations
+  const missing = value.scopes.filter((scope) =>
+    scope.type === 'organization'
+    && !organizations.some((item) => item.scope.type === 'organization' && item.scope.organizationId === scope.organizationId),
+  )
+  return [
+    ...missing.map((scope) => ({ scope, delegableGrantIds: [] as string[], canDelegateFurther: false })),
+    ...organizations,
+  ]
 }
 
 function organizationName(

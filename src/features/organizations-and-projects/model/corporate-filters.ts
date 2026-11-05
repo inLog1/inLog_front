@@ -17,6 +17,9 @@ export function organizationVisible(organization: CorporateOverviewOrganization,
   return includes(organization.fullName, needle)
     || includes(organization.shortName, needle)
     || includes(organization.address, needle)
+    || includes(organization.inn, needle)
+    || includes(organization.kpp, needle)
+    || includes(organization.administrator ?? '', needle)
 }
 
 export function personnelVisible(row: CorporatePersonnelRow, query: string, kind: CorporateKindFilter): boolean {

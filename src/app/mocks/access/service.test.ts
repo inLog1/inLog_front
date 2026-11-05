@@ -9,9 +9,10 @@ import {
   hasCorporateSuperadmin,
 } from '../../../entities/access/model/grants'
 import { accessFor, loginWithPassword, toSnapshot } from '../auth/flow'
-import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
+import { MOCK_SCHEMA_VERSION, PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import { migrateMockDocument } from '../db/migrate'
 import { ensureMockState, readMockState, updateMockState } from '../db/repository'
+import { deleteOrganizationRecord } from '../organizations/service'
 import { readUser } from './users'
 import { createSeed } from '../db/seed'
 import type { MockState } from '../db/types'
@@ -1010,7 +1011,8 @@ describe('access management service', () => {
     }
     const migrated = migrateMockDocument(stored)
     expect(migrated?.changed).toBe(true)
-    expect(migrated?.state.schemaVersion).toBe(12)
+    expect(migrated?.state.schemaVersion).toBe(MOCK_SCHEMA_VERSION)
+    expect(migrated?.state.roles.find((role) => role.id === 'role-employee')?.organizationIds).toBeUndefined()
     expect(migrated?.state.roles.map((role) => role.id)).toEqual(stored.roles.map((role) => role.id))
     expect(migrated?.state.roles.find((role) => role.id === 'role-employee')?.ownerScope).toEqual(org(101))
     expect(migrated?.state.roles.find((role) => role.id === 'role-employee')?.grantIds).toEqual(employeeGrants)
@@ -1045,5 +1047,84 @@ describe('access management service', () => {
     expect(role?.id).not.toBe('role-owner')
     expect(again.ok && again.state.assignments.every((item) => item.roleId !== role?.id)).toBe(true)
     expect(again.ok && again.state.systemCapabilities).toEqual(opened.state.systemCapabilities)
+  })
+
+  it('keeps a local role inside the selected organizations and nowhere else', () => {
+    const contradictory = readRoleWrite({
+      displayName: 'Сразу везде',
+      description: '',
+      grantIds: [],
+      delegationGrantIds: [],
+      ownerScope: { type: 'corporation', corporationId: 1 },
+      organizationIds: [101, 102],
+    }, true)
+    expect(contradictory.ok).toBe(false)
+
+    const { state, token } = ownerSession()
+    const reports = grantId(state, 'reports', 'read')
+    const created = createRole(state, token, {
+      displayName: 'Две лаборатории',
+      description: '',
+      grantIds: [reports],
+      delegationGrantIds: [],
+      ownerScope: org(102),
+      organizationIds: [102, 101],
+    })
+    expect(created.status).toBe(201)
+    const role = created.state.roles.find((item) => item.displayName === 'Две лаборатории')
+    expect(role?.ownerScope).toEqual(org(102))
+    expect(role?.organizationIds).toEqual([101, 102])
+    const roleId = role?.id ?? ''
+
+    const inFirst = createAssignment(created.state, token, { userId: 3, roleId, scope: org(101) })
+    expect(inFirst.status).toBe(201)
+    const inSecond = createAssignment(inFirst.state, token, { userId: 4, roleId, scope: org(102) })
+    expect(inSecond.status).toBe(201)
+    const outside = createAssignment(inSecond.state, token, { userId: 5, roleId, scope: org(201) })
+    expect(outside.body).toEqual({ code: 'scope_expansion' })
+    expect(can(toSnapshot(inSecond.state), 3, 'reports', 'read', org(101))).toBe(true)
+    expect(can(toSnapshot(inSecond.state), 3, 'reports', 'read', org(102))).toBe(false)
+    expect(can(toSnapshot(inSecond.state), 4, 'reports', 'read', org(201))).toBe(false)
+
+    const home = readDirectory(inSecond.state, token, { scope: null, organization: '102' })
+    const away = readDirectory(inSecond.state, token, { scope: null, organization: '201' })
+    const homeRoles = (home.body as { roles: Array<{ id: string; organizationIds: number[] }> }).roles
+    const awayRoles = (away.body as { roles: Array<{ id: string }> }).roles
+    expect(homeRoles.find((item) => item.id === roleId)?.organizationIds).toEqual([101, 102])
+    expect(awayRoles.some((item) => item.id === roleId)).toBe(false)
+
+    const locked = updateRole(inSecond.state, token, roleId, {
+      displayName: 'Две лаборатории',
+      description: '',
+      grantIds: [reports],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+      organizationIds: [101],
+    })
+    expect(locked.body).toEqual({ code: 'scope_locked' })
+
+    const admin = adminSession()
+    const editor: MockState = {
+      ...admin.state,
+      roles: admin.state.roles.map((item) => item.id === 'role-lab-admin'
+        ? { ...item, grantIds: [...item.grantIds, grantId(admin.state, 'roles', 'create')] }
+        : item),
+    }
+    const spanned = createRole(editor, admin.token, {
+      displayName: 'Чужая пара',
+      description: '',
+      grantIds: [reports],
+      delegationGrantIds: [],
+      ownerScope: org(101),
+      organizationIds: [101, 102],
+    })
+    expect(spanned.status).toBe(403)
+    expect(spanned.state.roles).toEqual(editor.roles)
+
+    const removed = deleteOrganizationRecord(created.state, token, 101)
+    expect(removed.status).toBe(200)
+    const kept = removed.state.roles.find((item) => item.id === roleId)
+    expect(kept?.ownerScope).toEqual(org(102))
+    expect(kept?.organizationIds).toBeUndefined()
   })
 })

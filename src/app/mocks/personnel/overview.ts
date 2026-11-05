@@ -2,6 +2,7 @@ import { can } from '../../../entities/access/model/grants'
 import type { PersonnelConfig, PersonnelValue } from '../../../entities/personnel/model/types'
 import { principal, toSnapshot, type FlowResult } from '../auth/flow'
 import type { MockOrganization, MockState } from '../db/types'
+import { organizationAdministratorLabel } from '../organizations/organization-admin-role'
 import { verifiedInstallationId } from '../organizations/service'
 import { findReference } from './directories'
 import { assignedRoles, personnelPermissions } from './employees'
@@ -39,6 +40,10 @@ export function readCorporateOverview(state: MockState, token: string | null): F
         canUpdate: allows(state, userId, organization.id, 'organizations', 'update'),
         canDelete: allows(state, userId, organization.id, 'organizations', 'delete'),
         employeeCount: readPersonnel ? active.length : null,
+        inn: organization.inn ?? '',
+        kpp: organization.kpp ?? '',
+        requestCount: organizationRequestCount(state, organization.id),
+        administrator: organizationAdministratorLabel(state, organization.id),
       })
     }
     if (createPersonnel) {
@@ -66,6 +71,11 @@ export function readCorporateOverview(state: MockState, token: string | null): F
     createTargets,
     personnel,
   })
+}
+
+/** Every stored request of this organization, regardless of status. A missing list is zero. */
+function organizationRequestCount(state: MockState, organizationId: number): number {
+  return (state.serviceRequests ?? []).filter((item) => item.organizationId === organizationId).length
 }
 
 function positiveRevision(value: number | undefined): number {

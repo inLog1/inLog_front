@@ -14,6 +14,8 @@ export type AccessRoleView = {
   displayName: string
   description: string
   ownerScope: AccessScope
+  /** Empty when the role covers the corporation. Otherwise every organization where it may be assigned. */
+  organizationIds: number[]
   operational: AccessGrantView[]
   delegation: AccessGrantView[]
   assignmentCount: number
@@ -44,7 +46,11 @@ export type AccessAssignmentView = {
 export type AccessCandidate = {
   id: number
   fullName: string
+  surname: string
+  givenName: string
+  patronymic: string
   position: string
+  status: 'active' | 'blocked'
 }
 
 export type AccessChangeView = {
@@ -106,6 +112,12 @@ export type RoleWrite = {
   grantIds: string[]
   delegationGrantIds: string[]
   ownerScope?: AccessScope
+  /**
+   * Local homes, including ownerScope's organization.
+   * Omit it for one organization or for the corporation.
+   * Sending ownerScope without this field stores that single area.
+   */
+  organizationIds?: number[]
   expectedAccessVersion?: number
 }
 
@@ -135,6 +147,8 @@ export type RoleDuplicateWrite = {
   omitGrantIds: string[]
   omitDelegationGrantIds: string[]
   ownerScope: AccessScope
+  /** Same meaning as on RoleWrite. Omit it when the copy belongs to one organization or the corporation. */
+  organizationIds?: number[]
   expectedAccessVersion?: number
 }
 
@@ -186,6 +200,8 @@ export type AccessUserRoleChoice = {
   id: string
   displayName: string
   ownerScope: AccessScope
+  /** Empty when the role covers the corporation. */
+  organizationIds: number[]
   operational: AccessGrantView[]
   hasDelegation: boolean
   scopes: Array<{ scope: AccessScope; assignable: boolean; reason: 'invalid_scope' | 'forbidden' | 'self_elevation' | 'scope_expansion' | null }>

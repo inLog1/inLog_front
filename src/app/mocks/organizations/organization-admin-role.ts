@@ -1,4 +1,5 @@
-import type { AccessAuditEntry, AccessRole } from '../../../entities/access/model/types'
+import type { AccessAuditEntry, AccessRole, AccessScope } from '../../../entities/access/model/types'
+import { personWithPosition } from '../../../entities/organization/model/requisites'
 import { PERSONNEL_GRANT_DEFINITIONS } from '../db/personnel-grants'
 import type { MockOrganization, MockState } from '../db/types'
 
@@ -60,12 +61,57 @@ export function organizationAdministratorGrantIds(): string[] {
   return ORGANIZATION_ADMINISTRATOR_GRANTS.map((grant) => grant.id)
 }
 
+function assignmentInOrganization(scope: AccessScope, organizationId: number): boolean {
+  return (scope.type === 'organization' || scope.type === 'project') && scope.organizationId === organizationId
+}
+
+/** People assigned to this organization's administrator role. Surname, initials and position are all required. */
+export function organizationAdministratorLabel(state: MockState, organizationId: number): string | null {
+  const role = state.roles.find((item) =>
+    item.origin?.template === 'organization-administrator'
+    && item.ownerScope?.type === 'organization'
+    && item.ownerScope.organizationId === organizationId,
+  )
+  if (!role) return null
+  const labels = state.assignments.flatMap((assignment) => {
+    if (assignment.roleId !== role.id || !assignmentInOrganization(assignment.scope, organizationId)) return []
+    const user = state.users.find((item) => item.id === assignment.userId)
+    if (!user || user.status === 'blocked') return []
+    const label = personWithPosition(user)
+    return label ? [label] : []
+  })
+  labels.sort((left, right) => left.localeCompare(right, 'ru'))
+  return labels.length > 0 ? labels.join(', ') : null
+}
+
 function catalogReady(state: MockState): boolean {
   return ORGANIZATION_ADMINISTRATOR_GRANTS.every((expected) =>
     state.grants.some((grant) =>
       grant.id === expected.id && grant.resource === expected.resource && grant.action === expected.action,
     ),
   )
+}
+
+export function organizationAdministratorRole(state: MockState, organizationId: number): AccessRole | undefined {
+  return state.roles.find((item) =>
+    item.origin?.template === 'organization-administrator'
+    && item.ownerScope?.type === 'organization'
+    && item.ownerScope.organizationId === organizationId,
+  )
+}
+
+/** Keeps the existing administrator role, or adds it when an older organization does not have one yet. */
+export function ensureOrganizationAdministrator(
+  state: MockState,
+  organization: MockOrganization,
+  actorId: number,
+): { state: MockState; roleId: string } | null {
+  const existing = organizationAdministratorRole(state, organization.id)
+  if (existing) return { state, roleId: existing.id }
+  const next = withOrganizationAdministrator(state, organization, actorId)
+  if (!next) return null
+  const created = organizationAdministratorRole(next, organization.id)
+  return created ? { state: next, roleId: created.id } : null
 }
 
 /** Adds the administrator role to the same state as the new organization. Returns null when the catalog cannot support the allowlist. */

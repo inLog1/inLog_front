@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { can, capabilityFromRoleDisplayName, hasCorporateSuperadmin } from '../../../entities/access/model/grants'
-import { deleteRole, readDirectory as readAccessDirectory } from '../access/service'
+import { createAssignment, deleteRole, readDirectory as readAccessDirectory } from '../access/service'
 import { switchUser, toSnapshot } from '../auth/flow'
 import { createEmptyInstallation } from '../db/empty-installation'
 import { configureInstallation, createOrganization } from '../installation/service'
@@ -8,6 +8,7 @@ import { readDirectory } from './service'
 import {
   ORGANIZATION_ADMINISTRATOR_GRANTS,
   ORGANIZATION_ADMINISTRATOR_ROLE_NAME,
+  organizationAdministratorLabel,
 } from './organization-admin-role'
 
 const draft = {
@@ -158,6 +159,43 @@ describe('organization administrator role', () => {
     expect(broken.roles).toEqual(ready.roles)
     expect(broken.assignments).toEqual([])
     expect(broken.accessVersion).toBe(ready.accessVersion)
+  })
+
+  it('assigns a chosen specialist to the role created with the organization', () => {
+    const ready = readyInstallation()
+    const staffed = {
+      ...ready,
+      users: [
+        ...ready.users,
+        {
+          id: 2,
+          email: 'lab@example.test',
+          name: 'Борис',
+          patronymic: 'Ильич',
+          surname: 'Лебедев',
+          position: 'Заведующий лабораторией',
+          legacyRole: 'member' as const,
+          status: 'active' as const,
+        },
+      ],
+    }
+    const created = createOrganization(staffed, 1, { ...organizationInput, inn: '7701000001', kpp: '770101001' })
+    if (!('organization' in created)) throw new Error('organization')
+    expect(created.organization.inn).toBe('7701000001')
+    expect(created.organization.kpp).toBe('770101001')
+    const session = tokenFor(created.state)
+    const assigned = createAssignment(session.state, session.token, {
+      userId: 2,
+      roleId: created.administratorRoleId,
+      scope: {
+        type: 'organization',
+        organizationId: created.organization.id,
+        corporationId: created.organization.corporationId,
+      },
+    })
+    expect(assigned.status).toBe(201)
+    expect(organizationAdministratorLabel(assigned.state, created.organization.id)).toBe('Лебедев Б.И. - Заведующий лабораторией')
+    expect(createOrganization(ready, 1, { ...organizationInput, inn: '12a', kpp: '770101001' })).toEqual({ error: 'invalid_organization' })
   })
 
   it('deletes an unassigned administrator role without removing corporate_superadmin', () => {

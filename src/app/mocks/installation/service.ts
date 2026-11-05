@@ -65,11 +65,18 @@ export function configureInstallation(state: MockState, draft: SetupDraft): Mock
   })
 }
 
+function storedDigits(value: string | undefined): string | null {
+  if (value == null) return ''
+  const trimmed = value.trim()
+  if (trimmed === '') return ''
+  return /^\d+$/.test(trimmed) ? trimmed : null
+}
+
 export function createOrganization(
   state: MockState,
   userId: number,
-  input: { fullName: string; shortName: string; address: string; kind: string },
-): { state: MockState; organization: MockOrganization } | { error: 'forbidden' | 'invalid_organization' } {
+  input: { fullName: string; shortName: string; address: string; kind: string; inn?: string; kpp?: string },
+): { state: MockState; organization: MockOrganization; administratorRoleId: string } | { error: 'forbidden' | 'invalid_organization' } {
   const corporationId = state.installationCorporationId
   if (corporationId == null || state.corporation.id !== corporationId) return { error: 'forbidden' }
   const allowed = can(toSnapshot(state), userId, 'organizations', 'create', {
@@ -80,7 +87,9 @@ export function createOrganization(
   const fullName = input.fullName.trim()
   const shortName = input.shortName.trim()
   const address = input.address.trim()
-  if (!fullName || !shortName || !address) return { error: 'invalid_organization' }
+  const inn = storedDigits(input.inn)
+  const kpp = storedDigits(input.kpp)
+  if (!fullName || !shortName || !address || inn == null || kpp == null) return { error: 'invalid_organization' }
   if (input.kind !== 'laboratory' && input.kind !== 'customer') return { error: 'invalid_organization' }
   const id = state.organizations.reduce((max, item) => Math.max(max, item.id), 0) + 1
   const organization: MockOrganization = {
@@ -90,6 +99,8 @@ export function createOrganization(
     fullName,
     shortName,
     address,
+    inn,
+    kpp,
     revision: 1,
   }
   const drafted: MockState = { ...state, organizations: [...state.organizations, organization] }
@@ -97,7 +108,13 @@ export function createOrganization(
   if (!next) return { error: 'invalid_organization' }
   const ready = ensureOrganizationWorkspace(next, organization.id)
   if (!ready) return { error: 'invalid_organization' }
-  return { state: ready, organization }
+  const administratorRole = ready.roles.find((role) =>
+    role.origin?.template === 'organization-administrator'
+    && role.ownerScope?.type === 'organization'
+    && role.ownerScope.organizationId === organization.id,
+  )
+  if (!administratorRole) return { error: 'invalid_organization' }
+  return { state: ready, organization, administratorRoleId: administratorRole.id }
 }
 
 export function createProject(

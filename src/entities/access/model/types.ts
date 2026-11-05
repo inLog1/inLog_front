@@ -47,13 +47,22 @@ export type AccessRole = {
   /**
    * Where this role is defined and may be assigned.
    * Corporation: the role can be assigned in that corporation, including one organization at a time.
-   * Organization: the role can be assigned only inside that organization.
+   * Organization: the role can be assigned inside that organization.
+   * When organizationIds lists more than one organization, those are the only homes.
    * This is not an assignment and it does not grant access by itself.
    * Effective permissions use the assignment scope.
    * Absent on an older snapshot means the installation corporation.
    * A missing value is not a grant. Migration does not fill it in.
    */
   ownerScope?: AccessScope
+  /**
+   * Organizations where a local role may be assigned.
+   * Absent, or a list of one id, means ownerScope alone is the area.
+   * Two or more ids include ownerScope's organization and every other home.
+   * The role can be assigned in those organizations and their projects, and nowhere else.
+   * A corporation role does not use this list. Migration does not fill it in.
+   */
+  organizationIds?: number[]
   /**
    * Set only by the organization starter role. Absent on older roles.
    * A display name is not this marker, and migration does not fill it in.

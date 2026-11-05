@@ -1,5 +1,6 @@
-import { can } from '../../../entities/access/model/grants'
-import type { AccessScope } from '../../../entities/access/model/types'
+import { can, roleOrganizationIds } from '../../../entities/access/model/grants'
+import { ensureOrganizationAdministrator } from './organization-admin-role'
+import type { AccessRole, AccessScope } from '../../../entities/access/model/types'
 import { principal, toSnapshot, type FlowResult } from '../auth/flow'
 import type { MockOrganization, MockProject, MockState } from '../db/types'
 
@@ -21,6 +22,8 @@ export type DirectoryOrganization = {
   full_name: string
   short_name: string
   address: string
+  inn: string
+  kpp: string
   kind: 'laboratory' | 'customer'
   revision: number
   can_update: boolean
@@ -50,11 +53,20 @@ export type OrganizationPatch = {
   fullName?: string
   shortName?: string
   address?: string
+  inn?: string
+  kpp?: string
   kind?: string
   expectedRevision: number | null
   id?: unknown
   corporationId?: unknown
   organizationId?: unknown
+}
+
+function storedDigits(value: string | undefined): string | null | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  if (trimmed === '') return ''
+  return /^\d+$/.test(trimmed) ? trimmed : null
 }
 
 export type ProjectPatch = {
@@ -164,6 +176,8 @@ export function readDirectory(state: MockState, token: string | null): FlowResul
       full_name: organization.fullName,
       short_name: organization.shortName,
       address: organization.address,
+      inn: organization.inn ?? '',
+      kpp: organization.kpp ?? '',
       kind: organization.kind,
       revision: objectRevision(organization.revision),
       can_update: canUpdateOrganizationRecord(state, userId, organization),
@@ -214,30 +228,41 @@ export function updateOrganizationRecord(
   const fullName = patch.fullName === undefined ? organization.fullName : patch.fullName.trim()
   const shortName = patch.shortName === undefined ? organization.shortName : patch.shortName.trim()
   const address = patch.address === undefined ? organization.address : patch.address.trim()
+  const inn = patch.inn === undefined ? (organization.inn ?? '') : storedDigits(patch.inn)
+  const kpp = patch.kpp === undefined ? (organization.kpp ?? '') : storedDigits(patch.kpp)
   const kind = patch.kind === undefined ? organization.kind : patch.kind
-  if (!fullName || !shortName || !address) return fail(state, 400, 'invalid_organization')
+  if (!fullName || !shortName || !address || inn == null || kpp == null) return fail(state, 400, 'invalid_organization')
   if (kind !== 'laboratory' && kind !== 'customer') return fail(state, 400, 'invalid_organization')
   const next: MockOrganization = {
     ...organization,
     fullName,
     shortName,
     address,
+    inn,
+    kpp,
     kind,
     revision: objectRevision(organization.revision) + 1,
   }
+  const drafted: MockState = {
+    ...state,
+    organizations: state.organizations.map((item) => item.id === organization.id ? next : item),
+  }
+  const ensured = ensureOrganizationAdministrator(drafted, next, who.user.id)
+  const saved = ensured?.state ?? drafted
   return {
-    state: {
-      ...state,
-      organizations: state.organizations.map((item) => item.id === organization.id ? next : item),
-    },
+    state: saved,
     status: 200,
     body: {
       id: next.id,
       full_name: next.fullName,
       short_name: next.shortName,
       address: next.address,
+      inn: next.inn ?? '',
+      kpp: next.kpp ?? '',
       kind: next.kind,
       revision: next.revision,
+      corporation_id: next.corporationId,
+      ...(ensured ? { administrator_role_id: ensured.roleId } : {}),
     },
   }
 }
@@ -245,6 +270,25 @@ export function updateOrganizationRecord(
 function scopeBelongsToOrganization(scope: AccessScope | undefined, organizationId: number): boolean {
   if (!scope || (scope.type !== 'organization' && scope.type !== 'project')) return false
   return scope.organizationId === organizationId
+}
+
+function roleAfterOrganizationRemoval(role: AccessRole, organizationId: number): AccessRole | null {
+  if (role.ownerScope?.type !== 'organization') {
+    if (scopeBelongsToOrganization(role.ownerScope, organizationId)) return null
+    return role
+  }
+  const ids = roleOrganizationIds(role)
+  if (!ids.includes(organizationId)) return role
+  const remaining = ids.filter((id) => id !== organizationId)
+  if (remaining.length === 0) return null
+  const nextOwnerId = remaining.includes(role.ownerScope.organizationId) ? role.ownerScope.organizationId : remaining[0]
+  const next: AccessRole = {
+    ...role,
+    ownerScope: { type: 'organization', organizationId: nextOwnerId, corporationId: role.ownerScope.corporationId },
+  }
+  if (remaining.length >= 2) next.organizationIds = remaining
+  else delete next.organizationIds
+  return next
 }
 
 /**
@@ -273,7 +317,10 @@ export function deleteOrganizationRecord(
       organizations: state.organizations.filter((item) => item.id !== organizationId),
       projects: state.projects.filter((item) => item.organizationId !== organizationId),
       memberships: state.memberships.filter((item) => item.organizationId !== organizationId),
-      roles: state.roles.filter((item) => !scopeBelongsToOrganization(item.ownerScope, organizationId)),
+      roles: state.roles.flatMap((item) => {
+        const next = roleAfterOrganizationRemoval(item, organizationId)
+        return next ? [next] : []
+      }),
       assignments: state.assignments.filter((item) => !scopeBelongsToOrganization(item.scope, organizationId)),
       delegations: state.delegations.filter((item) => !scopeBelongsToOrganization(item.grant.scope, organizationId)),
       taskStatuses: state.taskStatuses.filter((item) => !projectIds.has(item.projectId)),

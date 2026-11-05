@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Building2,
   ChevronLeft,
@@ -9,7 +9,6 @@ import {
   Plus,
   Search,
   Shield,
-  Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteOrganizationMutation, useGetOrganizationByIdQuery } from '../../../../entities/organization/model/organizationSlice'
@@ -22,7 +21,7 @@ import {
   type CorporateOverviewOrganization,
   type CorporatePersonnelRow,
 } from '../../../../entities/personnel'
-import { EditOrganizationDialog } from '../../../../features/organizations-and-projects'
+import { EditOrganizationDialog, OrganizationSummary, organizationKindLabelKey } from '../../../../features/organizations-and-projects'
 import { routes } from '../../../../shared/lib/routes'
 import { cn } from '../../../../shared/lib/utils'
 import {
@@ -50,7 +49,6 @@ import { TabButton } from '../../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
 import { AddEmployeeDialog, EditEmployeeDialog } from '../../../../features/personnel'
 
-type DetailTab = 'details' | 'personnel'
 type StaffStatusFilter = 'all' | 'active' | 'inactive'
 
 const STAFF_PAGE_SIZES = [10, 20, 50] as const
@@ -67,7 +65,6 @@ export function OrganizationDetailPage() {
 function MockOrganizationDetail({ organizationId }: { organizationId: number | null }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
   const overview = useGetCorporateOverviewQuery()
   const [archiveEmployee, archiveState] = useArchiveEmployeeMutation()
   const [deleteOrganization, deleteState] = useDeleteOrganizationMutation()
@@ -87,16 +84,6 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
   const organization = organizationId == null ? null : data?.organizations.find((item) => item.id === organizationId) ?? null
   const allRows = organizationId == null ? [] : (data?.personnel ?? []).filter((item) => item.organizationId === organizationId)
   const createTarget = organizationId == null ? null : data?.createTargets.find((item) => item.id === organizationId) ?? null
-  const tab: DetailTab = searchParams.get('tab') === 'personnel' ? 'personnel' : 'details'
-
-  const setTab = (next: DetailTab) => {
-    setSearchParams((current) => {
-      const copy = new URLSearchParams(current)
-      if (next === 'details') copy.delete('tab')
-      else copy.set('tab', next)
-      return copy
-    }, { replace: true })
-  }
 
   const confirmDelete = async () => {
     if (!organization?.canDelete) return
@@ -186,8 +173,7 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
     )
   }
 
-  const laboratory = organization.kind === 'laboratory'
-  const kindLabel = t(laboratory ? 'corporation.kind-laboratory' : 'corporation.kind-customer')
+  const kindLabel = t(organizationKindLabelKey(organization.kind))
   const orgMenu = organization.canUpdate || organization.canDelete ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -219,10 +205,12 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
         description={kindLabel}
         actions={orgMenu}
       />
+      <section className="rounded-xl border border-border bg-card p-4">
+        <OrganizationSummary organization={organization} />
+      </section>
       <div className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap gap-6" role="tablist" aria-label={organization.fullName}>
-          <TabButton active={tab === 'details'} onClick={() => setTab('details')}>{t('corporation.details-title')}</TabButton>
-          <TabButton active={tab === 'personnel'} onClick={() => setTab('personnel')}>{t('corporation.staff-tab')}</TabButton>
+          <TabButton active onClick={() => undefined}>{t('corporation.staff-tab')}</TabButton>
           <span className="cursor-not-allowed border-b-2 border-transparent px-1 pb-2 text-sm font-medium text-muted-foreground/60" aria-disabled>
             {t('corporation.structure-tab')}
           </span>
@@ -230,26 +218,22 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
             {t('nav.access')}
           </span>
         </div>
-        {tab === 'personnel' ? (
-          <div className="flex flex-wrap items-center gap-2 pb-2">
-            <Button type="button" variant="outline" className="shrink-0" asChild>
-              <Link to={routes.settings.access()} state={{ accessOrganizationId: organization.id }}>
-                <Shield className="h-4 w-4" />
-                {t('corporation.assign-role')}
-              </Link>
+        <div className="flex flex-wrap items-center gap-2 pb-2">
+          <Button type="button" variant="outline" className="shrink-0" asChild>
+            <Link to={routes.settings.access()} state={{ accessOrganizationId: organization.id }}>
+              <Shield className="h-4 w-4" />
+              {t('corporation.assign-role')}
+            </Link>
+          </Button>
+          {createTarget ? (
+            <Button type="button" className="shrink-0" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4" />
+              {t('corporation.add-employee')}
             </Button>
-            {createTarget ? (
-              <Button type="button" className="shrink-0" onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4" />
-                {t('corporation.add-employee')}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-      {tab === 'details' ? <OrganizationInfoCard organization={organization} kindLabel={kindLabel} /> : null}
-      {tab === 'personnel' ? (
-        <section className="space-y-4">
+      <section className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">{t('corporation.staff-tab')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{t('corporation.staff-note')}</p>
@@ -322,7 +306,6 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
             </>
           )}
         </section>
-      ) : null}
       {editor != null ? (
         <EditEmployeeDialog
           open
@@ -385,17 +368,7 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
 
 function LiveOrganizationDetail({ organizationId }: { organizationId: number | null }) {
   const { t } = useTranslation()
-  const [searchParams, setSearchParams] = useSearchParams()
   const organization = useGetOrganizationByIdQuery(organizationId ?? 0, { skip: organizationId == null })
-  const tab: DetailTab = searchParams.get('tab') === 'personnel' ? 'personnel' : 'details'
-  const setTab = (next: DetailTab) => {
-    setSearchParams((current) => {
-      const copy = new URLSearchParams(current)
-      if (next === 'details') copy.delete('tab')
-      else copy.set('tab', next)
-      return copy
-    }, { replace: true })
-  }
   if (organizationId == null) {
     return (
       <WorkPage>
@@ -424,26 +397,31 @@ function LiveOrganizationDetail({ organizationId }: { organizationId: number | n
         ]}
         title={title}
       />
-      <div className="flex flex-wrap gap-6 border-b border-border pb-0" role="tablist">
-        <TabButton active={tab === 'details'} onClick={() => setTab('details')}>{t('corporation.details-title')}</TabButton>
-        <TabButton active={tab === 'personnel'} onClick={() => setTab('personnel')}>{t('corporation.staff-tab')}</TabButton>
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Building2 className="h-5 w-5" aria-hidden />
+          </span>
+          <h2 className="min-w-0 text-base font-semibold leading-snug">{title}</h2>
+        </div>
+        <dl className="mt-4 grid gap-2 text-sm">
+          <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
+            <dt className="text-muted-foreground">{t('corporation.field-short')}</dt>
+            <dd className="min-w-0 font-medium">{row.shortName?.trim() ? row.shortName : '—'}</dd>
+          </div>
+          <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
+            <dt className="text-muted-foreground">{t('corporation.field-address')}</dt>
+            <dd className="min-w-0 font-medium">{row.address?.trim() ? row.address : '—'}</dd>
+          </div>
+        </dl>
+      </section>
+      <div className="flex flex-wrap gap-6 border-b border-border" role="tablist" aria-label={title}>
+        <TabButton active onClick={() => undefined}>{t('corporation.staff-tab')}</TabButton>
       </div>
-      {tab === 'details' ? (
-        <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-muted-foreground">{t('corporation.details-card-title')}</h2>
-          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Fact label={t('corporation.field-name')} value={row.fullName} />
-            <Fact label={t('corporation.field-short')} value={row.shortName} />
-            <Fact label={t('corporation.field-address')} value={row.address} />
-          </dl>
-        </section>
-      ) : null}
-      {tab === 'personnel' ? (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">{t('corporation.staff-tab')}</h2>
-          <p className="text-sm text-muted-foreground">{t('personnel.unavailable')}</p>
-        </section>
-      ) : null}
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{t('corporation.staff-tab')}</h2>
+        <p className="text-sm text-muted-foreground">{t('personnel.unavailable')}</p>
+      </section>
     </WorkPage>
   )
 }
@@ -456,45 +434,6 @@ function MissingOrganization() {
       description={t('corporation.detail-missing')}
       action={<Button type="button" variant="outline" asChild><Link to={routes.settings.organizations()}>{t('nav.corporation')}</Link></Button>}
     />
-  )
-}
-
-function OrganizationInfoCard({
-  organization,
-  kindLabel,
-}: {
-  organization: CorporateOverviewOrganization
-  kindLabel: string
-}) {
-  const { t } = useTranslation()
-  const laboratory = organization.kind === 'laboratory'
-  return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-start gap-3">
-        <span className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-          laboratory ? 'bg-primary/10 text-primary' : 'bg-[oklch(0.96_0.03_75)] text-[oklch(0.42_0.09_55)]',
-        )}>
-          <Building2 className="h-5 w-5" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold">{t('corporation.details-card-title')}</h2>
-          <dl className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <Fact label={t('corporation.field-name')} value={organization.fullName} />
-            <Fact label={t('corporation.field-short')} value={organization.shortName} />
-            <Fact label={t('corporation.field-kind')} value={kindLabel} />
-            <Fact label={t('corporation.field-address')} value={organization.address} />
-            <div className="min-w-0">
-              <dt className="text-sm text-muted-foreground">{t('corporation.field-employees')}</dt>
-              <dd className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
-                <Users className="h-4 w-4 text-muted-foreground" aria-hidden />
-                {organization.employeeCount == null ? t('corporation.employees-hidden') : String(organization.employeeCount)}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -536,21 +475,14 @@ function StaffStatusPills({
   )
 }
 
-function Fact({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium">{value?.trim() ? value : '—'}</dd>
-    </div>
-  )
-}
-
 function directoryOf(organization: CorporateOverviewOrganization): DirectoryOrganization {
   return {
     id: organization.id,
     fullName: organization.fullName,
     shortName: organization.shortName,
     address: organization.address,
+    inn: organization.inn,
+    kpp: organization.kpp,
     kind: organization.kind,
     revision: organization.revision,
     canUpdate: organization.canUpdate,

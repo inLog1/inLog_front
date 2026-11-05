@@ -55,9 +55,9 @@ export function createSeed(): MockState {
       { id: 'idn-owner-shadow', providerId: MOCK_PROVIDER_ID, externalSubject: 'sub-owner-shadow', email: 'owner@example.test', userId: null },
     ],
     organizations: [
-      { id: 101, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория А', shortName: 'Лаб. А', address: 'Демо, корпус А', revision: 1 },
-      { id: 102, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория Б', shortName: 'Лаб. Б', address: 'Демо, корпус Б', revision: 1 },
-      { id: 201, corporationId: 1, kind: 'customer', fullName: 'Организация-заказчик', shortName: 'Заказчик', address: 'Демо, офис заказчика', revision: 1 },
+      { id: 101, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория А', shortName: 'Лаб. А', address: 'Демо, корпус А', inn: '7701000001', kpp: '770101001', revision: 1 },
+      { id: 102, corporationId: 1, kind: 'laboratory', fullName: 'Лаборатория Б', shortName: 'Лаб. Б', address: 'Демо, корпус Б', inn: '7701000002', kpp: '770101002', revision: 1 },
+      { id: 201, corporationId: 1, kind: 'customer', fullName: 'Организация-заказчик', shortName: 'Заказчик', address: 'Демо, офис заказчика', inn: '7701000003', kpp: '770101003', revision: 1 },
     ],
     projects: [
       { id: 1001, organizationId: 101, corporationId: 1, name: 'Проект А-1', revision: 1 },

@@ -7,7 +7,6 @@ import {
   useDuplicateAccessRoleMutation,
   type AccessCreatableScope,
   type AccessRoleView,
-  type AccessScope,
 } from '../../../entities/access'
 import { Button } from '../../../shared/ui/button'
 import { Checkbox } from '../../../shared/ui/checkbox'
@@ -25,7 +24,7 @@ import { RoleAvailabilityField } from './RoleAvailabilityField'
 import { Textarea } from '../../../shared/ui/textarea'
 import { planRoleDuplicate, planWithServerBlocks } from '../model/duplicate-plan'
 import { accessErrorKey, accessFailure, type AccessBlockedGrant } from '../model/errors'
-import { scopeKey } from './scope-label'
+import { areaFromOwner, availabilityLimits, preferredArea, writeArea, type RoleArea } from './role-area'
 
 const NAME_LIMIT = 80
 
@@ -54,18 +53,19 @@ export function RoleDuplicateDialog({
   const [duplicateRole, duplicateState] = useDuplicateAccessRoleMutation()
   const [name, setName] = useState(() => copyName(role.displayName, t('access.duplicate-suffix')))
   const [description, setDescription] = useState(role.description)
-  const [scopeId, setScopeId] = useState(() => initialScopeId(role.ownerScope, creatableScopes))
+  const [area, setArea] = useState<RoleArea>(() => initialDuplicateArea(role, creatableScopes, preferredOrganizationId))
   const [acceptPartial, setAcceptPartial] = useState(false)
   const [serverBlocked, setServerBlocked] = useState<AccessBlockedGrant[]>([])
   const [failure, setFailure] = useState<string | null>(null)
-  const selected = creatableScopes.find((item) => scopeKey(item.scope) === scopeId) ?? null
+  const limits = useMemo(() => availabilityLimits(area, creatableScopes), [area, creatableScopes])
   const plan = useMemo(() => {
-    const local = planRoleDuplicate(role, selected)
+    const local = planRoleDuplicate(role, limits)
     return planWithServerBlocks(local, serverBlocked)
-  }, [role, selected, serverBlocked])
+  }, [role, limits, serverBlocked])
   const blocked = plan.blocked.length > 0
   const pending = duplicateState.isLoading
-  const canSubmit = name.trim().length > 0 && selected != null && (!blocked || acceptPartial) && !pending
+  const written = writeArea(area)
+  const canSubmit = name.trim().length > 0 && written != null && (!blocked || acceptPartial) && !pending
 
   const grantLabel = (item: AccessBlockedGrant) => {
     const known = ACCESS_PERMISSION_CATALOG.find((entry) => entry.resource === item.resource && entry.action === item.action)
@@ -78,14 +78,15 @@ export function RoleDuplicateDialog({
   }
 
   const submit = async () => {
-    if (!canSubmit || !selected) return
+    if (!canSubmit || !written) return
     setFailure(null)
     try {
       const created = await duplicateRole({
         sourceRoleId: role.id,
         displayName: name.trim(),
         description: description.trim(),
-        ownerScope: selected.scope,
+        ownerScope: written.ownerScope,
+        ...(written.organizationIds ? { organizationIds: written.organizationIds } : {}),
         grantIds: plan.operational,
         delegationGrantIds: plan.delegation,
         omitGrantIds: plan.omitOperational,
@@ -143,10 +144,10 @@ export function RoleDuplicateDialog({
               scopes={creatableScopes}
               organizations={organizations}
               preferredOrganizationId={preferredOrganizationId}
-              value={selected?.scope ?? null}
+              value={area}
               disabled={pending}
-              onChange={(scope) => {
-                setScopeId(scopeKey(scope))
+              onChange={(next) => {
+                setArea(next)
                 setAcceptPartial(false)
                 setServerBlocked([])
               }}
@@ -201,9 +202,18 @@ function copyName(name: string, suffix: string): string {
   return `${trimmed.slice(0, room).trimEnd()}${suffix}`.slice(0, NAME_LIMIT)
 }
 
-function initialScopeId(owner: AccessScope, scopes: readonly AccessCreatableScope[]): string {
-  const current = scopeKey(owner)
-  if (scopes.some((item) => scopeKey(item.scope) === current)) return current
-  const first = scopes[0]
-  return first ? scopeKey(first.scope) : ''
+function initialDuplicateArea(
+  role: AccessRoleView,
+  creatable: readonly AccessCreatableScope[],
+  preferredOrganizationId: number | null,
+): RoleArea {
+  const current = areaFromOwner(role.ownerScope, role.organizationIds)
+  if (current.kind === 'corporation' && creatable.some((item) => item.scope.type === 'corporation')) return current
+  if (current.kind === 'organizations') {
+    const allowed = new Set(creatable.flatMap((item) => item.scope.type === 'organization' ? [item.scope.organizationId] : []))
+    const scopes = current.scopes.filter((scope) => scope.type === 'organization' && allowed.has(scope.organizationId))
+    if (scopes.length > 0) return { kind: 'organizations', scopes }
+  }
+  return preferredArea(creatable, preferredOrganizationId == null ? 'corporation' : 'organization', preferredOrganizationId)
+    ?? { kind: 'organizations', scopes: [] }
 }

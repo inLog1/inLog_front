@@ -229,10 +229,10 @@ function RoleList({
     : directory.scope === 'all'
       ? t('access.roles-heading-all')
       : t('access.roles-heading')
-  const needle = query.trim().toLowerCase()
+    const needle = query.trim().toLowerCase()
   const visibleRoles = directory.roles.filter((role) => {
     if (!needle) return true
-    const scope = roleDefinitionLabel(role.ownerScope, directory.organizations, t)
+    const scope = roleDefinitionLabel(role.ownerScope, directory.organizations, t, role.organizationIds)
     return `${role.displayName} ${role.description} ${scope}`.toLowerCase().includes(needle)
   })
   return (
@@ -304,7 +304,7 @@ function RoleList({
               </TableHeader>
               <TableBody>
                 {visibleRoles.map((role) => {
-                  const scope = roleDefinitionLabel(role.ownerScope, directory.organizations, t)
+                  const scope = roleDefinitionLabel(role.ownerScope, directory.organizations, t, role.organizationIds)
                   const preview = permissionPreview(role.operational, t)
                   const permissionsHref = `${roleHref(role.id)}#role-permissions`
                   return (

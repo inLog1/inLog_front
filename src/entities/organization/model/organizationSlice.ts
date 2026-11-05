@@ -44,7 +44,10 @@ export const organizationApi = createApi({
               role: response?.role ?? null,
             }),
           }),
-          addOrganization: builder.mutation<OrganizationResponse, Partial<OrganizationRequest> & { kind?: 'laboratory' | 'customer' }>({
+          addOrganization: builder.mutation<
+            OrganizationResponse & { administrator_role_id?: string; corporation_id?: number },
+            Partial<OrganizationRequest> & { kind?: 'laboratory' | 'customer' }
+          >({
             query: (data) => ({
               url: 'organizations/organization/',
               method: 'POST',
@@ -66,11 +69,13 @@ export const organizationApi = createApi({
             transformResponse: (response: Parameters<typeof directoryFromWire>[0]) => directoryFromWire(response),
             providesTags: ['Organization'],
           }),
-          updateOrganization: builder.mutation<OrganizationResponse & { revision?: number }, {
+          updateOrganization: builder.mutation<OrganizationResponse & { revision?: number; administrator_role_id?: string; corporation_id?: number }, {
             id: number
             full_name: string
             short_name: string
             address: string
+            inn: string
+            kpp: string
             kind: 'laboratory' | 'customer'
             expectedRevision: number
           }>({

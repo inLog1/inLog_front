@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Briefcase, Building2, FlaskConical, MoreHorizontal, Plus } from 'lucide-react'
+import { Building2, MoreHorizontal, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteOrganizationMutation, useGetOrganizationsQuery } from '../../../../entities/organization/model/organizationSlice'
 import type { DirectoryOrganization } from '../../../../entities/organization/model/directory'
@@ -16,6 +16,8 @@ import {
 import {
   CreateOrganizationDialog,
   EditOrganizationDialog,
+  OrganizationSummary,
+  organizationKindLabelKey,
   organizationVisible,
   personnelVisible,
   omitWorkspaceSelection,
@@ -25,7 +27,6 @@ import {
   type CorporateTab,
 } from '../../../../features/organizations-and-projects'
 import { routes } from '../../../../shared/lib/routes'
-import { cn } from '../../../../shared/lib/utils'
 import { hasUnsavedWork } from '../../../../shared/session/unsaved-work'
 import {
   AlertDialog,
@@ -263,7 +264,12 @@ function MockCorporation() {
         </AlertDialogContent>
       </AlertDialog>
       <CreateOrganizationDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <EditOrganizationDialog organization={editOrg} open={editOrg != null} onOpenChange={(open) => { if (!open) setEditOrg(null) }} />
+      <EditOrganizationDialog
+        key={editOrg?.id ?? 'organization'}
+        organization={editOrg}
+        open={editOrg != null}
+        onOpenChange={(open) => { if (!open) setEditOrg(null) }}
+      />
       <AddEmployeeDialog
         open={addOpen || location.employee === 'new'}
         targets={data.createTargets.map((target) => ({ id: target.id, name: target.fullName }))}
@@ -438,6 +444,15 @@ function LiveCorporation() {
   )
 }
 
+function CardFact({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 font-medium">{value?.trim() ? value : '—'}</dd>
+    </div>
+  )
+}
+
 function FilterBar({
   query,
   kind,
@@ -462,13 +477,13 @@ function FilterBar({
           className="sm:max-w-sm"
         />
         <Select value={kind} onValueChange={(value) => onKind(value as CorporateKindFilter)}>
-          <SelectTrigger className="sm:w-52" aria-label={t('corporation.filter-label')}>
+          <SelectTrigger className="sm:w-64" aria-label={t('corporation.filter-label')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('corporation.filter-all')}</SelectItem>
-            <SelectItem value="laboratory">{t('corporation.filter-laboratory')}</SelectItem>
-            <SelectItem value="customer">{t('corporation.filter-customer')}</SelectItem>
+            <SelectItem value="laboratory">{t(organizationKindLabelKey('laboratory'))}</SelectItem>
+            <SelectItem value="customer">{t(organizationKindLabelKey('customer'))}</SelectItem>
           </SelectContent>
         </Select>
         <Button type="button" variant="outline" onClick={onReset}>{t('corporation.reset')}</Button>
@@ -488,82 +503,59 @@ function OrganizationCard({
   onDelete: () => void
 }) {
   const { t } = useTranslation()
-  const laboratory = organization.kind === 'laboratory'
-  const KindIcon = laboratory ? FlaskConical : Briefcase
   return (
     <article
-      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex cursor-pointer flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       role="link"
       tabIndex={0}
       aria-label={t('corporation.open-card', { name: organization.fullName })}
-      onClick={onOpen}
+      onClick={(event) => {
+        if (isMenuEvent(event)) return
+        onOpen()
+      }}
       onKeyDown={(event) => {
+        if (isMenuEvent(event)) return
         if (event.key !== 'Enter' && event.key !== ' ') return
         event.preventDefault()
         onOpen()
       }}
     >
-      <div className="flex items-start gap-3">
-        <span className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-          laboratory ? 'bg-primary/10 text-primary' : 'bg-[oklch(0.96_0.03_75)] text-[oklch(0.42_0.09_55)]',
-        )}>
-          <KindIcon className="h-5 w-5" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold leading-snug">{organization.fullName}</h2>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="-mr-2 -mt-1 text-muted-foreground"
-                  aria-label={t('corporation.org-actions', { name: organization.fullName })}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={onOpen}>{t('corporation.open')}</DropdownMenuItem>
-                {organization.canUpdate ? <DropdownMenuItem onSelect={onEdit}>{t('corporation.edit-organization')}</DropdownMenuItem> : null}
-                {organization.canDelete ? (
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>{t('corporation.delete')}</DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <span className={cn(
-            'mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-            laboratory
-              ? 'bg-[oklch(0.93_0.04_168)] text-[oklch(0.32_0.07_168)]'
-              : 'bg-[oklch(0.96_0.035_75)] text-[oklch(0.38_0.08_55)]',
-          )}>
-            {t(laboratory ? 'corporation.kind-laboratory' : 'corporation.kind-customer')}
-          </span>
-        </div>
-      </div>
-      <dl className="grid gap-2 border-t border-border pt-3 text-sm">
-        <CardFact label={t('corporation.field-short')} value={organization.shortName} />
-        <CardFact label={t('corporation.field-address')} value={organization.address} />
-        <CardFact
-          label={t('corporation.field-employees')}
-          value={organization.employeeCount == null ? t('corporation.employees-hidden') : String(organization.employeeCount)}
-        />
-      </dl>
+      <OrganizationSummary
+        organization={organization}
+        menu={(
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="-mr-2 -mt-1 text-muted-foreground"
+                aria-label={t('corporation.org-actions', { name: organization.fullName })}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <DropdownMenuItem onSelect={onOpen}>{t('corporation.open')}</DropdownMenuItem>
+              {organization.canUpdate ? (
+                <DropdownMenuItem onSelect={onEdit}>{t('corporation.edit-organization')}</DropdownMenuItem>
+              ) : null}
+              {organization.canDelete ? (
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>
+                  {t('corporation.delete')}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      />
     </article>
-  )
-}
-
-function CardFact({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 font-medium">{value?.trim() ? value : '—'}</dd>
-    </div>
   )
 }
 
@@ -608,7 +600,7 @@ function PersonnelTable({
                 <TableCell className="px-4 py-3">
                   <span className="block">{row.organizationName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {t(row.organizationKind === 'laboratory' ? 'corporation.kind-laboratory' : 'corporation.kind-customer')}
+                    {t(organizationKindLabelKey(row.organizationKind))}
                   </span>
                 </TableCell>
                 <TableCell className="px-4 py-3">
@@ -636,6 +628,10 @@ function PersonnelTable({
   )
 }
 
+function isMenuEvent(event: { target: EventTarget | null }) {
+  return event.target instanceof Element && event.target.closest('[role="menu"]') != null
+}
+
 function directoryOf(organization: CorporateOverviewOrganization): DirectoryOrganization {
   return {
     id: organization.id,
@@ -645,5 +641,7 @@ function directoryOf(organization: CorporateOverviewOrganization): DirectoryOrga
     kind: organization.kind,
     revision: organization.revision,
     canUpdate: organization.canUpdate,
+    inn: organization.inn,
+    kpp: organization.kpp,
   }
 }
