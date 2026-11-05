@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { accessManagementMode } from '../../../../entities/access'
+import {
+  accessListHref,
+  readAccessDeskScope,
+  readStoredAccessOrganizationId,
+} from '../../../../features/access-management/model/access-address'
 import { RoleEditor } from '../../../../features/access-management/ui/RoleEditor'
-import { WorkspaceStatus } from '../../../../features/org-project-selector'
-import { useEnsureOrgProjectParams } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
-import { routes } from '../../../../shared/lib/routes'
+import { PageState, WorkPage } from '../../../../shared/ui/page'
 
 const mode = accessManagementMode(import.meta.env.VITE_API_MODE)
 
@@ -22,40 +25,30 @@ export function RoleEditorPage() {
 }
 
 function MockRoleEditor() {
+  const { t } = useTranslation()
   const params = useParams()
   const [search] = useSearchParams()
-  const workspace = useEnsureOrgProjectParams('organization')
-  const owner = search.get('owner') === 'corporation' ? 'corporation' : 'organization'
+  const owner = readAccessDeskScope(search) === 'corporation' ? 'corporation' : 'organization'
+  const organizationId = readStoredAccessOrganizationId()
   const roleId = params.roleId ?? null
-  const listHref = accessListHref(owner, workspace.currentOrgId)
-  const usersHref = accessUsersHref(listHref)
+  const listHref = accessListHref(owner === 'corporation' ? { owner: 'corporation' } : {})
+  const usersHref = accessListHref(owner === 'corporation' ? { owner: 'corporation', tab: 'users' } : { tab: 'users' })
 
-  if (owner === 'organization' && workspace.status !== 'ready') {
-    return <WorkspaceStatus status={workspace.status} reason={workspace.reason} onRetry={workspace.refetch} />
+  if (owner === 'organization' && organizationId == null) {
+    return (
+      <WorkPage>
+        <PageState kind="empty" description={t('access.choose-organization')} />
+      </WorkPage>
+    )
   }
 
   return (
     <RoleEditor
       roleId={roleId}
       owner={owner}
-      organizationId={workspace.currentOrgId}
+      organizationId={organizationId}
       listHref={listHref}
       usersHref={usersHref}
     />
   )
-}
-
-function accessListHref(owner: 'organization' | 'corporation', organizationId: number | null): string {
-  const params = new URLSearchParams()
-  if (organizationId != null) params.set('org', String(organizationId))
-  if (owner === 'corporation') params.set('owner', 'corporation')
-  const text = params.toString()
-  return text ? `${routes.settings.access()}?${text}` : routes.settings.access()
-}
-
-function accessUsersHref(listHref: string): string {
-  const [path, search = ''] = listHref.split('?')
-  const params = new URLSearchParams(search)
-  params.set('tab', 'users')
-  return `${path}?${params.toString()}`
 }

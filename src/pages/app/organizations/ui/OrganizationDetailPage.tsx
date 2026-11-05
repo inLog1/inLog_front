@@ -233,7 +233,7 @@ function MockOrganizationDetail({ organizationId }: { organizationId: number | n
         {tab === 'personnel' ? (
           <div className="flex flex-wrap items-center gap-2 pb-2">
             <Button type="button" variant="outline" className="shrink-0" asChild>
-              <Link to={`${routes.settings.access()}?org=${organization.id}`}>
+              <Link to={routes.settings.access()} state={{ accessOrganizationId: organization.id }}>
                 <Shield className="h-4 w-4" />
                 {t('corporation.assign-role')}
               </Link>

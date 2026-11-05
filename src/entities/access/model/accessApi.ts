@@ -59,7 +59,7 @@ export const accessApi = platformApi.injectEndpoints({
       query: (userId) => `access/users/${userId}/`,
       providesTags: ['AccessControl'],
     }),
-    getAccessDirectory: build.query<AccessDirectory, { scope: 'organization'; organizationId: number } | { scope: 'corporation' }>({
+    getAccessDirectory: build.query<AccessDirectory, { scope: 'organization'; organizationId: number | 'all' } | { scope: 'corporation' }>({
       query: (arg) => arg.scope === 'corporation'
         ? 'access/directory/?scope=corporation'
         : `access/directory/?organization=${arg.organizationId}`,

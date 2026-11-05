@@ -328,18 +328,35 @@ function canInspectRole(snapshot: ReturnType<typeof toSnapshot>, userId: number,
 function visibleRoles(
   state: MockState,
   userId: number,
-  area: 'organization' | 'corporation',
+  area: 'organization' | 'corporation' | 'all',
   organizationId: number | null,
   corporationId: number,
 ): AccessRole[] {
   const snapshot = toSnapshot(state)
   return state.roles.filter((role) => {
     const owner = roleOwnerScope(role, snapshot)
-    if (!owner) return false
+    if (!owner || owner.type === 'own' || owner.corporationId !== corporationId) return false
     const inspect = canInspectRole(snapshot, userId, owner)
-    if (area === 'corporation') return inspect && owner.type === 'corporation' && owner.corporationId === corporationId
+    if (area === 'corporation') return inspect && owner.type === 'corporation'
+    if (area === 'all') {
+      if (owner.type === 'corporation') {
+        if (inspect) return true
+        return state.organizations.some((organization) =>
+          organization.corporationId === corporationId
+          && rolePlacementDenial(snapshot, userId, role, {
+            type: 'organization',
+            organizationId: organization.id,
+            corporationId,
+          }, -1) == null,
+        )
+      }
+      if (owner.type !== 'organization' && owner.type !== 'project') return false
+      return inspect && state.organizations.some((organization) =>
+        organization.id === owner.organizationId && organization.corporationId === corporationId,
+      )
+    }
     if (organizationId == null) return false
-    if (owner.type === 'corporation' && owner.corporationId === corporationId) {
+    if (owner.type === 'corporation') {
       if (inspect) return true
       const target: AccessScope = { type: 'organization', organizationId, corporationId }
       return rolePlacementDenial(snapshot, userId, role, target, -1) == null
@@ -348,10 +365,19 @@ function visibleRoles(
   })
 }
 
-function visibleAssignments(state: MockState, userId: number, area: 'organization' | 'corporation', organizationId: number | null) {
+function visibleAssignments(
+  state: MockState,
+  userId: number,
+  area: 'organization' | 'corporation' | 'all',
+  organizationId: number | null,
+  corporationId: number,
+) {
   const snapshot = toSnapshot(state)
   return state.assignments.filter((item) => {
     if (!canManageAssignment(snapshot, userId, item.scope)) return false
+    if (item.scope.type === 'own') return false
+    if (item.scope.corporationId !== corporationId) return false
+    if (area === 'all') return true
     if (area === 'corporation') return item.scope.type === 'corporation'
     if (organizationId == null) return false
     return scopeInOrganization(item.scope, organizationId)
@@ -370,13 +396,25 @@ export function readDirectory(
   if (corporationId == null) return fail(state, 403, 'forbidden')
   const canManageCorporation = hasInstallationCapability(snapshot, who.user.id, corporationId)
 
-  let area: 'organization' | 'corporation'
+  let area: 'organization' | 'corporation' | 'all'
   let organizationId: number | null = null
   if (query.scope === 'corporation' && (query.organization == null || query.organization === '')) {
     if (!canEnterRoleDesk(snapshot, who.user.id, { type: 'corporation', corporationId })) {
       return fail(state, 403, 'forbidden')
     }
     area = 'corporation'
+  } else if (query.organization === 'all' && query.scope !== 'corporation') {
+    const canOpen = canEnterRoleDesk(snapshot, who.user.id, { type: 'corporation', corporationId })
+      || state.organizations.some((organization) =>
+        organization.corporationId === corporationId
+        && canEnterRoleDesk(snapshot, who.user.id, {
+          type: 'organization',
+          organizationId: organization.id,
+          corporationId,
+        }),
+      )
+    if (!canOpen) return fail(state, 403, 'forbidden')
+    area = 'all'
   } else if (query.organization != null && query.organization !== '' && query.scope !== 'corporation') {
     if (!/^[1-9]\d*$/.test(query.organization)) return fail(state, 400, 'invalid_organization')
     organizationId = Number(query.organization)
@@ -391,20 +429,23 @@ export function readDirectory(
     return fail(state, 400, 'invalid_organization')
   }
 
-  const delegationScope: AccessScope = area === 'corporation'
-    ? { type: 'corporation', corporationId }
-    : { type: 'organization', organizationId: organizationId as number, corporationId }
   const creatableScopes = scopesForRoleCreation(state, who.user.id)
+  const corporationScope: AccessScope = { type: 'corporation', corporationId }
+  const delegationScope: AccessScope = area === 'corporation' || (area === 'all' && can(snapshot, who.user.id, 'roles', 'create', corporationScope))
+    ? corporationScope
+    : area === 'all'
+      ? (creatableScopes.find((item) => item.scope.type === 'organization')?.scope ?? corporationScope)
+      : { type: 'organization', organizationId: organizationId as number, corporationId }
   const creatableOrgIds = new Set(creatableScopes.flatMap((item) =>
     item.scope.type === 'organization' ? [item.scope.organizationId] : [],
   ))
   const roles = visibleRoles(state, who.user.id, area, organizationId, corporationId)
-  const assignments = visibleAssignments(state, who.user.id, area, organizationId)
+  const assignments = visibleAssignments(state, who.user.id, area, organizationId, corporationId)
   const roleIds = new Set(roles.map((role) => role.id))
   const assignmentIds = new Set(assignments.map((item) => item.id))
   const candidates = candidatesFor(state, area, organizationId)
   const projects = state.projects
-    .filter((project) => area === 'organization' && project.organizationId === organizationId)
+    .filter((project) => area === 'all' || (area === 'organization' && project.organizationId === organizationId))
     .map((project) => ({ id: project.id, name: project.name, organizationId: project.organizationId }))
   const organizations = state.organizations
     .filter((organization) => {
@@ -413,7 +454,7 @@ export function readDirectory(
         organizationId: organization.id,
         corporationId,
       })
-      const inDesk = area === 'corporation' || organization.id === organizationId
+      const inDesk = area === 'corporation' || area === 'all' || organization.id === organizationId
       if (inDesk && manageable) return true
       return creatableOrgIds.has(organization.id)
     })
@@ -425,7 +466,9 @@ export function readDirectory(
     corporationId,
     accessVersion: state.accessVersion,
     canManageCorporation,
-    canCreateRole: can(snapshot, who.user.id, 'roles', 'create', delegationScope),
+    canCreateRole: area === 'all'
+      ? creatableScopes.length > 0
+      : can(snapshot, who.user.id, 'roles', 'create', delegationScope),
     creatableScopes,
     offeredGrants: offeredGrants(state),
     delegableGrantIds: delegableIds(state, who.user.id, delegationScope),
@@ -451,10 +494,10 @@ export function readDirectory(
   return { state, status: 200, body }
 }
 
-function candidatesFor(state: MockState, area: 'organization' | 'corporation', organizationId: number | null): AccessCandidate[] {
-  const users = area === 'corporation'
-    ? state.users
-    : state.users.filter((user) => organizationId != null && memberOf(state, user.id, organizationId))
+function candidatesFor(state: MockState, area: 'organization' | 'corporation' | 'all', organizationId: number | null): AccessCandidate[] {
+  const users = area === 'organization'
+    ? state.users.filter((user) => organizationId != null && memberOf(state, user.id, organizationId))
+    : state.users
   return users
     .map((user) => ({ id: user.id, fullName: fullName(user), position: user.position }))
     .sort((left, right) => left.fullName.localeCompare(right.fullName, 'ru'))

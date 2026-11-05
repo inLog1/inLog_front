@@ -89,6 +89,15 @@ describe('organization administrator role', () => {
     expect(secondRole?.displayName).toBe(ORGANIZATION_ADMINISTRATOR_ROLE_NAME)
     expect(secondRole?.id).not.toBe(firstRole?.id)
     expect(second.state.assignments).toEqual(ready.assignments)
+    const openedAll = tokenFor(second.state)
+    const every = readAccessDirectory(openedAll.state, openedAll.token, {
+      scope: null,
+      organization: 'all',
+    })
+    expect(every.status).toBe(200)
+    const listedIds = ((every.body as { roles: Array<{ id: string }> }).roles).map((role) => role.id)
+    expect(listedIds).toContain(firstRole?.id)
+    expect(listedIds).toContain(secondRole?.id)
 
     const scopeA = { type: 'organization' as const, organizationId: created.organization.id, corporationId: 1 }
     const scopeB = { type: 'organization' as const, organizationId: second.organization.id, corporationId: 1 }
