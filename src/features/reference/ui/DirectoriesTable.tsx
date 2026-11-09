@@ -24,7 +24,7 @@ import {
   type SortDirection,
   pageCount,
 } from '../model/directory-list'
-import { canDeleteDirectoryDefinition, directoryTypeKey } from '../model/directory-metadata'
+import { canDeleteDirectoryDefinition } from '../model/directory-metadata'
 import { directorySections, primarySection, type DirectorySectionId } from '../model/directory-sections'
 
 export function DirectoriesTable({
@@ -96,11 +96,6 @@ export function DirectoriesTable({
                   {t('directories.column-section')}{sortLabel('section')}
                 </button>
               </TableHead>
-              <TableHead className="hidden lg:table-cell">
-                <button type="button" className="font-medium" onClick={() => onSortChange('type')}>
-                  {t('directories.column-type')}{sortLabel('type')}
-                </button>
-              </TableHead>
               <TableHead className="hidden sm:table-cell">
                 <button type="button" className="font-medium" onClick={() => onSortChange('status')}>
                   {t('directories.column-status')}{sortLabel('status')}
@@ -112,7 +107,7 @@ export function DirectoriesTable({
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                   {t('directories.empty-list')}
                 </TableCell>
               </TableRow>
@@ -138,7 +133,6 @@ export function DirectoriesTable({
                       <span className="ml-1 text-xs text-muted-foreground">{t('directories.more-sections', { count: extraSections })}</span>
                     ) : null}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">{t(`directories.types.${directoryTypeKey(item)}`, { defaultValue: t('directories.types.manual') })}</TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <span className="inline-flex items-center gap-1.5 text-sm">
                       <span

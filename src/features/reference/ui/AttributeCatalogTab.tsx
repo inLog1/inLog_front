@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -16,17 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  BadgeCheck,
-  BookOpen,
-  Briefcase,
-  GripVertical,
-  Library,
-  Monitor,
-  MoreHorizontal,
-  Network,
-  Search,
-} from 'lucide-react'
+import { GripVertical, MoreHorizontal, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -72,27 +62,24 @@ import {
   canDeleteAttribute,
   canEditDirectoryStructure,
   canReorderAttributes,
+  CATALOG_ALL_ID,
   fieldWrite,
+  filterAllCatalogFields,
   filterCatalogDirectories,
   filterCatalogFields,
+  flattenCatalogFields,
+  isCatalogAllView,
   isProtectedCatalogField,
   isUserCatalogField,
   moveField,
   omitField,
+  type CatalogFieldRow,
   type FieldWrite,
 } from '../model/attribute-catalog'
 import { sortDirectories } from '../model/directory-list'
-import { primarySection } from '../model/directory-sections'
-import { AttributeEditorSheet } from './AttributeEditorSheet'
+import { AttributeConstraintCell } from './AttributeConstraintCell'
+import { AttributeEditorDialog } from './AttributeEditorDialog'
 import { DirectoryAttributeSettings } from './DirectoryAttributeSettings'
-
-function DirectoryGlyph({ directoryKey, className }: { directoryKey: string; className?: string }) {
-  if (directoryKey === 'departments') return <Network className={className} aria-hidden />
-  if (directoryKey === 'positions') return <Briefcase className={className} aria-hidden />
-  if (directoryKey === 'workplaces') return <Monitor className={className} aria-hidden />
-  if (directoryKey === 'qualification-status') return <BadgeCheck className={className} aria-hidden />
-  return <BookOpen className={className} aria-hidden />
-}
 
 function sameFieldIds(left: DirectoryField[], right: DirectoryField[]): boolean {
   if (left.length !== right.length) return false
@@ -104,13 +91,11 @@ export function AttributeCatalogTab({
   organizationId,
   directories,
   permissions,
-  scopeLabel,
   bindAddAttribute,
 }: {
   organizationId: number
   directories: DirectoryView[]
   permissions: DirectoryPermissions
-  scopeLabel?: string
   bindAddAttribute?: (open: (() => void) | null) => void
 }) {
   const { t } = useTranslation()
@@ -122,6 +107,7 @@ export function AttributeCatalogTab({
   const [pendingDelete, setPendingDelete] = useState<DirectoryField | null>(null)
   const [actionError, setActionError] = useState('')
   const [draftOrder, setDraftOrder] = useState<DirectoryField[] | null>(null)
+  const [focusDirectoryId, setFocusDirectoryId] = useState<string | null>(null)
   const [updateDefinition, updateState] = useUpdateDirectoryDefinitionMutation()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -133,39 +119,80 @@ export function AttributeCatalogTab({
     () => filterCatalogDirectories(sorted, directoryQuery),
     [directoryQuery, sorted],
   )
-  const requestedId = search.get('catalog')
-  const selected = sorted.find((item) => item.id === requestedId) ?? sorted[0] ?? null
+  const requestedCatalog = search.get('catalog')
+  const isAllCatalog = isCatalogAllView(requestedCatalog, sorted)
+  const selected = isAllCatalog
+    ? null
+    : sorted.find((item) => item.id === requestedCatalog) ?? sorted[0] ?? null
+  const activeDetailId = isAllCatalog ? focusDirectoryId : selected?.id ?? null
   const detail = useGetDirectoryQuery(
-    { organizationId, directoryId: selected?.id ?? '' },
-    { skip: selected == null },
+    { organizationId, directoryId: activeDetailId ?? '' },
+    { skip: activeDetailId == null },
   )
-  const directory = detail.currentData?.directory.id === selected?.id ? detail.currentData.directory : selected
-  const usageKnown = detail.currentData?.directory.id === directory?.id
+  const directory = !isAllCatalog && selected
+    ? detail.currentData?.directory.id === selected.id ? detail.currentData.directory : selected
+    : null
+  const mutationDirectory = isAllCatalog
+    ? (detail.currentData?.directory.id === focusDirectoryId
+      ? detail.currentData.directory
+      : sorted.find((item) => item.id === focusDirectoryId) ?? null)
+    : directory
+  const usageTarget = mutationDirectory ?? directory
+  const usageKnown = detail.currentData?.directory.id === usageTarget?.id
   const records = usageKnown ? detail.currentData?.records ?? [] : []
   const usedFieldIds = usageKnown ? detail.currentData?.usedFieldIds ?? [] : []
   const usageRecords = records.length > 0 || usedFieldIds.length === 0
     ? records
     : usedFieldIds.map((id) => ({ values: { [id]: '1' } }))
-  const activePermissions = directory?.permissions ?? permissions
+  const activePermissions = (directory ?? mutationDirectory)?.permissions ?? permissions
 
   const canEdit = directory ? canEditDirectoryStructure(activePermissions) : false
   const canDelete = directory ? canDeleteAttribute(directory, activePermissions) : false
-  const reorder = Boolean(directory) && canReorderAttributes(activePermissions) && attributeQuery.trim() === '' && !updateState.isLoading
+  const reorder = Boolean(directory)
+    && !isAllCatalog
+    && canReorderAttributes(activePermissions)
+    && attributeQuery.trim() === ''
+    && !updateState.isLoading
+  const allAttributesCount = useMemo(
+    () => sorted.reduce((total, item) => total + item.fields.length, 0),
+    [sorted],
+  )
+  const allFieldRows = useMemo(() => flattenCatalogFields(sorted), [sorted])
+  const visibleAllFields = useMemo(
+    () => filterAllCatalogFields(allFieldRows, attributeQuery),
+    [allFieldRows, attributeQuery],
+  )
   const shownFields = draftOrder && directory && sameFieldIds(draftOrder, directory.fields)
     ? draftOrder
     : directory?.fields ?? []
   const visibleFields = filterCatalogFields(shownFields, attributeQuery)
+  const addableDirectories = useMemo(
+    () => sorted.filter((item) => canAddAttribute(item, item.permissions ?? permissions)),
+    [permissions, sorted],
+  )
   const editingField = editor?.mode === 'edit'
-    ? directory?.fields.find((field) => field.id === editor.fieldId) ?? null
+    ? mutationDirectory?.fields.find((field) => field.id === editor.fieldId) ?? null
     : null
+
+  const openCreateAttribute = useCallback(() => {
+    if (addableDirectories.length === 0) return
+    if (isAllCatalog && addableDirectories.length === 1) {
+      setFocusDirectoryId(addableDirectories[0].id)
+    }
+    if (directory && canAddAttribute(directory, directory.permissions ?? permissions)) {
+      setEditor({ mode: 'create' })
+      return
+    }
+    if (isAllCatalog) {
+      setEditor({ mode: 'create' })
+    }
+  }, [addableDirectories, directory, isAllCatalog, permissions])
 
   useEffect(() => {
     if (!bindAddAttribute) return
-    bindAddAttribute(() => {
-      if (directory && canAddAttribute(directory, directory.permissions ?? permissions)) setEditor({ mode: 'create' })
-    })
+    bindAddAttribute(openCreateAttribute)
     return () => bindAddAttribute(null)
-  }, [bindAddAttribute, directory, permissions])
+  }, [bindAddAttribute, openCreateAttribute])
 
   const errorText = (caught: unknown) => t(
     `directories.errors.${personnelError(caught).code}`,
@@ -214,30 +241,33 @@ export function AttributeCatalogTab({
   }
 
   const confirmDelete = () => {
-    if (!directory || !pendingDelete) return
-    const block = attributeDeleteBlock(directory, pendingDelete, usageRecords, usageKnown)
+    const targetDirectory = mutationDirectory
+    if (!targetDirectory || !pendingDelete) return
+    const block = attributeDeleteBlock(targetDirectory, pendingDelete, usageRecords, usageKnown)
     const target = pendingDelete
     if (block) {
       setActionError(t(`directories.catalog.delete-${block}`))
       setPendingDelete(null)
       return
     }
-    const fields = omitField(directory.fields, target.id)
+    const fields = omitField(targetDirectory.fields, target.id)
     setPendingDelete(null)
     if (!fields) return
-    void submit(directory, fields, t('directories.catalog.deleted')).catch((caught: unknown) => {
+    void submit(targetDirectory, fields, t('directories.catalog.deleted')).catch((caught: unknown) => {
       setActionError(errorText(caught))
     })
   }
 
   const selectDirectory = (directoryId: string) => {
-    if (directoryId !== directory?.id) {
+    const currentId = isAllCatalog ? CATALOG_ALL_ID : directory?.id
+    if (directoryId !== currentId) {
       setAttributeQuery('')
       setPanel('attributes')
       setEditor(null)
       setPendingDelete(null)
       setActionError('')
       setDraftOrder(null)
+      setFocusDirectoryId(null)
     }
     setSearch((prev) => {
       const next = new URLSearchParams(prev)
@@ -246,19 +276,13 @@ export function AttributeCatalogTab({
     }, { replace: true })
   }
 
+  const focusDirectoryForField = (directoryId: string) => {
+    setFocusDirectoryId(directoryId)
+  }
+
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex items-start gap-3 rounded-xl border border-border bg-primary/5 px-4 py-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Library className="h-4 w-4" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{t('directories.catalog.title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('directories.catalog.lead')}</p>
-        </div>
-      </div>
-
-      {directory == null ? (
+      {sorted.length === 0 ? (
         <PageState kind="empty" description={t('directories.catalog.empty-directories')} />
       ) : (
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start">
@@ -278,10 +302,22 @@ export function AttributeCatalogTab({
               />
             </div>
             <div className="max-h-[calc(100vh-18rem)] space-y-1 overflow-y-auto pr-1">
+              <button
+                type="button"
+                onClick={() => selectDirectory(CATALOG_ALL_ID)}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm',
+                  isAllCatalog ? 'bg-primary/10 font-medium' : 'hover:bg-muted/60',
+                )}
+                aria-current={isAllCatalog ? 'true' : undefined}
+              >
+                <span className="min-w-0 flex-1 truncate">{t('directories.catalog.all-attributes')}</span>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{allAttributesCount}</span>
+              </button>
               {visibleDirectories.length === 0 ? (
                 <p className="px-2 py-6 text-sm text-muted-foreground">{t('directories.catalog.empty-search')}</p>
               ) : visibleDirectories.map((item) => {
-                const active = item.id === directory.id
+                const active = !isAllCatalog && item.id === directory?.id
                 return (
                   <button
                     key={item.id}
@@ -293,12 +329,6 @@ export function AttributeCatalogTab({
                     )}
                     aria-current={active ? 'true' : undefined}
                   >
-                    <span className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                      active ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                    )}>
-                      <DirectoryGlyph directoryKey={item.key} className="h-4 w-4" />
-                    </span>
                     <span className="min-w-0 flex-1 truncate">{item.title}</span>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{item.fields.length}</span>
                   </button>
@@ -311,42 +341,30 @@ export function AttributeCatalogTab({
             <div className="mb-4 md:hidden">
               <LabelledSelect
                 label={t('directories.catalog.directories')}
-                value={directory.id}
+                value={isAllCatalog ? CATALOG_ALL_ID : directory?.id ?? CATALOG_ALL_ID}
                 onChange={selectDirectory}
-                options={sorted.map((item) => ({ value: item.id, label: item.title }))}
+                options={[
+                  { value: CATALOG_ALL_ID, label: t('directories.catalog.all-attributes') },
+                  ...sorted.map((item) => ({ value: item.id, label: item.title })),
+                ]}
               />
             </div>
-            <div className="flex items-start gap-3">
-              <DirectoryMark directoryKey={directory.key} active />
-              <div className="min-w-0">
-                <h3 className="break-words text-lg font-semibold leading-tight">{directory.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {t('directories.catalog.meta', {
-                    section: t(`directories.sections.${primarySection(directory)}`),
-                    count: directory.fields.length,
-                  })}
-                </p>
-                {directory.source.type === 'registry' ? (
-                  <p className="mt-1 text-sm text-muted-foreground">{t('directories.system-note')}</p>
-                ) : null}
+            {!isAllCatalog && directory ? (
+              <div className="flex gap-4 border-b border-border" role="tablist" aria-label={directory.title}>
+                <TabButton active={panel === 'attributes'} onClick={() => setPanel('attributes')}>
+                  {t('directories.catalog.tabs.attributes', { count: directory.fields.length })}
+                </TabButton>
+                <TabButton active={panel === 'settings'} onClick={() => setPanel('settings')}>
+                  {t('directories.catalog.tabs.settings')}
+                </TabButton>
               </div>
-            </div>
+            ) : null}
 
-            <div className="mt-4 flex gap-4 border-b border-border" role="tablist" aria-label={directory.title}>
-              <TabButton active={panel === 'attributes'} onClick={() => setPanel('attributes')}>
-                {t('directories.catalog.tabs.attributes', { count: directory.fields.length })}
-              </TabButton>
-              <TabButton active={panel === 'settings'} onClick={() => setPanel('settings')}>
-                {t('directories.catalog.tabs.settings')}
-              </TabButton>
-            </div>
-
-            {panel === 'settings' ? (
+            {panel === 'settings' && directory && !isAllCatalog ? (
               <div className="pt-4">
                 <DirectoryAttributeSettings
                   key={directory.id}
                   directory={directory}
-                  scopeLabel={scopeLabel}
                   canEdit={canEdit}
                   onSave={async (patch) => {
                     await submit(directory, directory.fields.map(fieldWrite), t('directories.catalog.settings-saved'), patch)
@@ -354,7 +372,7 @@ export function AttributeCatalogTab({
                 />
               </div>
             ) : (
-              <div className="space-y-3 pt-4">
+              <div className={cn('space-y-3', !isAllCatalog && directory ? 'pt-4' : undefined)}>
                 <div className="relative min-w-0">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
                   <Input
@@ -366,7 +384,61 @@ export function AttributeCatalogTab({
                   />
                 </div>
                 {actionError ? <p className="text-sm text-destructive" role="alert">{actionError}</p> : null}
-                {visibleFields.length === 0 ? (
+                {isAllCatalog ? (
+                  visibleAllFields.length === 0 ? (
+                    <PageState
+                      kind="empty"
+                      description={attributeQuery.trim()
+                        ? t('directories.catalog.empty-attribute-search')
+                        : t('directories.catalog.empty-attributes')}
+                    />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('directories.catalog.columns.group')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.name')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.code')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.type')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.constraints')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.required')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.status')}</TableHead>
+                          <TableHead className="w-12"><span className="sr-only">{t('directories.catalog.columns.actions')}</span></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visibleAllFields.map((row) => {
+                          const rowDirectory = sorted.find((item) => item.id === row.directoryId)
+                          if (!rowDirectory) return null
+                          const rowPermissions = rowDirectory.permissions ?? permissions
+                          const rowCanEdit = canEditDirectoryStructure(rowPermissions)
+                          const rowCanDelete = canDeleteAttribute(rowDirectory, rowPermissions)
+                          const rowUsageKnown = focusDirectoryId === row.directoryId && usageKnown
+                          return (
+                            <AllAttributeRow
+                              key={`${row.directoryId}:${row.field.id}`}
+                              row={row}
+                              protectedField={isProtectedCatalogField(rowDirectory, row.field)}
+                              userField={isUserCatalogField(row.field)}
+                              canEdit={rowCanEdit}
+                              canDelete={rowCanDelete}
+                              deleteBlock={attributeDeleteBlock(rowDirectory, row.field, usageRecords, rowUsageKnown)}
+                              onEdit={() => {
+                                focusDirectoryForField(row.directoryId)
+                                setEditor({ mode: 'edit', fieldId: row.field.id })
+                              }}
+                              onDelete={() => {
+                                setActionError('')
+                                focusDirectoryForField(row.directoryId)
+                                setPendingDelete(row.field)
+                              }}
+                            />
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  )
+                ) : visibleFields.length === 0 ? (
                   <PageState
                     kind="empty"
                     description={attributeQuery.trim()
@@ -383,12 +455,15 @@ export function AttributeCatalogTab({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-12">{t('directories.catalog.columns.order')}</TableHead>
+                          <TableHead className="w-px px-1">
+                            <span className="sr-only">{t('directories.catalog.reorder-handle')}</span>
+                          </TableHead>
                           <TableHead>{t('directories.catalog.columns.name')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.code')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.type')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.constraints')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.required')}</TableHead>
-                          <TableHead>{t('directories.catalog.columns.state')}</TableHead>
+                          <TableHead>{t('directories.catalog.columns.status')}</TableHead>
                           <TableHead className="w-12"><span className="sr-only">{t('directories.catalog.columns.actions')}</span></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -398,12 +473,12 @@ export function AttributeCatalogTab({
                             <AttributeRow
                               key={field.id}
                               field={field}
-                              protectedField={isProtectedCatalogField(directory, field)}
+                              protectedField={isProtectedCatalogField(directory!, field)}
                               userField={isUserCatalogField(field)}
                               reorder={reorder}
                               canEdit={canEdit}
                               canDelete={canDelete}
-                              deleteBlock={attributeDeleteBlock(directory, field, usageRecords, usageKnown)}
+                              deleteBlock={attributeDeleteBlock(directory!, field, usageRecords, usageKnown)}
                               onEdit={() => setEditor({ mode: 'edit', fieldId: field.id })}
                               onDelete={() => {
                                 setActionError('')
@@ -422,15 +497,21 @@ export function AttributeCatalogTab({
         </div>
       )}
 
-      {editor && directory && (editor.mode === 'create' || editingField) ? (
-        <AttributeEditorSheet
+      {editor && (editor.mode === 'create' || (mutationDirectory && editingField)) ? (
+        <AttributeEditorDialog
           key={editor.mode === 'create' ? 'create' : editor.fieldId}
-          directory={directory}
+          organizationId={organizationId}
+          directories={addableDirectories}
+          directory={editor.mode === 'edit' ? mutationDirectory : null}
           field={editor.mode === 'edit' ? editingField : null}
+          initialDirectoryId={mutationDirectory?.id ?? directory?.id ?? addableDirectories[0]?.id ?? ''}
           onClose={() => setEditor(null)}
-          onSubmit={async (fields) => {
+          onSubmit={async (target, fields) => {
+            if (editor.mode === 'create' && target.id !== focusDirectoryId) {
+              setFocusDirectoryId(target.id)
+            }
             await submit(
-              directory,
+              target,
               fields,
               editor.mode === 'create' ? t('directories.catalog.created') : t('directories.catalog.saved'),
             )
@@ -443,7 +524,10 @@ export function AttributeCatalogTab({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('directories.catalog.delete-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('directories.catalog.delete-body', { name: pendingDelete?.label ?? '', directory: directory?.title ?? '' })}
+              {t('directories.catalog.delete-body', {
+                name: pendingDelete?.label ?? '',
+                directory: mutationDirectory?.title ?? directory?.title ?? '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -484,14 +568,84 @@ function LabelledSelect({
   )
 }
 
-function DirectoryMark({ directoryKey, active }: { directoryKey: string; active?: boolean }) {
+function AllAttributeRow({
+  row,
+  protectedField,
+  userField,
+  canEdit,
+  canDelete,
+  deleteBlock,
+  onEdit,
+  onDelete,
+}: {
+  row: CatalogFieldRow
+  protectedField: boolean
+  userField: boolean
+  canEdit: boolean
+  canDelete: boolean
+  deleteBlock: ReturnType<typeof attributeDeleteBlock>
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { t } = useTranslation()
+  const { field } = row
   return (
-    <span className={cn(
-      'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-      active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-    )}>
-      <DirectoryGlyph directoryKey={directoryKey} className="h-5 w-5" />
-    </span>
+    <TableRow>
+      <TableCell className="text-muted-foreground">{row.directoryTitle}</TableCell>
+      <TableCell className="font-medium">{field.label}</TableCell>
+      <TableCell><span className="font-mono text-xs text-muted-foreground">{field.key}</span></TableCell>
+      <TableCell>{t(`directories.catalog.types.${field.type}`, { defaultValue: field.type })}</TableCell>
+      <TableCell><AttributeConstraintCell field={field} /></TableCell>
+      <TableCell>
+        <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
+          {field.required ? t('directories.value-yes') : t('directories.value-no')}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="flex flex-wrap items-center gap-1">
+          <span className={cn(
+            'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+            field.archived ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary',
+          )}>
+            {field.archived ? t('directories.catalog.state-archived') : t('directories.catalog.state-active')}
+          </span>
+          {protectedField ? (
+            <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              {t('directories.catalog.system')}
+            </span>
+          ) : null}
+          {userField ? (
+            <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              {t('directories.catalog.custom')}
+            </span>
+          ) : null}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
+        {canEdit || canDelete ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label={t('directories.actions.menu')}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canEdit ? <DropdownMenuItem onSelect={onEdit}>{t('directories.catalog.edit')}</DropdownMenuItem> : null}
+              {canDelete ? (
+                <DropdownMenuItem
+                  disabled={deleteBlock != null}
+                  className="text-destructive focus:text-destructive"
+                  title={deleteBlock ? t(`directories.catalog.delete-${deleteBlock}`) : undefined}
+                  onSelect={onDelete}
+                >
+                  {t('directories.catalog.delete')}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -528,7 +682,7 @@ function AttributeRow({
       className={isDragging ? 'bg-muted/40' : undefined}
       data-state={isDragging ? 'selected' : undefined}
     >
-      <TableCell>
+      <TableCell className="w-px px-1">
         <button
           type="button"
           className={cn(
@@ -545,7 +699,8 @@ function AttributeRow({
       </TableCell>
       <TableCell className="font-medium">{field.label}</TableCell>
       <TableCell><span className="font-mono text-xs text-muted-foreground">{field.key}</span></TableCell>
-      <TableCell>{t('directories.catalog.types.text')}</TableCell>
+      <TableCell>{t(`directories.catalog.types.${field.type}`, { defaultValue: field.type })}</TableCell>
+      <TableCell><AttributeConstraintCell field={field} /></TableCell>
       <TableCell>
         <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
           {field.required ? t('directories.value-yes') : t('directories.value-no')}

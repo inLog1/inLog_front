@@ -7,8 +7,12 @@ import {
   editableFieldPatch,
   isProtectedCatalogField,
   isUserCatalogField,
+  CATALOG_ALL_ID,
+  filterAllCatalogFields,
   filterCatalogDirectories,
   filterCatalogFields,
+  flattenCatalogFields,
+  isCatalogAllView,
   moveField,
   omitField,
   replaceField,
@@ -38,6 +42,17 @@ describe('attribute catalog writes', () => {
   const manual = directory({ type: 'manual' }, [name, code])
   const registry = directory({ type: 'registry', registry: 'departments' }, [name, code])
 
+  it('resolves all-catalog selection and flattens fields across directories', () => {
+    const other = { ...manual, id: 'dir:101:other', title: 'Должности' }
+    expect(isCatalogAllView(null, [manual])).toBe(true)
+    expect(isCatalogAllView(CATALOG_ALL_ID, [manual])).toBe(true)
+    expect(isCatalogAllView(manual.id, [manual])).toBe(false)
+    expect(isCatalogAllView('missing', [manual])).toBe(true)
+    const rows = flattenCatalogFields([manual, other])
+    expect(rows).toHaveLength(4)
+    expect(filterAllCatalogFields(rows, 'долж').map((row) => row.field.id)).toEqual(['name', 'code'])
+  })
+
   it('filters directories by title and fields by label or code', () => {
     expect(filterCatalogDirectories([manual], 'подр').map((item) => item.id)).toEqual([manual.id])
     expect(filterCatalogDirectories([manual], 'code')).toEqual([])
@@ -52,25 +67,29 @@ describe('attribute catalog writes', () => {
     expect(canAddAttribute(manual, { structure: false, schemaCreate: true })).toBe(false)
     expect(isProtectedCatalogField(registry, name)).toBe(true)
     expect(isUserCatalogField({ ...code, key: 'custom' })).toBe(true)
-    expect(appendField([name], { label: '  Примечание ', required: true }, 'new:note')).toEqual([
+    expect(appendField([name], { label: '  Примечание ', required: true, type: 'textarea', constraints: { maxLength: 500 } }, 'new:note')).toEqual([
       { id: 'name', label: 'Название', required: true, archived: false, type: 'text' },
-      { id: 'new:note', label: 'Примечание', required: true, archived: false, type: 'text' },
+      { id: 'new:note', label: 'Примечание', required: true, archived: false, type: 'textarea', constraints: { maxLength: 500 } },
     ])
   })
 
   it('keeps registry flags on protected fields and allows edits on custom extensions', () => {
     const custom = field('extra', 'custom', 'Краткое название')
-    expect(editableFieldPatch(registry, name, { label: 'Имя', required: false, archived: true })).toEqual({
+    expect(editableFieldPatch(registry, name, { label: 'Имя', required: false, archived: true, type: 'text' })).toEqual({
       label: 'Имя',
       required: true,
       archived: false,
+      type: 'text',
+      constraints: undefined,
     })
-    expect(editableFieldPatch(registry, custom, { label: 'Краткое', required: true, archived: false })).toEqual({
+    expect(editableFieldPatch(registry, custom, { label: 'Краткое', required: true, archived: false, type: 'text' })).toEqual({
       label: 'Краткое',
       required: true,
       archived: false,
+      type: 'text',
+      constraints: undefined,
     })
-    expect(replaceField(registry, 'name', { label: 'Имя', required: false, archived: true })).toEqual([
+    expect(replaceField(registry, 'name', { label: 'Имя', required: false, archived: true, type: 'text' })).toEqual([
       { id: 'name', label: 'Имя', required: true, archived: false, type: 'text' },
       { id: 'code', label: 'Код', required: false, archived: false, type: 'text' },
     ])

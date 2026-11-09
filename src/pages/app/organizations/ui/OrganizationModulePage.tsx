@@ -114,7 +114,7 @@ export function OrganizationModulePage({ module }: { module: ModuleId }) {
   if (module === 'reference') {
     return (
       <WorkPage>
-        <ReferenceSection organizationId={loaded.id} scopeLabel={scopeLabel} />
+        <ReferenceSection organizationId={loaded.id} />
       </WorkPage>
     )
   }

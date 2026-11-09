@@ -6,6 +6,43 @@ export const COLUMN_STATE = 'column.state'
 export const PERSONNEL_FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'checkbox', 'directory'] as const
 export type PersonnelFieldType = (typeof PERSONNEL_FIELD_TYPES)[number]
 
+export const CATALOG_ATTRIBUTE_TYPES = [
+  'text',
+  'textarea',
+  'number',
+  'date',
+  'checkbox',
+  'file',
+  'photo',
+  'phone',
+  'email',
+] as const
+export type CatalogAttributeType = (typeof CATALOG_ATTRIBUTE_TYPES)[number]
+
+export const CATALOG_DATE_DISPLAY_FORMATS = ['dmy', 'my', 'y'] as const
+export type CatalogDateDisplayFormat = (typeof CATALOG_DATE_DISPLAY_FORMATS)[number]
+
+export type DirectoryAttributeConstraints = {
+  maxLength?: number | null
+  min?: number | null
+  max?: number | null
+  step?: number | null
+  integer?: boolean
+  minDate?: string | null
+  maxDate?: string | null
+  dateFormat?: CatalogDateDisplayFormat | null
+  extensions?: string | null
+  maxFileSizeMb?: number | null
+  maxFileCount?: number | null
+  photoFormats?: string | null
+  maxPhotoSizeMb?: number | null
+  maxPhotoCount?: number | null
+  internationalPhone?: boolean
+  phoneMask?: string | null
+  validateEmailFormat?: boolean
+  maxEmailLength?: number | null
+}
+
 export const PERSONNEL_GROUPS = ['personal', 'contacts', 'work', 'tenure', 'qualification'] as const
 export type PersonnelGroup = (typeof PERSONNEL_GROUPS)[number]
 
@@ -30,9 +67,10 @@ export type DirectoryField = {
   id: string
   key: string
   label: string
-  type: 'text'
+  type: CatalogAttributeType
   required: boolean
   archived: boolean
+  constraints?: DirectoryAttributeConstraints
 }
 
 export type DirectoryDefinition = {

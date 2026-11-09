@@ -10,17 +10,14 @@ import { Switch } from '../../../shared/ui/switch'
 import { Textarea } from '../../../shared/ui/textarea'
 import type { DirectoryCatalogSection } from '../../../entities/personnel/model/types'
 import { initialCatalogSection } from '../model/directory-metadata'
-import { isSystemDirectory } from '../model/attribute-catalog'
-import { DirectorySectionField, DirectoryTypeField } from './directory-meta-fields'
+import { DirectorySectionField } from './directory-meta-fields'
 
 export function DirectoryAttributeSettings({
   directory,
-  scopeLabel,
   canEdit,
   onSave,
 }: {
   directory: DirectoryDefinition
-  scopeLabel?: string
   canEdit: boolean
   onSave: (patch: { title: string; description: string; archived: boolean; section: DirectoryCatalogSection }) => Promise<void>
 }) {
@@ -36,9 +33,6 @@ export function DirectoryAttributeSettings({
     || archived !== directory.archived
     || section !== initialCatalogSection(directory)
   useUnsavedSource(`attribute-settings:${directory.id}`, canEdit && dirty)
-  const sourceLabel = directory.source.type === 'registry'
-    ? t(`directories.types.registry-${directory.source.registry}`)
-    : t('directories.types.manual')
 
   const save = async () => {
     const trimmed = title.trim()
@@ -93,21 +87,6 @@ export function DirectoryAttributeSettings({
         disabled={!canEdit || saving}
         onChange={setSection}
       />
-      <DirectoryTypeField mode="edit" definition={directory} disabled={!canEdit || saving} />
-      <dl className="grid gap-3 text-sm">
-        <div className="grid gap-1">
-          <dt className="text-muted-foreground">{t('directories.catalog.settings-source')}</dt>
-          <dd>{sourceLabel}</dd>
-        </div>
-        <div className="grid gap-1">
-          <dt className="text-muted-foreground">{t('directories.catalog.settings-kind')}</dt>
-          <dd>{isSystemDirectory(directory) ? t('directories.catalog.kind-system') : t('directories.catalog.kind-manual')}</dd>
-        </div>
-        <div className="grid gap-1">
-          <dt className="text-muted-foreground">{t('directories.catalog.settings-scope')}</dt>
-          <dd>{t('directories.catalog.settings-scope-value', { organization: scopeLabel || t('directories.catalog.settings-scope-current') })}</dd>
-        </div>
-      </dl>
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor="directory-settings-archived">{t('directories.catalog.settings-archived')}</Label>
         <Switch

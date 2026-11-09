@@ -106,7 +106,6 @@ export function CreateDirectoryDialog({
             value={section}
             onChange={setSection}
           />
-          <DirectoryTypeField mode="create" createType="manual" />
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
         </div>
         <DialogFooter className="gap-2 sm:gap-0">

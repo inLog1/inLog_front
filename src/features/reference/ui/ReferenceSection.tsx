@@ -12,14 +12,14 @@ import { Button } from '../../../shared/ui/button'
 import { PageState } from '../../../shared/ui/page'
 import { TabButton } from '../../../shared/ui/tab-button'
 import type { DirectoryPermissions } from '../../../entities/personnel/model/types'
-import { canAddAttribute } from '../model/attribute-catalog'
+import { canAddAttribute, isCatalogAllView } from '../model/attribute-catalog'
 import { sortDirectories } from '../model/directory-list'
 import { AttributeCatalogTab } from './AttributeCatalogTab'
 import { DirectoriesWorkspace } from './DirectoriesWorkspace'
 import { DirectoryEditorPanel } from './DirectoryEditorPanel'
 import { CreateDirectoryDialog, StructureDialog } from './directory-dialogs'
 
-export function ReferenceSection({ organizationId, scopeLabel }: { organizationId: number; scopeLabel?: string }) {
+export function ReferenceSection({ organizationId }: { organizationId: number }) {
   const { t } = useTranslation()
   const [search, setSearch] = useSearchParams()
   const list = useGetDirectoriesQuery({ organizationId })
@@ -83,8 +83,14 @@ export function ReferenceSection({ organizationId, scopeLabel }: { organizationI
     [directories],
   )
   const catalogId = search.get('catalog')
-  const catalogDirectory = catalogDirectories.find((item) => item.id === catalogId) ?? catalogDirectories[0] ?? null
-  const catalogCanAdd = catalogDirectory != null && canAddAttribute(catalogDirectory, catalogDirectory.permissions ?? permissions)
+  const catalogAllView = isCatalogAllView(catalogId, catalogDirectories)
+  const catalogDirectory = catalogAllView
+    ? null
+    : catalogDirectories.find((item) => item.id === catalogId) ?? catalogDirectories[0] ?? null
+  const catalogCanAdd = catalogAllView
+    ? catalogDirectories.some((item) => canAddAttribute(item, item.permissions ?? permissions))
+    : catalogDirectory != null
+      && canAddAttribute(catalogDirectory, catalogDirectory.permissions ?? permissions)
   const openAddAttribute = useRef<(() => void) | null>(null)
   const bindAddAttribute = useCallback((open: (() => void) | null) => {
     openAddAttribute.current = open
@@ -173,7 +179,6 @@ export function ReferenceSection({ organizationId, scopeLabel }: { organizationI
               organizationId={organizationId}
               directories={directories}
               permissions={permissions}
-              scopeLabel={scopeLabel}
               bindAddAttribute={bindAddAttribute}
             />
           )}

@@ -1,11 +1,63 @@
-import type { DirectoryDefinition, DirectoryField, DirectoryPermissions } from '../../../entities/personnel/model/types'
+import type {
+  CatalogAttributeType,
+  DirectoryAttributeConstraints,
+  DirectoryDefinition,
+  DirectoryField,
+  DirectoryPermissions,
+} from '../../../entities/personnel/model/types'
+import { normalizeConstraintsForWrite } from './attribute-field'
+
+export const CATALOG_ALL_ID = '__all__'
+
+export type CatalogFieldRow = {
+  directoryId: string
+  directoryTitle: string
+  field: DirectoryField
+}
+
+export function isCatalogAllView(catalogId: string | null, directories: { id: string }[]): boolean {
+  if (catalogId === CATALOG_ALL_ID) return true
+  if (catalogId == null) return true
+  return !directories.some((item) => item.id === catalogId)
+}
+
+export function flattenCatalogFields<T extends { id: string; title: string; fields: DirectoryField[] }>(
+  directories: T[],
+): CatalogFieldRow[] {
+  return directories.flatMap((directory) =>
+    directory.fields.map((field) => ({
+      directoryId: directory.id,
+      directoryTitle: directory.title,
+      field,
+    })),
+  )
+}
+
+export function filterAllCatalogFields(rows: CatalogFieldRow[], query: string): CatalogFieldRow[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    row.field.label.toLowerCase().includes(needle)
+    || row.field.key.toLowerCase().includes(needle)
+    || row.directoryTitle.toLowerCase().includes(needle),
+  )
+}
+
+export type AttributeFieldDraft = {
+  label: string
+  required: boolean
+  archived?: boolean
+  type: CatalogAttributeType
+  constraints?: DirectoryAttributeConstraints
+}
 
 export type FieldWrite = {
   id: string
   label: string
   required: boolean
   archived: boolean
-  type: 'text'
+  type: CatalogAttributeType
+  constraints?: DirectoryAttributeConstraints
 }
 
 export type DeleteBlock = 'registry' | 'in-use' | 'label' | 'loading'
@@ -73,23 +125,26 @@ export function fieldWrite(field: DirectoryField): FieldWrite {
     label: field.label,
     required: field.required,
     archived: field.archived,
-    type: 'text',
+    type: field.type,
+    ...(field.constraints ? { constraints: field.constraints } : {}),
   }
 }
 
 export function appendField(
   fields: DirectoryField[],
-  draft: { label: string; required: boolean },
+  draft: AttributeFieldDraft,
   temporaryId: string,
 ): FieldWrite[] {
+  const constraints = normalizeConstraintsForWrite(draft.type, draft.constraints ?? {})
   return [
     ...fields.map(fieldWrite),
     {
       id: temporaryId,
       label: draft.label.trim(),
       required: draft.required,
-      archived: false,
-      type: 'text',
+      archived: draft.archived ?? false,
+      type: draft.type,
+      ...(constraints ? { constraints } : {}),
     },
   ]
 }
@@ -97,19 +152,32 @@ export function appendField(
 export function editableFieldPatch(
   directory: DirectoryDefinition,
   field: DirectoryField,
-  draft: { label: string; required: boolean; archived: boolean },
-): { label: string; required: boolean; archived: boolean } {
+  draft: AttributeFieldDraft & { archived: boolean },
+): {
+  label: string
+  required: boolean
+  archived: boolean
+  type: CatalogAttributeType
+  constraints?: DirectoryAttributeConstraints
+} {
   const label = draft.label.trim()
   if (isProtectedCatalogField(directory, field)) {
-    return { label, required: field.required, archived: field.archived }
+    return { label, required: field.required, archived: field.archived, type: field.type, constraints: field.constraints }
   }
-  return { label, required: draft.required, archived: draft.archived }
+  const constraints = normalizeConstraintsForWrite(field.type, draft.constraints ?? field.constraints ?? {})
+  return {
+    label,
+    required: draft.required,
+    archived: draft.archived,
+    type: field.type,
+    constraints,
+  }
 }
 
 export function replaceField(
   directory: DirectoryDefinition,
   fieldId: string,
-  draft: { label: string; required: boolean; archived: boolean },
+  draft: AttributeFieldDraft & { archived: boolean },
 ): FieldWrite[] | null {
   const current = directory.fields.find((field) => field.id === fieldId)
   if (!current) return null

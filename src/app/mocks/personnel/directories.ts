@@ -20,6 +20,7 @@ import type { MockState } from '../db/types'
 import { allowedKeys, allows, authenticate, done, enter, optionalText, problem, requiredText, revisionOf } from './gate'
 import { ensureOrganizationWorkspace } from './workspace'
 import type { FlowResult } from '../auth/flow'
+import { constraintsEqual, parseCatalogFieldType, parseDirectoryConstraints } from './attribute-fields'
 
 function directories(state: MockState): DirectoryDefinition[] {
   return state.directoryDefinitions ?? []
@@ -742,7 +743,11 @@ function schemaActions(
   for (const field of before) {
     const next = after.find((item) => item.id === field.id)
     if (!next) continue
-    if (next.label !== field.label || next.required !== field.required || next.archived !== field.archived) actions.add('update')
+    if (next.label !== field.label
+      || next.required !== field.required
+      || next.archived !== field.archived
+      || next.type !== field.type
+      || !constraintsEqual(next.constraints, field.constraints)) actions.add('update')
   }
   if (actions.size === 0) actions.add('update')
   return [...actions]
@@ -883,20 +888,24 @@ function rewriteFields(
   for (const item of raw) {
     if (!item || typeof item !== 'object') return { error: 'invalid_value' }
     const field = item as Record<string, unknown>
-    if (!allowedKeys(field, ['id', 'label', 'required', 'archived', 'type'])) return { error: 'unknown_key' }
+    if (!allowedKeys(field, ['id', 'label', 'required', 'archived', 'type', 'constraints'])) return { error: 'unknown_key' }
     const label = requiredText(field.label, 200)
     if (!label || typeof field.required !== 'boolean' || typeof field.archived !== 'boolean') return { error: 'invalid_value' }
-    if (field.type != null && field.type !== 'text') return { error: 'type_change_blocked' }
     const id = typeof field.id === 'string' ? field.id : ''
     if (id.startsWith('new:')) {
+      const parsedType = parseCatalogFieldType(field.type, 'text')
+      if (parsedType == null) return { error: 'invalid_value' }
+      const constraints = parseDirectoryConstraints(parsedType, field.constraints)
+      if (constraints === 'invalid') return { error: 'invalid_value' }
       if (field.required && !field.archived && directoryHasRecords(state, definition)) return { error: 'required' }
       next.push({
         id: `df-${crypto.randomUUID()}`,
         key: 'custom',
         label,
-        type: 'text',
+        type: parsedType,
         required: field.required,
         archived: field.archived,
+        ...(constraints ? { constraints } : {}),
       })
       continue
     }
@@ -913,9 +922,25 @@ function rewriteFields(
     }
     const becomesRequired = !protectedField && field.required && !field.archived && (!current.required || current.archived)
     if (becomesRequired && recordsMissingValue(state, definition, current.id)) return { error: 'required' }
+    if (!protectedField && field.type != null && field.type !== current.type) return { error: 'type_change_blocked' }
+    const parsedType = protectedField ? current.type : (parseCatalogFieldType(field.type, current.type) ?? null)
+    if (parsedType == null) return { error: 'invalid_value' }
+    let nextConstraints = current.constraints
+    if (!protectedField && field.constraints !== undefined) {
+      const parsed = parseDirectoryConstraints(current.type, field.constraints)
+      if (parsed === 'invalid') return { error: 'invalid_value' }
+      nextConstraints = parsed
+    }
     next.push(protectedField
       ? { ...current, label, required: current.required, archived: current.archived }
-      : { ...current, label, required: field.required, archived: field.archived })
+      : {
+        ...current,
+        label,
+        required: field.required,
+        archived: field.archived,
+        type: current.type,
+        ...(nextConstraints ? { constraints: nextConstraints } : {}),
+      })
   }
   for (const current of definition.fields) {
     if (seen.has(current.id)) continue
