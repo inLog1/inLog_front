@@ -14,6 +14,7 @@ import {
   useGetRequestQuery,
   useSendRequestMutation,
   useUpdateRequestMutation,
+  useUploadRequestBasisMutation,
   type DraftIssue,
   type SendGap,
   type RequestCatalog,
@@ -193,6 +194,7 @@ function WizardDesk({
   const [createRequest] = useCreateRequestMutation()
   const [updateRequest] = useUpdateRequestMutation()
   const [sendRequest] = useSendRequestMutation()
+  const [uploadBasis] = useUploadRequestBasisMutation()
   const canSend = useHasOrganizationGrant('requests', 'send', organizationId)
   const canUpdate = useHasOrganizationGrant('requests', 'update', organizationId)
   const initial = emptyWizardValues(mode)
@@ -205,6 +207,7 @@ function WizardDesk({
   const [sendGaps, setSendGaps] = useState<SendGap[]>([])
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
+  const [pendingBasisFile, setPendingBasisFile] = useState<File | null>(null)
   const request = requestQuery.currentData?.request
   const revising = request?.status === 'rework' && request.customerOrganizationId === organizationId
   if (mode === 'edit' && request && (request.status === 'draft' || revising) && !applied) {
@@ -301,8 +304,16 @@ function WizardDesk({
           executorOrganizationId: chosenExecutor,
           details: parsed.details,
         }).unwrap()
+        if (pendingBasisFile) {
+          await uploadBasis({
+            organizationId,
+            requestId: created.request.id,
+            file: pendingBasisFile,
+          }).unwrap()
+          setPendingBasisFile(null)
+        }
         toast.success(t('requests.created'))
-        navigate(href(routes.requests.edit(created.request.id), 'organization'), { replace: true })
+        navigate(listHref, { replace: true })
         return true
       }
       const current = requestQuery.currentData?.request
@@ -331,7 +342,7 @@ function WizardDesk({
   }
 
   const handleSend = async () => {
-    if (sending || saving || mode !== 'edit' || !requestId || !canSend) return
+    if (sending || saving || !canSend) return
     const built = buildPayload()
     if (!built) return
     const { blocking, parsed, chosenCustomer, chosenExecutor, knownCustomer, knownExecutor, staysParty } = built
@@ -347,8 +358,8 @@ function WizardDesk({
       formRef.current?.focusField(field)
       return
     }
-    const current = requestQuery.currentData?.request
-    const hasBasis = !!(current?.basisDocument)
+    const current = mode === 'edit' ? requestQuery.currentData?.request : undefined
+    const hasBasis = !!(current?.basisDocument) || (mode === 'create' && pendingBasisFile != null)
     const readiness = inspectRequestForSend({
       customerOrganizationId: chosenCustomer,
       executorOrganizationId: chosenExecutor,
@@ -361,25 +372,54 @@ function WizardDesk({
       return
     }
     setSendGaps([])
-    if (!current) return
+    if (mode === 'edit' && (!requestId || !current)) return
+    const sendBody = {
+      organizationId,
+      details: parsed.details,
+      ...(chosenCustomer !== current?.customerOrganizationId ? { customerOrganizationId: chosenCustomer } : {}),
+      ...(chosenExecutor !== current?.executorOrganizationId ? { executorOrganizationId: chosenExecutor } : {}),
+    }
     setSending(true)
+    let targetId = requestId
+    let revision = current?.revision ?? 0
     try {
-      const body = {
-        organizationId,
-        expectedRevision: current.revision,
-        details: parsed.details,
-        ...(chosenCustomer !== current.customerOrganizationId ? { customerOrganizationId: chosenCustomer } : {}),
-        ...(chosenExecutor !== current.executorOrganizationId ? { executorOrganizationId: chosenExecutor } : {}),
+      if (mode === 'create') {
+        const created = await createRequest({
+          organizationId,
+          customerOrganizationId: chosenCustomer,
+          executorOrganizationId: chosenExecutor,
+          details: parsed.details,
+        }).unwrap()
+        targetId = created.request.id
+        revision = created.request.revision
+        if (pendingBasisFile) {
+          const uploaded = await uploadBasis({
+            organizationId,
+            requestId: targetId,
+            file: pendingBasisFile,
+          }).unwrap()
+          revision = uploaded.request.revision
+          setPendingBasisFile(null)
+        }
       }
-      const sent = await sendRequest({ requestId, ...body }).unwrap()
+      const sent = await sendRequest({
+        requestId: targetId,
+        expectedRevision: revision,
+        ...sendBody,
+      }).unwrap()
       const nextValues = wizardValuesFrom(sent.request)
       setValues(nextValues)
       setBaseline(wizardSignature(nextValues))
-      toast.success(t(request?.status === 'rework' ? 'requests.review.resent' : 'requests.sent-success'))
-      navigate(href(routes.requests.detail(requestId), 'organization'), { replace: true })
+      setSaveAttempted(false)
+      setSendAttempted(false)
+      toast.success(t(current?.status === 'rework' ? 'requests.review.resent' : 'requests.sent-success'))
+      navigate(mode === 'create' ? listHref : href(routes.requests.detail(targetId), 'organization'), { replace: true })
     } catch (error) {
       const code = requestFailureCode(error)
       toast.error(t(`requests.errors.${code ?? 'generic'}`, { defaultValue: t('requests.errors.generic') }))
+      if (mode === 'create' && targetId) {
+        navigate(href(routes.requests.edit(targetId), 'organization'), { replace: true })
+      }
     } finally {
       setSending(false)
     }
@@ -479,8 +519,10 @@ function WizardDesk({
         organizationId={organizationId}
         requestId={mode === 'edit' ? requestId : null}
         basisDocument={request?.basisDocument}
-        canSend={mode === 'edit' && canSend && (request?.status === 'draft' || revising)}
-        canEditBasis={mode === 'edit' && canUpdate && (request?.status === 'draft' || revising)}
+        canSend={canSend && (mode === 'create' || request?.status === 'draft' || revising)}
+        canEditBasis={(mode === 'create' ? canSend : canUpdate) && (mode === 'create' || request?.status === 'draft' || revising)}
+        pendingBasisFile={pendingBasisFile}
+        onPendingBasisFile={mode === 'create' ? setPendingBasisFile : undefined}
         sendGaps={sendGaps}
         sendLabel={t(revising ? 'requests.review.resend' : 'requests.draft.send')}
         notices={[

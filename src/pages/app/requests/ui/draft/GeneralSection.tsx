@@ -9,6 +9,7 @@ import {
   type RequestDraftDetails,
 } from '../../../../../entities/request'
 import { Input } from '../../../../../shared/ui/input'
+import { CalendarDatePicker } from '../../../../../shared/ui/calendar-date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../shared/ui/select'
 import { requestLabel } from '../../model/display'
 import { DraftField, DraftSection } from './draft-ui'
@@ -26,6 +27,7 @@ export function GeneralSection({
   partiesLoading,
   details,
   partyIssue,
+  saveAttempted,
   invalid,
   onCustomer,
   onExecutor,
@@ -41,6 +43,7 @@ export function GeneralSection({
   partiesLoading: boolean
   details: RequestDraftDetails
   partyIssue: boolean
+  saveAttempted: boolean
   invalid: Set<string>
   onCustomer: (id: number) => void
   onExecutor: (id: number | null) => void
@@ -48,6 +51,7 @@ export function GeneralSection({
 }) {
   const { t } = useTranslation()
   const dash = t('requests.dash')
+  const currentYear = new Date().getFullYear()
   const withCurrent = (items: ExecutorLaboratory[], id: number | null, name: string) => (
     id != null && !items.some((item) => item.id === id)
       ? [...items, { id, shortName: name || dash }]
@@ -68,11 +72,11 @@ export function GeneralSection({
     >
       <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <DraftField label={t('requests.draft.title')} field="projectName">
+          <DraftField label={t('requests.draft.title')} required field="projectName">
             <Input
               value={details.projectName}
               maxLength={REQUEST_TITLE_MAX}
-              aria-invalid={invalid.has('projectName')}
+              aria-invalid={(saveAttempted && invalid.has('projectName')) || undefined}
               onChange={(event) => onChange({ projectName: event.target.value })}
             />
           </DraftField>
@@ -132,11 +136,13 @@ export function GeneralSection({
           </Select>
         </DraftField>
         <DraftField label={t('requests.draft.desired-date')} field="plannedCompletion">
-          <Input
-            type="date"
-            value={details.plannedCompletion}
+          <CalendarDatePicker
+            id="plannedCompletion"
+            value={details.plannedCompletion || null}
+            fromYear={currentYear}
+            toYear={currentYear + 30}
             aria-invalid={invalid.has('plannedCompletion')}
-            onChange={(event) => onChange({ plannedCompletion: event.target.value })}
+            onChange={(value) => onChange({ plannedCompletion: value ?? '' })}
           />
         </DraftField>
       </div>

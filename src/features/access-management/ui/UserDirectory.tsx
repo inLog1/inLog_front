@@ -175,7 +175,7 @@ export function UserDirectory({
                         {hasRoles ? (
                           <div className="flex flex-wrap gap-1.5">
                             {assigned.map((assignment) => (
-                              <span key={assignment.roleId} className="rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800 dark:text-sky-200">
+                              <span key={assignment.roleId} className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-900 dark:bg-sky-500/10 dark:text-sky-200">
                                 {assignment.roleName}
                               </span>
                             ))}

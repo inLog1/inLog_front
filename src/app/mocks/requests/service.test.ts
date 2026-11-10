@@ -389,6 +389,7 @@ describe('request mock service', () => {
     expect(titled.status).toBe(200)
     expect(titled.state.requests?.find((item) => item.id === request.id)?.details?.sampleIds).toEqual(['sample-k104'])
     const broken = emptyRequestDraft()
+    broken.projectName = 'Северное'
     broken.program = [{ ...details.program[0], quantity: '-1' }]
     const rejected = updateRequest(titled.state, customer.token, request.id, {
       organizationId: 201,

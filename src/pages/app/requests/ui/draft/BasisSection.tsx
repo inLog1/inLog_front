@@ -24,12 +24,16 @@ export function BasisSection({
   requestId,
   canEdit,
   basisDocument,
+  pendingBasisFile = null,
+  onPendingBasisFile,
   sendAttempted,
 }: {
   organizationId: number
   requestId: string | null
   canEdit: boolean
   basisDocument: RequestBasisDocument | null | undefined
+  pendingBasisFile?: File | null
+  onPendingBasisFile?: (file: File | null) => void
   sendAttempted?: boolean
 }) {
   const { t } = useTranslation()
@@ -53,9 +57,15 @@ export function BasisSection({
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  const staged = pendingBasisFile
+
   const pickFile = async (file: File) => {
     setLocalError(null)
     if (!requestId) {
+      if (onPendingBasisFile) {
+        onPendingBasisFile(file)
+        return
+      }
       setLocalError('save_first')
       return
     }
@@ -74,6 +84,10 @@ export function BasisSection({
   }
 
   const remove = async () => {
+    if (!requestId && staged) {
+      onPendingBasisFile?.(null)
+      return
+    }
     if (!requestId || !basisDocument) return
     setLocalError(null)
     try {
@@ -85,7 +99,7 @@ export function BasisSection({
     }
   }
 
-  const showMissing = sendAttempted && !basisDocument
+  const showMissing = sendAttempted && !basisDocument && !staged
 
   return (
     <DraftSection
@@ -96,21 +110,45 @@ export function BasisSection({
     >
       <div className="max-w-3xl space-y-4" data-field="basisDocument">
         <p className="text-sm text-muted-foreground">{t('requests.draft.basis-explain')}</p>
-        {!requestId ? (
+        {!requestId && !onPendingBasisFile ? (
           <p className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-foreground">
             {t('requests.draft.basis-save-first')}
           </p>
         ) : null}
-        {!basisDocument ? (
+        {!basisDocument && !staged ? (
           <div className="relative rounded-lg border border-dashed border-border bg-muted/40 px-4 py-8 text-center">
             <p className="text-sm text-foreground">{t('requests.draft.basis-empty')}</p>
             {canEdit ? (
-              <Button type="button" variant="outline" className="mt-4" disabled={busy || !requestId} onClick={() => inputRef.current?.click()}>
+              <Button type="button" variant="outline" className="mt-4" disabled={busy || (!requestId && !onPendingBasisFile)} onClick={() => inputRef.current?.click()}>
                 {t('requests.draft.basis-choose')}
               </Button>
             ) : null}
           </div>
-        ) : (
+        ) : staged && !basisDocument ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <FileText className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="min-w-0 space-y-1">
+                <p className="truncate text-sm font-medium text-foreground">{staged.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatBytes(staged.size)} · {staged.type || t('requests.dash')}
+                </p>
+                <p className="text-xs text-muted-foreground">{t('requests.draft.basis-pending')}</p>
+              </div>
+            </div>
+            {canEdit ? (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
+                  {t('requests.draft.basis-replace')}
+                </Button>
+                <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void remove()}>
+                  <Trash2 className="size-4" aria-hidden />
+                  {t('requests.draft.basis-delete')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : basisDocument ? (
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <FileText className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -143,7 +181,7 @@ export function BasisSection({
               ) : null}
             </div>
           </div>
-        )}
+        ) : null}
         {canEdit ? (
           <p className="text-xs text-muted-foreground">
             {t('requests.draft.basis-limit', { size: formatBytes(REQUEST_BASIS_MAX_BYTES) })}

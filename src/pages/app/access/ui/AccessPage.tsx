@@ -53,7 +53,7 @@ function MockAccessPage() {
 
   const organizationOptions = filter.organizations.map((item) => ({
     id: item.id,
-    shortName: item.shortName || item.fullName || `#${item.id}`,
+    shortName: item.fullName?.trim() || item.shortName?.trim() || `#${item.id}`,
   }))
 
   return (

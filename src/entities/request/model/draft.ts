@@ -145,6 +145,7 @@ export const REQUEST_SAMPLE_MAX = 40
 
 export const DRAFT_ISSUE_CODES = [
   'invalid_draft',
+  'required_field',
   'invalid_text',
   'invalid_date',
   'invalid_contract_range',
@@ -367,6 +368,7 @@ export function inspectRequestDraft(
     return { ok: false, issues: [{ field: 'details', code: 'invalid_draft' }] }
   }
   const projectName = text(body.projectName, REQUEST_TITLE_MAX)
+  if (projectName === '') issues.push({ field: 'projectName', code: 'required_field' })
   const contractNumber = text(body.contractNumber, REQUEST_DRAFT_TEXT_MAX)
   const subsoilUser = optionalText(body, 'subsoilUser', REQUEST_DRAFT_TEXT_MAX)
   const workBasis = text(body.workBasis, REQUEST_DRAFT_NOTE_MAX)

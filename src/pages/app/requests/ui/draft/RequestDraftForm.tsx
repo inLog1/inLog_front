@@ -57,6 +57,8 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
   canEditBasis: boolean
   sendGaps: SendGap[]
   sendLabel: string
+  pendingBasisFile?: File | null
+  onPendingBasisFile?: (file: File | null) => void
   notices?: readonly string[]
   onChange: (values: WizardValues) => void
   onSave: () => void
@@ -84,6 +86,8 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
   canEditBasis,
   sendGaps,
   sendLabel,
+  pendingBasisFile = null,
+  onPendingBasisFile,
   notices = [],
   onChange,
   onSave,
@@ -201,6 +205,7 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
           partiesLoading={partiesLoading}
           details={values.details}
           partyIssue={partyIssue}
+          saveAttempted={saveAttempted}
           invalid={invalid}
           onCustomer={(customerOrganizationId) => {
             const updated = { ...valuesRef.current, customerOrganizationId }
@@ -228,6 +233,8 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
           requestId={requestId}
           canEdit={canEditBasis}
           basisDocument={basisDocument}
+          pendingBasisFile={pendingBasisFile}
+          onPendingBasisFile={onPendingBasisFile}
           sendAttempted={sendAttempted}
         />
         <LegacyPanel details={values.details} catalog={catalog} />
@@ -247,14 +254,11 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
             ))}
           </div>
         ) : null}
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:px-6">
-          <p className="max-w-xl text-sm text-muted-foreground">{t('requests.draft.required-send-hint')}</p>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-border bg-card px-4 py-4 shadow-sm md:px-6">
             <Button type="submit" variant="outline" disabled={saving || sending}>{t('requests.draft.save')}</Button>
             <Button type="button" disabled={saving || sending || !canSend} onClick={onSend}>
               {sendLabel}
             </Button>
-          </div>
         </div>
       </div>
       <aside className="order-1 lg:sticky lg:top-4 lg:order-2">

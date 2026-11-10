@@ -495,7 +495,11 @@ export function readDirectory(
       if (inDesk && manageable) return true
       return creatableOrgIds.has(organization.id)
     })
-    .map((organization) => ({ id: organization.id, shortName: organization.shortName }))
+    .map((organization) => ({
+      id: organization.id,
+      shortName: organization.shortName,
+      fullName: organization.fullName,
+    }))
 
   const body: AccessDirectory = {
     scope: area,
@@ -601,7 +605,11 @@ export function readRole(state: MockState, token: string | null, roleId: string)
         organizationId: organization.id,
         corporationId: organization.corporationId,
       }))
-      .map((organization) => ({ id: organization.id, shortName: organization.shortName })),
+      .map((organization) => ({
+      id: organization.id,
+      shortName: organization.shortName,
+      fullName: organization.fullName,
+    })),
     projects: state.projects
       .filter((project) => canManageAssignment(snapshot, who.user.id, {
         type: 'project',

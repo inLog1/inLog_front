@@ -15,9 +15,17 @@ import { errorsHandler } from '../../../shared/lib/errors-handler'
 import { useUnsavedSource } from '../../../shared/session/unsaved-work'
 import { organizationKindLabelKey } from '../model/kind-label'
 import { Button } from '../../../shared/ui/button'
+import { DIRECTORY_RECORD_NONE } from '../../../shared/ui/directory-record-select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../shared/ui/dialog'
 import { Input } from '../../../shared/ui/input'
 import { Label } from '../../../shared/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../shared/ui/select'
 
 export function EditOrganizationDialog({
   organization,
@@ -198,15 +206,18 @@ export function EditOrganizationDialog({
           {mock ? (
             <div className="space-y-2">
               <Label htmlFor="edit-kind">{t('settings-page.organization-kind')}</Label>
-              <select
-                id="edit-kind"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              <Select
                 value={kind}
-                onChange={(event) => setKind(event.target.value === 'customer' ? 'customer' : 'laboratory')}
+                onValueChange={(value) => setKind(value === 'customer' ? 'customer' : 'laboratory')}
               >
-                <option value="laboratory">{t(organizationKindLabelKey('laboratory'))}</option>
-                <option value="customer">{t(organizationKindLabelKey('customer'))}</option>
-              </select>
+                <SelectTrigger id="edit-kind" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="laboratory">{t(organizationKindLabelKey('laboratory'))}</SelectItem>
+                  <SelectItem value="customer">{t(organizationKindLabelKey('customer'))}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
           <div className="space-y-2">
@@ -244,17 +255,20 @@ export function EditOrganizationDialog({
           {mock ? (
             <div className="space-y-2">
               <Label htmlFor="edit-organization-administrator">{t('settings-page.organization-administrator')}</Label>
-              <select
-                id="edit-organization-administrator"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                value={administratorId}
-                onChange={(event) => setAdministratorId(event.target.value)}
+              <Select
+                value={administratorId || DIRECTORY_RECORD_NONE}
+                onValueChange={(value) => setAdministratorId(value === DIRECTORY_RECORD_NONE ? '' : value)}
               >
-                <option value="">{t('settings-page.organization-administrator-empty')}</option>
-                {specialists.map((person) => (
-                  <option key={person.id} value={String(person.id)}>{person.label}</option>
-                ))}
-              </select>
+                <SelectTrigger id="edit-organization-administrator" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DIRECTORY_RECORD_NONE}>{t('settings-page.organization-administrator-empty')}</SelectItem>
+                  {specialists.map((person) => (
+                    <SelectItem key={person.id} value={String(person.id)}>{person.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">{t('settings-page.organization-administrator-hint')}</p>
             </div>
           ) : null}

@@ -101,6 +101,7 @@ function exampleStudy(): RequestDraftDetails {
 describe('study objects and research needs', () => {
   it('keeps one field and one well under stable ids', () => {
     const details = emptyRequestDraft()
+    details.projectName = 'Северное'
     details.fields = [{
       id: 'field-a',
       catalogFieldId: 'field-north',
@@ -356,6 +357,7 @@ describe('study objects and research needs', () => {
     expect(opened.programMeta.approval).toBe('unspecified')
     expect(opened.programMeta.authorUserId).toBeNull()
     const claimed = emptyRequestDraft()
+    claimed.projectName = 'Черновик'
     claimed.programMeta = { ...emptyProgramMeta(), preparedBy: 'customer' }
     expect(inspectRequestDraft(claimed, catalog).ok).toBe(true)
     const approved = {

@@ -2,6 +2,13 @@ import type { AccessScope } from './types'
 
 /** Proposed DTO. This is not a production backend contract. */
 
+export type AccessOrganizationOption = {
+  id: number
+  shortName: string
+  /** Prefer this when showing the organization name in access UI. */
+  fullName?: string
+}
+
 export type AccessGrantView = {
   id: string
   resource: string
@@ -91,7 +98,7 @@ export type AccessDirectory = {
   assignments: AccessAssignmentView[]
   candidates: AccessCandidate[]
   projects: Array<{ id: number; name: string; organizationId: number }>
-  organizations: Array<{ id: number; shortName: string }>
+  organizations: AccessOrganizationOption[]
   recentChanges: AccessChangeView[]
 }
 
@@ -102,7 +109,7 @@ export type AccessRoleDetail = {
   canDelegateFurther: boolean
   creatableScopes: AccessCreatableScope[]
   accessVersion: number
-  organizations: Array<{ id: number; shortName: string }>
+  organizations: AccessOrganizationOption[]
   projects: Array<{ id: number; name: string; organizationId: number }>
 }
 

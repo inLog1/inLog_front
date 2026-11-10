@@ -22,3 +22,34 @@ export const REQUEST_AUTHOR_GRANT_IDS = [
   'g-requests-send',
   'g-requests-cancel',
 ] as const
+
+/**
+ * Customer organization administrator.
+ * Filing plus the programme grants the customer side already uses:
+ * manage_program edits a programme waiting for the customer, approve_program approves or returns it.
+ * Review actions stay off this list.
+ */
+export const REQUEST_CUSTOMER_ADMINISTRATOR_GRANT_IDS = [
+  ...REQUEST_AUTHOR_GRANT_IDS,
+  'g-requests-manage-program',
+  'g-requests-approve-program',
+] as const
+
+/**
+ * Laboratory organization administrator.
+ * Filing, review, and both programme grants the executor already uses.
+ * assign is in the catalog and in the review set. No request operation checks it yet.
+ * approve_program covers an own request and agreement to a customer-defined programme.
+ */
+export const REQUEST_LABORATORY_ADMINISTRATOR_GRANT_IDS = [
+  'g-requests-read',
+  'g-requests-create',
+  'g-requests-update',
+  'g-requests-send',
+  'g-requests-accept',
+  'g-requests-reject',
+  'g-requests-assign',
+  'g-requests-cancel',
+  'g-requests-manage-program',
+  'g-requests-approve-program',
+] as const

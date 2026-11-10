@@ -6,6 +6,7 @@ import { Label } from '../../../shared/ui/label'
 import { RadioGroup, RadioGroupItem } from '../../../shared/ui/radio-group'
 import { OrganizationMultiSelect } from './OrganizationMultiSelect'
 import type { RoleArea } from './role-area'
+import { accessOrganizationDisplayName } from './scope-label'
 
 type RoleAvailabilityFieldProps = {
   scopes: readonly AccessCreatableScope[]
@@ -154,10 +155,13 @@ function organizationChoices(scopes: readonly AccessCreatableScope[], value: Rol
 
 function organizationName(
   scope: AccessScope,
-  organizations: readonly { id: number; shortName: string }[],
+  organizations: readonly { id: number; shortName: string; fullName?: string }[],
   t: TFunction,
 ): string {
   if (scope.type !== 'organization') return ''
-  return organizations.find((item) => item.id === scope.organizationId)?.shortName
-    ?? t('access.scope.organization', { id: scope.organizationId })
+  return accessOrganizationDisplayName(
+    organizations.find((item) => item.id === scope.organizationId),
+    scope.organizationId,
+    t,
+  )
 }

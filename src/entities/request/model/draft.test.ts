@@ -17,9 +17,10 @@ const catalog: RequestDraftCatalogIds = {
 }
 
 describe('request draft details', () => {
-  it('accepts an empty draft and keeps a title-only record readable', () => {
+  it('rejects a draft without a title and keeps a title-only record readable', () => {
     const empty = inspectRequestDraft(emptyRequestDraft(), catalog)
-    expect(empty.ok).toBe(true)
+    expect(empty.ok).toBe(false)
+    if (!empty.ok) expect(empty.issues).toEqual([{ field: 'projectName', code: 'required_field' }])
     const opened = draftFromRecord({ title: 'Черновик заказчика' })
     expect(opened.projectName).toBe('Черновик заказчика')
     expect(opened.program).toEqual([])
@@ -59,6 +60,7 @@ describe('request draft details', () => {
 
   it('keeps core and fluid fields and refuses an unknown key', () => {
     const details = emptyRequestDraft()
+    details.projectName = 'Пористость'
     details.subject.objectKind = 'fluid'
     details.subject.fluid.fluidKindId = 'fluid-oil'
     details.subject.fluid.sampleVolumeMl = '12.5'
@@ -123,6 +125,7 @@ describe('request draft details', () => {
 
   it('keeps entered core figures consistent and allows an unfinished plan', () => {
     const plan = emptyRequestDraft()
+    plan.projectName = 'План керна'
     plan.corePlan = { ...plan.corePlan, totalRecovery: '10', consolidated: '4', unconsolidated: '6' }
     expect(inspectRequestDraft(plan, catalog).ok).toBe(true)
 
@@ -141,9 +144,9 @@ describe('request draft details', () => {
     if (!negative.ok) expect(negative.issues.some((item) => item.code === 'invalid_number')).toBe(true)
   })
 
-  it('reports what a future send still needs without rejecting an empty draft', () => {
+  it('reports what a future send still needs on a titleless draft', () => {
     const empty = emptyRequestDraft()
-    expect(inspectRequestDraft(empty, catalog).ok).toBe(true)
+    expect(inspectRequestDraft(empty, catalog).ok).toBe(false)
     const missing = inspectRequestForSend({ customerOrganizationId: null, executorOrganizationId: null, details: empty })
     expect(missing.ok).toBe(false)
     if (!missing.ok) {
@@ -200,12 +203,14 @@ describe('request draft details', () => {
 
   it('keeps the four priorities and still reads an older priority without remapping it', () => {
     const next = emptyRequestDraft()
+    next.projectName = 'Приоритет'
     next.priority = 'medium'
     const parsed = inspectRequestDraft(next, catalog)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.details.priority).toBe('medium')
 
     const legacy = emptyRequestDraft()
+    legacy.projectName = 'Срочная'
     legacy.priority = 'urgent'
     const kept = inspectRequestDraft(legacy, catalog)
     expect(kept.ok).toBe(true)
