@@ -1,3 +1,19 @@
+import {
+  inspectResearchNeeds,
+  inspectNeedLinks,
+  researchNeedIsReady,
+  researchNeedSendGaps,
+  type RequestResearchNeed,
+} from './needs'
+import {
+  emptyProgramMeta,
+  readStoredStudy,
+  withDerivedStudy,
+  type RequestDraftClarification,
+  type RequestProgramMeta,
+} from './normalize'
+import { draftProgramMetaIsBlank } from './program'
+import { inspectStudyFields, studyHasNamedWell, type RequestField } from './study'
 import { REQUEST_TITLE_MAX } from './types'
 
 /** Demonstration catalogs are id lists. Empty means the field was left blank. */
@@ -18,9 +34,21 @@ export type RequestDraftCatalogIds = {
 
 export type RequestObjectKind = 'core' | 'fluid'
 
-export const REQUEST_PRIORITIES = ['normal', 'high', 'urgent'] as const
+/** The scale used by the draft form. Medium is the default for a new request. */
+export const REQUEST_PRIORITIES = ['critical', 'high', 'medium', 'low'] as const
 
-export type RequestPriority = (typeof REQUEST_PRIORITIES)[number]
+/**
+ * Priorities stored before the four-level scale.
+ * They stay readable. The form does not remap them, because neither equals one new value.
+ */
+export const REQUEST_LEGACY_PRIORITIES = ['normal', 'urgent'] as const
+
+export type RequestPriority = (typeof REQUEST_PRIORITIES)[number] | (typeof REQUEST_LEGACY_PRIORITIES)[number]
+
+export function isRequestPriority(value: string): value is RequestPriority {
+  return (REQUEST_PRIORITIES as readonly string[]).includes(value)
+    || (REQUEST_LEGACY_PRIORITIES as readonly string[]).includes(value)
+}
 
 export type RequestSampleCount = {
   fluidKindId: string
@@ -97,6 +125,17 @@ export type RequestDraftDetails = {
   corePlan: RequestCorePlan
   program: RequestProgramLine[]
   sampleIds: string[]
+  /** Several fields, each with its own wells. Empty on a draft that still uses `subject` only. */
+  fields: RequestField[]
+  /** Needs point at wells by id. They do not replace `program` lines already stored. */
+  needs: RequestResearchNeed[]
+  /**
+   * Author and preparing side may be echoed on a draft.
+   * Lines, approval and the approved snapshot are written only by the programme actions.
+   */
+  programMeta: RequestProgramMeta
+  /** Legacy values that were kept as-is because a well or interval link would have been a guess. */
+  clarifications: RequestDraftClarification[]
 }
 
 export const REQUEST_DRAFT_TEXT_MAX = 200
@@ -115,6 +154,10 @@ export const DRAFT_ISSUE_CODES = [
   'invalid_program',
   'invalid_sample',
   'inconsistent_core',
+  'invalid_bounds',
+  'invalid_unit',
+  'invalid_need',
+  'invalid_link',
 ] as const
 
 export type DraftIssueCode = (typeof DRAFT_ISSUE_CODES)[number]
@@ -127,13 +170,13 @@ export type DraftIssue = {
 export const SEND_GAPS = [
   'parties',
   'project_name',
-  'basis',
-  'object_kind',
-  'field',
+  'basis_document',
   'well',
   'program',
   'quantity',
-  'planned_completion',
+  'desired_result',
+  'need_targets',
+  'need_links',
 ] as const
 
 export type SendGap = (typeof SEND_GAPS)[number]
@@ -151,7 +194,7 @@ const DETAIL_KEYS = [
   'sampleIds',
 ] as const
 
-const DETAIL_OPTIONAL = ['subsoilUser', 'priority', 'corePlan'] as const
+const DETAIL_OPTIONAL = ['subsoilUser', 'priority', 'corePlan', 'fields', 'needs', 'programMeta', 'clarifications'] as const
 
 const SUBJECT_KEYS = [
   'objectKind',
@@ -230,6 +273,10 @@ export function emptyRequestDraft(): RequestDraftDetails {
     corePlan: emptyCorePlan(),
     program: [],
     sampleIds: [],
+    fields: [],
+    needs: [],
+    programMeta: emptyProgramMeta(),
+    clarifications: [],
   }
 }
 
@@ -265,8 +312,9 @@ export function draftFromRecord(record: { title?: string; details?: unknown }): 
   const sampleIds = Array.isArray(stored.sampleIds)
     ? stored.sampleIds.filter((item): item is string => typeof item === 'string')
     : []
-  const priority = stored.priority === 'normal' || stored.priority === 'high' || stored.priority === 'urgent' ? stored.priority : ''
-  return {
+  const priority = typeof stored.priority === 'string' && isRequestPriority(stored.priority) ? stored.priority : ''
+  const study = readStoredStudy(stored)
+  return withDerivedStudy({
     projectName: typeof stored.projectName === 'string' ? stored.projectName : title,
     contractNumber: typeof stored.contractNumber === 'string' ? stored.contractNumber : '',
     contractDate: typeof stored.contractDate === 'string' ? stored.contractDate : '',
@@ -302,7 +350,11 @@ export function draftFromRecord(record: { title?: string; details?: unknown }): 
     corePlan: corePlanFrom(stored.corePlan),
     program,
     sampleIds,
-  }
+    fields: study.fields,
+    needs: study.needs,
+    programMeta: study.programMeta,
+    clarifications: study.clarifications,
+  }, study.listed)
 }
 
 export function inspectRequestDraft(
@@ -339,8 +391,15 @@ export function inspectRequestDraft(
   const corePlan = inspectCorePlan(body.corePlan, issues)
   const program = inspectProgram(body.program, catalog, issues)
   const sampleIds = inspectSamples(body.sampleIds, catalog, issues)
+  const fields = inspectFields(body.fields, catalog, issues)
+  const needs = inspectNeeds(body.needs, catalog, issues)
+  const programMeta = inspectProgramMeta(body.programMeta, issues)
+  const clarifications = inspectClarifications(body.clarifications, issues)
+  if (fields && needs) {
+    for (const link of inspectNeedLinks(fields, needs)) issues.push({ field: link.field, code: 'invalid_link' })
+  }
   if (
-    issues.length > 0 || !subject || !corePlan || !program || !sampleIds
+    issues.length > 0 || !subject || !corePlan || !program || !sampleIds || !fields || !needs || !programMeta || !clarifications
     || projectName == null || contractNumber == null || subsoilUser == null || workBasis == null || comment == null
     || priority == null || contractDate == null || contractUntil == null || plannedCompletion == null
   ) {
@@ -362,34 +421,108 @@ export function inspectRequestDraft(
       corePlan,
       program,
       sampleIds,
+      fields,
+      needs,
+      programMeta,
+      clarifications,
     },
   }
 }
 
 /**
  * Completeness for a future send action.
- * Draft save does not call this. Empty optional fields stay allowed on a draft.
+ * Draft save does not call this. The desired result date stays optional.
  */
 export function inspectRequestForSend(input: {
   customerOrganizationId: number | null
   executorOrganizationId: number | null
   details: RequestDraftDetails
+  hasBasisDocument?: boolean
 }): { ok: true } | { ok: false; gaps: SendGap[] } {
   const gaps: SendGap[] = []
   const party = (value: number | null) => typeof value === 'number' && Number.isInteger(value) && value > 0
   if (!party(input.customerOrganizationId) || !party(input.executorOrganizationId)) gaps.push('parties')
   if (input.details.projectName.trim() === '') gaps.push('project_name')
-  if (input.details.contractNumber.trim() === '' && input.details.workBasis.trim() === '') gaps.push('basis')
-  if (input.details.subject.objectKind !== 'core' && input.details.subject.objectKind !== 'fluid') gaps.push('object_kind')
-  if (input.details.subject.fieldId.trim() === '') gaps.push('field')
-  if (input.details.subject.wellId.trim() === '') gaps.push('well')
-  const quantities = input.details.program.map((line) => line.quantity.trim())
-  if (quantities.some((value) => value !== '' && !positive(value))) gaps.push('quantity')
-  const readyLine = input.details.program.some((line) =>
-    line.workKindId.trim() !== '' && line.unitId.trim() !== '' && positive(line.quantity) && line.quantity.trim() !== '')
-  if (!readyLine) gaps.push('program')
-  if (input.details.plannedCompletion.trim() === '') gaps.push('planned_completion')
+  if (!input.hasBasisDocument) gaps.push('basis_document')
+  if (!studyHasNamedWell(input.details.fields)) gaps.push('well')
+  for (const need of input.details.needs) {
+    for (const gap of researchNeedSendGaps(need)) {
+      if (!gaps.includes(gap)) gaps.push(gap)
+    }
+  }
+  if (inspectNeedLinks(input.details.fields, input.details.needs).length > 0) gaps.push('need_links')
+  const readyNeed = input.details.needs.some((need) => researchNeedIsReady(need))
+  if (!readyNeed) gaps.push('program')
   return gaps.length === 0 ? { ok: true } : { ok: false, gaps }
+}
+
+function inspectFields(value: unknown, catalog: RequestDraftCatalogIds, issues: DraftIssue[]): RequestField[] | null {
+  const parsed = inspectStudyFields(value, catalog)
+  if (parsed.ok) return parsed.fields
+  issues.push(...parsed.issues)
+  return null
+}
+
+function inspectNeeds(value: unknown, catalog: RequestDraftCatalogIds, issues: DraftIssue[]): RequestResearchNeed[] | null {
+  const parsed = inspectResearchNeeds(value, catalog)
+  if (parsed.ok) return parsed.needs
+  issues.push(...parsed.issues)
+  return null
+}
+
+const PROGRAM_META_OPTIONAL = [
+  'lines',
+  'note',
+  'version',
+  'preparedAt',
+  'submittedAt',
+  'approvedAt',
+  'approvedByUserId',
+  'returnReason',
+  'approvedSnapshot',
+] as const
+
+function inspectProgramMeta(value: unknown, issues: DraftIssue[]): RequestProgramMeta | null {
+  if (value === undefined) return emptyProgramMeta()
+  const body = asRecord(value)
+  if (!body || !knownKeys(body, ['authorUserId', 'preparedBy', 'approval'], PROGRAM_META_OPTIONAL)) {
+    issues.push({ field: 'programMeta', code: 'invalid_draft' })
+    return null
+  }
+  const authorUserId = authorId(body.authorUserId)
+  if (authorUserId === undefined) issues.push({ field: 'programMeta.authorUserId', code: 'invalid_object' })
+  const preparedBy = body.preparedBy === '' || body.preparedBy === 'customer' || body.preparedBy === 'laboratory' ? body.preparedBy : null
+  if (preparedBy == null) issues.push({ field: 'programMeta.preparedBy', code: 'invalid_object' })
+  if (body.approval !== 'unspecified' || !draftProgramMetaIsBlank(value)) {
+    issues.push({ field: 'programMeta.approval', code: 'invalid_object' })
+  }
+  if (authorUserId === undefined || preparedBy == null || body.approval !== 'unspecified' || !draftProgramMetaIsBlank(value)) return null
+  return { ...emptyProgramMeta(), authorUserId, preparedBy }
+}
+
+function inspectClarifications(value: unknown, issues: DraftIssue[]): RequestDraftClarification[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) {
+    issues.push({ field: 'clarifications', code: 'invalid_draft' })
+    return null
+  }
+  const notes: RequestDraftClarification[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    const body = asRecord(item)
+    const id = body && typeof body.id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(body.id) ? body.id : null
+    const code = body?.code === 'legacy_subject_kept' || body?.code === 'legacy_program_unlinked' ? body.code : null
+    const sourceId = body && typeof body.sourceId === 'string' && body.sourceId.trim().length > 0 && body.sourceId.trim().length <= 80
+      ? body.sourceId.trim()
+      : null
+    if (!body || !knownKeys(body, ['id', 'code', 'sourceId']) || id == null || seen.has(id ?? '') || code == null || sourceId == null) {
+      issues.push({ field: 'clarifications', code: 'invalid_draft' })
+      return null
+    }
+    seen.add(id)
+    notes.push({ id, code, sourceId })
+  }
+  return notes
 }
 
 function inspectSubject(value: unknown, catalog: RequestDraftCatalogIds, issues: DraftIssue[]): RequestSubject | null {
@@ -698,10 +831,15 @@ function optionalChoice(body: Record<string, unknown>, key: string, allowed: rea
   return choice(body[key], allowed)
 }
 
+function authorId(value: unknown): number | null | undefined {
+  if (value === null) return null
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
+  return undefined
+}
+
 function optionalPriority(value: unknown): '' | RequestPriority | null {
-  if (value === undefined) return ''
-  if (value === '') return ''
-  return value === 'normal' || value === 'high' || value === 'urgent' ? value : null
+  if (value === undefined || value === '') return ''
+  return typeof value === 'string' && isRequestPriority(value) ? value : null
 }
 
 function amount(value: string): number | null {

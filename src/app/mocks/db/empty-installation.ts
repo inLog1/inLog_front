@@ -68,6 +68,8 @@ export function createEmptyInstallation(namespace: string): MockState {
     personnelConfigs: [],
     employees: [],
     organizationWorkspaces: [],
+    requestBasisFiles: [],
+    requestEvents: [],
     fault: null,
   }
 }

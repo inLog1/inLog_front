@@ -30,6 +30,8 @@ const ACTION_COVERS: Record<string, readonly string[]> = {
   accept: ['accept'],
   reject: ['reject'],
   cancel: ['cancel'],
+  manage_program: ['manage_program'],
+  approve_program: ['approve_program'],
 }
 
 export type AssignmentDenial = 'invalid_scope' | 'forbidden' | 'self_elevation'

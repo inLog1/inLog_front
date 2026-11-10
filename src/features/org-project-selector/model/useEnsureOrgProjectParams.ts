@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 
 import { useGetOrganizationByIdQuery, useGetOrganizationsQuery } from '../../../entities/organization/model/organizationSlice'
 import { useGetProjectByIdQuery, useGetProjectsQuery } from '../../../entities/project/model/projectSlice'
@@ -12,6 +12,7 @@ import {
     resolveProject,
     selectOrganizationParams,
     selectProjectParams,
+    omitsWorkspaceAddress,
     workspaceHref,
     type CatalogLoad,
     type IdProbe,
@@ -81,7 +82,9 @@ function projectProbe(enabled: boolean, query: {
 }
 
 export function useEnsureOrgProjectParams(type: OrgProjectSelectorType = 'all', options?: { persist?: boolean }) {
-    const persist = options?.persist !== false
+    const location = useLocation()
+    const bareAddress = omitsWorkspaceAddress(location.pathname)
+    const persist = options?.persist !== false && !bareAddress
     const [searchParams, setSearchParams] = useSearchParams()
     const scope = type === 'organization' ? 'organization' : 'project'
     const organizationsQuery = useGetOrganizationsQuery()
@@ -147,6 +150,15 @@ export function useEnsureOrgProjectParams(type: OrgProjectSelectorType = 'all', 
             ? null
             : (project?.reason ?? null)
     const currentProjectId = status === 'ready' && scope === 'project' ? project?.projectId ?? null : null
+
+    useEffect(() => {
+        if (!bareAddress) return
+        if (!searchParams.has('org') && !searchParams.has('project')) return
+        const next = new URLSearchParams(searchParams)
+        next.delete('org')
+        next.delete('project')
+        setSearchParams(next, { replace: true })
+    }, [bareAddress, searchParams, setSearchParams])
 
     useEffect(() => {
         if (!persist) return

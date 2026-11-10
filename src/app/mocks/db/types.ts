@@ -165,6 +165,29 @@ export type MockTaskFile = {
   bytes: Uint8Array
 }
 
+export type MockRequestBasisFile = {
+  id: string
+  requestId: string
+  filename: string
+  mimeType: string
+  size: number
+  createdAt: string
+  bytes: Uint8Array
+}
+
+export type MockRequestEvent = {
+  id: string
+  requestId: string
+  type: 'sent' | 'review_started' | 'returned' | 'resent' | 'rejected' | 'withdrawn' | 'derived' | 'program_started' | 'program_changed' | 'program_submitted' | 'program_returned' | 'program_approved' | 'request_approved'
+  previousApproval?: string
+  nextApproval?: string
+  userId: number
+  at: string
+  previousStatus: string
+  newStatus: string
+  comment?: string
+}
+
 export type ConstructorFieldType = 'string' | 'integer' | 'date' | 'file' | 'dropdown'
 
 export type MockConstructorNode = {
@@ -392,6 +415,8 @@ export type MockState = {
    * Once this array is stored, including when it is empty, it is the only counter source.
    */
   requests?: RequestRecord[]
+  requestBasisFiles?: MockRequestBasisFile[]
+  requestEvents?: MockRequestEvent[]
   /**
    * Legacy counter rows from before requests existed.
    * A missing list counts as zero. It is ignored while requests is stored.

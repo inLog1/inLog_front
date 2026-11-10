@@ -44,6 +44,7 @@ export const routes = {
       list: () => '/requests',
       new: () => '/requests/new',
       edit: (requestId: string) => `/requests/${requestId}/edit`,
+      detail: (requestId: string) => `/requests/${requestId}`,
     },
 
     forms: {

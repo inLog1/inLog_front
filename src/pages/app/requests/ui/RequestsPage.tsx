@@ -26,7 +26,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { TabButton } from '../../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
 import { formatRequestWhen, requestLabel, requestMatchesQuery } from '../model/display'
-import { RequestDetailDialog } from './RequestDetailDialog'
 import { RequestStatusBadge } from './RequestStatusBadge'
 import { RequestsBoundary } from './RequestsBoundary'
 
@@ -69,7 +68,6 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
   const [tab, setTab] = useState<RequestTab>('all')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const data = query.currentData
   const dash = t('requests.dash')
   if (query.isError && !data) {
@@ -112,13 +110,12 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
     ))
     .slice()
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.number.localeCompare(left.number))
-  const selected = data.requests.find((item) => item.id === selectedId) ?? null
   const openRow = (row: (typeof rows)[number]) => {
     if (row.status === 'draft' && canUpdate) {
       navigate(href(routes.requests.edit(row.id), 'organization'))
       return
     }
-    setSelectedId(row.id)
+    navigate(href(routes.requests.detail(row.id), 'organization'))
   }
   const filtersActive = search.trim() !== '' || status !== 'all'
   const when = (value: string) => requestLabel(formatRequestWhen(value, i18n.language), dash)
@@ -234,12 +231,6 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
           </Table>
         )}
       </Card>
-      <RequestDetailDialog
-        request={selected}
-        organizationId={organizationId}
-        canUpdate={canUpdate}
-        onClose={() => setSelectedId(null)}
-      />
     </WorkPage>
   )
 }

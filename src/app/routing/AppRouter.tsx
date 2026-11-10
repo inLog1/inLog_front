@@ -14,7 +14,7 @@ import { HomePage } from '../home/HomePage'
 import { AccessPage, AccessUserPage, RoleEditorPage } from '../../pages/app/access'
 import { AccessRouteShell } from '../../pages/app/access/ui/AccessRouteShell'
 import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormViewCreatePage, FormViewEditPage, FormViewPage, FormViewsPage, FormsPage } from '../../pages/app/forms'
-import { RequestWizardPage, RequestsPage } from '../../pages/app/requests'
+import { RequestDetailPage, RequestWizardPage, RequestsPage } from '../../pages/app/requests'
 import { SectionCreatePage, SectionEditorPage, SectionListPage, SectionPreviewPage, SectionWorkPage } from '../../pages/app/sections'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
 import SchedulerPage from '../../pages/dashboard/scheduler'
@@ -108,6 +108,7 @@ export function AppRouter() {
               <Route path={routes.forms.list()} element={<FormsPage />} />
               <Route path={routes.requests.new()} element={<RequestWizardPage mode="create" />} />
               <Route path={routes.requests.edit(':requestId')} element={<RequestWizardPage mode="edit" />} />
+              <Route path={routes.requests.detail(':requestId')} element={<RequestDetailPage />} />
               <Route path={routes.requests.list()} element={<RequestsPage />} />
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
               <Route element={<AccessRouteShell />}>

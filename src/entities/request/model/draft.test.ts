@@ -149,14 +149,13 @@ describe('request draft details', () => {
     if (!missing.ok) {
       expect(missing.gaps).toContain('parties')
       expect(missing.gaps).toContain('project_name')
-      expect(missing.gaps).toContain('basis')
+      expect(missing.gaps).toContain('basis_document')
       expect(missing.gaps).toContain('program')
-      expect(missing.gaps).toContain('planned_completion')
     }
     const ready = emptyRequestDraft()
     ready.projectName = 'Северное'
     ready.contractNumber = 'Д-14'
-    ready.plannedCompletion = '2026-12-20'
+    ready.priority = 'medium'
     ready.subject.objectKind = 'core'
     ready.subject.fieldId = 'field-north'
     ready.subject.wellId = 'well-12'
@@ -171,7 +170,52 @@ describe('request draft details', () => {
       code: '',
       note: '',
     }]
-    const complete = inspectRequestForSend({ customerOrganizationId: 201, executorOrganizationId: 101, details: ready })
+    ready.fields = [{
+      id: 'field-1',
+      catalogFieldId: 'field-north',
+      fieldName: '',
+      wells: [{ id: 'well-1', catalogWellId: 'well-12', wellName: '', intervals: [] }],
+    }]
+    ready.needs = [{
+      id: 'need-1',
+      researchId: 'work-porosity',
+      desiredResult: '',
+      sampleTypeId: '',
+      quantity: null,
+      unitId: '',
+      comment: '',
+      clarification: '',
+      legacyLineId: '',
+      targets: [{ wellId: 'well-1', selection: 'well', intervalIds: [] }],
+    }]
+    const complete = inspectRequestForSend({
+      customerOrganizationId: 201,
+      executorOrganizationId: 101,
+      details: ready,
+      hasBasisDocument: true,
+    })
     expect(complete.ok).toBe(true)
+    expect(ready.plannedCompletion).toBe('')
+  })
+
+  it('keeps the four priorities and still reads an older priority without remapping it', () => {
+    const next = emptyRequestDraft()
+    next.priority = 'medium'
+    const parsed = inspectRequestDraft(next, catalog)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.details.priority).toBe('medium')
+
+    const legacy = emptyRequestDraft()
+    legacy.priority = 'urgent'
+    const kept = inspectRequestDraft(legacy, catalog)
+    expect(kept.ok).toBe(true)
+    if (kept.ok) expect(kept.details.priority).toBe('urgent')
+
+    const opened = draftFromRecord({
+      title: 'Северное',
+      details: { ...emptyRequestDraft(), priority: 'normal' },
+    })
+    expect(opened.priority).toBe('normal')
+    expect(inspectRequestDraft({ ...opened, priority: 'soon' }, catalog).ok).toBe(false)
   })
 })

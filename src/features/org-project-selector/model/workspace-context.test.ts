@@ -13,6 +13,7 @@ import {
   searchWithoutWorkspace,
   selectOrganizationParams,
   selectProjectParams,
+  omitsWorkspaceAddress,
   workspaceHref,
 } from './workspace-context'
 
@@ -162,6 +163,11 @@ describe('workspace context', () => {
     expect(workspaceHref('/login', 'public', verified, true)).toBe('/login')
     expect(workspaceHref('/settings/profile', 'app', verified, true)).toBe('/settings/profile')
     expect(workspaceHref('/settings/organizations', 'app', verified, true)).toBe('/settings/organizations')
+    expect(workspaceHref('/', 'project', verified, true)).toBe('/')
+    expect(workspaceHref('/requests', 'organization', verified, true)).toBe('/requests')
+    expect(workspaceHref('/requests/new', 'organization', verified, false)).toBe('/requests/new')
+    expect(omitsWorkspaceAddress('/requests/req-1/edit')).toBe(true)
+    expect(omitsWorkspaceAddress('/scheduler/tasks')).toBe(false)
     expect(searchWithoutWorkspace('?org=101&project=1001&task=slug&node=8&tab=2&next=1')).toBe('?next=1')
     expect(searchWithoutWorkspace('?org=101&project=1003')).toBe('')
   })

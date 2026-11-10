@@ -8,6 +8,8 @@ export const REQUEST_GRANT_DEFINITIONS = [
   { id: 'g-requests-reject', resource: 'requests', action: 'reject' },
   { id: 'g-requests-assign', resource: 'requests', action: 'assign' },
   { id: 'g-requests-cancel', resource: 'requests', action: 'cancel' },
+  { id: 'g-requests-manage-program', resource: 'requests', action: 'manage_program' },
+  { id: 'g-requests-approve-program', resource: 'requests', action: 'approve_program' },
 ] as const
 
 export const REQUEST_GRANT_IDS = REQUEST_GRANT_DEFINITIONS.map((grant) => grant.id)

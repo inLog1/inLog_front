@@ -153,7 +153,7 @@ export function createSeed(): MockState {
         grantIds: ['g-tasks', 'g-tasks-create', 'g-tasks-update', 'g-tasks-delete', 'g-tasks-assign', 'g-projects'],
         delegationGrantIds: [],
       },
-      { id: 'role-customer', displayName: 'Заказчик', grantIds: [...REQUEST_AUTHOR_GRANT_IDS], delegationGrantIds: [] },
+      { id: 'role-customer', displayName: 'Заказчик', grantIds: [...REQUEST_AUTHOR_GRANT_IDS, 'g-requests-manage-program', 'g-requests-approve-program'], delegationGrantIds: [] },
       {
         id: 'role-constructor-reader',
         displayName: 'Чтение конструктора',

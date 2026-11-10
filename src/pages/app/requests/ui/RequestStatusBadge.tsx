@@ -3,9 +3,9 @@ import type { RequestStatus } from '../../../../entities/request'
 import { Badge } from '../../../../shared/ui/badge'
 
 function variant(status: RequestStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  if (status === 'rejected' || status === 'cancelled') return 'destructive'
-  if (status === 'completed') return 'default'
-  if (status === 'draft') return 'secondary'
+  if (status === 'rejected' || status === 'cancelled' || status === 'withdrawn') return 'destructive'
+  if (status === 'completed' || status === 'in_review' || status === 'approved') return 'default'
+  if (status === 'draft' || status === 'rework') return 'secondary'
   return 'outline'
 }
 

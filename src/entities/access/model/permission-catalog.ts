@@ -115,6 +115,8 @@ export const ACCESS_PERMISSION_CATALOG: readonly CatalogPermission[] = [
   { group: 'requests', resource: 'requests', action: 'reject', labelKey: 'access.perm.requests.reject' },
   { group: 'requests', resource: 'requests', action: 'assign', labelKey: 'access.perm.requests.assign' },
   { group: 'requests', resource: 'requests', action: 'cancel', labelKey: 'access.perm.requests.cancel' },
+  { group: 'requests', resource: 'requests', action: 'manage_program', labelKey: 'access.perm.requests.manage_program' },
+  { group: 'requests', resource: 'requests', action: 'approve_program', labelKey: 'access.perm.requests.approve_program' },
   { group: 'personnel', resource: 'personnel', action: 'read', labelKey: 'access.perm.personnel.read' },
   { group: 'personnel', resource: 'personnel', action: 'create', labelKey: 'access.perm.personnel.create' },
   { group: 'personnel', resource: 'personnel', action: 'update', labelKey: 'access.perm.personnel.update' },

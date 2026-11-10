@@ -2,25 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
 import { useGetOrganizationsQuery } from '../../../../entities/organization/model/organizationSlice'
 import {
   draftFromRecord,
   emptyRequestDraft,
   inspectRequestDraft,
+  inspectRequestForSend,
   useCreateRequestMutation,
   useGetExecutorLaboratoriesQuery,
   useGetRequestCatalogQuery,
   useGetRequestQuery,
+  useSendRequestMutation,
   useUpdateRequestMutation,
   type DraftIssue,
+  type SendGap,
   type RequestCatalog,
   type RequestDraftCatalogIds,
   type RequestListItem,
 } from '../../../../entities/request'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
-import { useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
+import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
 import { routes } from '../../../../shared/lib/routes'
 import { useUnsavedSource } from '../../../../shared/session/unsaved-work'
 import {
@@ -35,7 +37,7 @@ import { Button } from '../../../../shared/ui/button'
 import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
 import { useLeaveGuard } from '../../forms/model/use-leave-guard'
 import { requestFailureCode } from '../model/display'
-import { RequestWizardForm, WIZARD_STEPS, type WizardValues } from './RequestWizardForm'
+import { RequestDraftForm, type DraftFormHandle, type WizardValues } from './draft/RequestDraftForm'
 import { RequestsBoundary } from './RequestsBoundary'
 
 export function RequestWizardPage({ mode }: { mode: 'create' | 'edit' }) {
@@ -186,21 +188,37 @@ function WizardDesk({
   const kind = catalog?.organizationKind
   const laboratories = useGetExecutorLaboratoriesQuery(
     { organizationId },
-    { skip: kind !== 'customer' },
+    { skip: kind == null },
   )
   const [createRequest] = useCreateRequestMutation()
   const [updateRequest] = useUpdateRequestMutation()
-  const initial = emptyWizardValues()
+  const [sendRequest] = useSendRequestMutation()
+  const canSend = useHasOrganizationGrant('requests', 'send', organizationId)
+  const canUpdate = useHasOrganizationGrant('requests', 'update', organizationId)
+  const initial = emptyWizardValues(mode)
   const [values, setValues] = useState(initial)
   const [baseline, setBaseline] = useState(() => wizardSignature(initial))
-  const [step, setStep] = useState(0)
   const [applied, setApplied] = useState(mode === 'create')
+  const formRef = useRef<DraftFormHandle>(null)
   const [saveAttempted, setSaveAttempted] = useState(false)
+  const [sendAttempted, setSendAttempted] = useState(false)
+  const [sendGaps, setSendGaps] = useState<SendGap[]>([])
   const [saving, setSaving] = useState(false)
+  const [sending, setSending] = useState(false)
   const request = requestQuery.currentData?.request
-  if (mode === 'edit' && request?.status === 'draft' && !applied) {
+  const revising = request?.status === 'rework' && request.customerOrganizationId === organizationId
+  if (mode === 'edit' && request && (request.status === 'draft' || revising) && !applied) {
     const next = wizardValuesFrom(request)
     setApplied(true)
+    setValues(next)
+    setBaseline(wizardSignature(next))
+  }
+  if (mode === 'create' && catalog && values.customerOrganizationId == null) {
+    const next = {
+      ...values,
+      customerOrganizationId: organizationId,
+      executorOrganizationId: catalog.organizationKind === 'laboratory' ? organizationId : values.executorOrganizationId,
+    }
     setValues(next)
     setBaseline(wizardSignature(next))
   }
@@ -209,29 +227,69 @@ function WizardDesk({
   const inspected = ids ? inspectRequestDraft(values.details, ids) : { ok: true as const, issues: [] as DraftIssue[] }
   const issues = inspected.ok ? [] : inspected.issues
   const labs = laboratories.currentData?.laboratories ?? []
-  const executorId = kind === 'laboratory' ? organizationId : values.executorOrganizationId
-  const executorReady = kind === 'laboratory' || (
-    executorId != null
-    && (laboratories.isLoading || laboratories.isUninitialized || labs.some((item) => item.id === executorId))
-  )
-  const partyIssue = saveAttempted && kind === 'customer' && !executorReady
+  const customers = laboratories.currentData?.customers ?? []
+  const partiesLoading = kind != null && (laboratories.isLoading || laboratories.isUninitialized)
+  const customerId = values.customerOrganizationId ?? organizationId
+  const executorId = values.executorOrganizationId ?? (kind === 'laboratory' ? organizationId : null)
+  const listed = (items: { id: number }[], id: number | null) => id != null && (partiesLoading || items.some((item) => item.id === id))
+  const customerReady = kind == null || (kind === 'customer'
+    ? customerId === organizationId
+    : listed(customers.length > 0 ? customers : [{ id: organizationId }], customerId))
+  const executorReady = listed(labs, executorId)
+  const activeIsParty = customerId === organizationId || executorId === organizationId
+  const partyCode = !saveAttempted || (customerReady && executorReady && activeIsParty)
+    ? null
+    : !executorReady
+      ? 'executor_required'
+      : 'foreign_party'
 
   useEffect(() => {
     onDirty(dirty)
   }, [dirty, onDirty])
 
+  const buildPayload = () => {
+    if (!catalog || !ids) return null
+    const blocking = formRef.current?.blockingIssues() ?? []
+    const parsed = inspectRequestDraft(values.details, ids)
+    const chosenCustomer = values.customerOrganizationId ?? organizationId
+    const chosenExecutor = values.executorOrganizationId ?? (catalog.organizationKind === 'laboratory' ? organizationId : null)
+    const knownCustomer = catalog.organizationKind === 'customer'
+      ? chosenCustomer === organizationId
+      : partiesLoading || customers.some((item) => item.id === chosenCustomer) || chosenCustomer === organizationId
+    const knownExecutor = chosenExecutor != null && (partiesLoading || labs.some((item) => item.id === chosenExecutor))
+    const staysParty = chosenCustomer === organizationId || chosenExecutor === organizationId
+    return {
+      blocking,
+      parsed,
+      chosenCustomer,
+      chosenExecutor,
+      knownCustomer,
+      knownExecutor,
+      staysParty,
+    }
+  }
+
   saveRef.current = async () => {
     if (saving || !catalog || !ids) return false
-    const parsed = inspectRequestDraft(values.details, ids)
-    const chosen = catalog.organizationKind === 'laboratory' ? organizationId : values.executorOrganizationId
-    const known = catalog.organizationKind === 'laboratory' || (
-      chosen != null && (laboratories.isLoading || laboratories.isUninitialized || labs.some((item) => item.id === chosen))
-    )
-    if (!parsed.ok || !known || chosen == null) {
+    const built = buildPayload()
+    if (!built) return false
+    const { blocking, parsed, chosenCustomer, chosenExecutor, knownCustomer, knownExecutor, staysParty } = built
+    if (!parsed.ok || blocking.length > 0 || !knownCustomer || !knownExecutor || !staysParty || chosenExecutor == null) {
       setSaveAttempted(true)
+      const field = !knownCustomer || chosenCustomer == null
+        ? 'customerOrganizationId'
+        : !knownExecutor || !staysParty
+          ? 'executorOrganizationId'
+          : (!parsed.ok ? parsed.issues[0]?.field : blocking[0]?.field) ?? 'projectName'
+      formRef.current?.focusField(field)
       return false
     }
-    if (mode === 'edit' && wizardSignature({ ...values, details: parsed.details, executorOrganizationId: chosen }) === baseline) {
+    if (mode === 'edit' && wizardSignature({
+      ...values,
+      customerOrganizationId: chosenCustomer,
+      executorOrganizationId: chosenExecutor,
+      details: parsed.details,
+    }) === baseline) {
       return true
     }
     setSaving(true)
@@ -239,7 +297,8 @@ function WizardDesk({
       if (mode === 'create') {
         const created = await createRequest({
           organizationId,
-          executorOrganizationId: chosen,
+          customerOrganizationId: chosenCustomer,
+          executorOrganizationId: chosenExecutor,
           details: parsed.details,
         }).unwrap()
         toast.success(t('requests.created'))
@@ -253,9 +312,8 @@ function WizardDesk({
         organizationId,
         expectedRevision: current.revision,
         details: parsed.details,
-        ...(catalog.organizationKind === 'customer' && chosen !== current.executorOrganizationId
-          ? { executorOrganizationId: chosen }
-          : {}),
+        ...(chosenCustomer !== current.customerOrganizationId ? { customerOrganizationId: chosenCustomer } : {}),
+        ...(chosenExecutor !== current.executorOrganizationId ? { executorOrganizationId: chosenExecutor } : {}),
       }).unwrap()
       const next = wizardValuesFrom(saved.request)
       setValues(next)
@@ -269,6 +327,61 @@ function WizardDesk({
       return false
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSend = async () => {
+    if (sending || saving || mode !== 'edit' || !requestId || !canSend) return
+    const built = buildPayload()
+    if (!built) return
+    const { blocking, parsed, chosenCustomer, chosenExecutor, knownCustomer, knownExecutor, staysParty } = built
+    setSendAttempted(true)
+    if (!parsed.ok || blocking.length > 0 || !knownCustomer || !knownExecutor || !staysParty || chosenExecutor == null) {
+      setSendGaps([])
+      setSaveAttempted(true)
+      const field = !knownCustomer || chosenCustomer == null
+        ? 'customerOrganizationId'
+        : !knownExecutor || !staysParty
+          ? 'executorOrganizationId'
+          : (!parsed.ok ? parsed.issues[0]?.field : blocking[0]?.field) ?? 'projectName'
+      formRef.current?.focusField(field)
+      return
+    }
+    const current = requestQuery.currentData?.request
+    const hasBasis = !!(current?.basisDocument)
+    const readiness = inspectRequestForSend({
+      customerOrganizationId: chosenCustomer,
+      executorOrganizationId: chosenExecutor,
+      details: parsed.details,
+      hasBasisDocument: hasBasis,
+    })
+    if (!readiness.ok) {
+      setSendGaps(readiness.gaps)
+      formRef.current?.focusSendGap(readiness.gaps[0])
+      return
+    }
+    setSendGaps([])
+    if (!current) return
+    setSending(true)
+    try {
+      const body = {
+        organizationId,
+        expectedRevision: current.revision,
+        details: parsed.details,
+        ...(chosenCustomer !== current.customerOrganizationId ? { customerOrganizationId: chosenCustomer } : {}),
+        ...(chosenExecutor !== current.executorOrganizationId ? { executorOrganizationId: chosenExecutor } : {}),
+      }
+      const sent = await sendRequest({ requestId, ...body }).unwrap()
+      const nextValues = wizardValuesFrom(sent.request)
+      setValues(nextValues)
+      setBaseline(wizardSignature(nextValues))
+      toast.success(t(request?.status === 'rework' ? 'requests.review.resent' : 'requests.sent-success'))
+      navigate(href(routes.requests.detail(requestId), 'organization'), { replace: true })
+    } catch (error) {
+      const code = requestFailureCode(error)
+      toast.error(t(`requests.errors.${code ?? 'generic'}`, { defaultValue: t('requests.errors.generic') }))
+    } finally {
+      setSending(false)
     }
   }
 
@@ -305,14 +418,14 @@ function WizardDesk({
       </WorkPage>
     )
   }
-  if (mode === 'edit' && request && request.status !== 'draft') {
+  if (mode === 'edit' && request && request.status !== 'draft' && !revising) {
     return (
       <WorkPage>
         <PageHeader title={t('requests.wizard.title-edit', { number: request.number })} />
         <PageState
           kind="empty"
           description={t('requests.errors.not_draft')}
-          action={<Button type="button" variant="outline" asChild><Link to={listHref}>{t('requests.wizard.back-to-list')}</Link></Button>}
+          action={<Button type="button" variant="outline" asChild><Link to={href(routes.requests.detail(request.id), 'organization')}>{t('requests.review.open-card')}</Link></Button>}
         />
       </WorkPage>
     )
@@ -327,52 +440,70 @@ function WizardDesk({
   }
 
   const organizationName = organizations.data?.find((item) => item.id === organizationId)?.shortName ?? ''
-  const customerName = mode === 'edit' && request ? request.customerShortName : organizationName
-  const executorName = mode === 'edit' && request ? request.executorShortName : organizationName
-  const stepLabel = t(`requests.wizard.steps.${WIZARD_STEPS[step] ?? 'parties'}`)
+  const partyName = (id: number | null, fallback: string) => (
+    customers.find((item) => item.id === id)?.shortName
+    ?? labs.find((item) => item.id === id)?.shortName
+    ?? fallback
+  )
+  const customerName = partyName(values.customerOrganizationId, mode === 'edit' && request ? request.customerShortName : organizationName)
+  const executorName = partyName(values.executorOrganizationId, mode === 'edit' && request ? request.executorShortName : organizationName)
+  const pageTitle = mode === 'create' ? t('requests.wizard.title-new') : t('requests.wizard.title-edit', { number: request?.number ?? '' })
 
   return (
     <WorkPage>
-      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-4">
-        <PageHeader
-          title={mode === 'create' ? t('requests.wizard.title-new') : t('requests.wizard.title-edit', { number: request?.number ?? '' })}
-          description={t('requests.wizard.step-caption', { current: step + 1, total: WIZARD_STEPS.length, label: stepLabel })}
-          actions={(
-            <Button type="button" variant="outline" asChild>
-              <Link to={listHref}>
-                <ArrowLeft aria-hidden />
-                {t('requests.wizard.back-to-list')}
-              </Link>
-            </Button>
-          )}
-        />
-        <RequestWizardForm
-          kind={kind ?? 'customer'}
-          customerName={customerName}
-          executorName={executorName}
-          values={values}
-          catalog={catalog}
-          laboratories={labs}
-          laboratoriesLoading={kind === 'customer' && (laboratories.isLoading || laboratories.isUninitialized)}
-          issues={issues}
-          partyIssue={partyIssue}
-          step={step}
-          saving={saving}
-          onStep={setStep}
-          onChange={setValues}
-          onSave={() => void saveRef.current?.()}
-        />
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: t('nav.requests'), to: listHref },
+          { label: pageTitle },
+        ]}
+        title={pageTitle}
+        description={t('requests.draft.lead-sent-enabled')}
+      />
+      <RequestDraftForm
+        ref={formRef}
+        kind={kind ?? 'customer'}
+        customerName={customerName}
+        executorName={executorName}
+        values={values}
+        catalog={catalog}
+        customers={customers}
+        laboratories={labs}
+        partiesLoading={partiesLoading}
+        issues={issues}
+        partyIssue={partyCode != null}
+        partyCode={partyCode}
+        saveAttempted={saveAttempted}
+        sendAttempted={sendAttempted}
+        saving={saving}
+        sending={sending}
+        organizationId={organizationId}
+        requestId={mode === 'edit' ? requestId : null}
+        basisDocument={request?.basisDocument}
+        canSend={mode === 'edit' && canSend && (request?.status === 'draft' || revising)}
+        canEditBasis={mode === 'edit' && canUpdate && (request?.status === 'draft' || revising)}
+        sendGaps={sendGaps}
+        sendLabel={t(revising ? 'requests.review.resend' : 'requests.draft.send')}
+        notices={[
+          ...(revising && request?.returnReason ? [t('requests.review.return-banner', { reason: request.returnReason })] : []),
+          ...(request?.sourceRequestId && !request.basisDocument ? [t('requests.review.basis-again')] : []),
+        ]}
+        onChange={setValues}
+        onSave={() => void saveRef.current?.()}
+        onSend={() => void handleSend()}
+      />
     </WorkPage>
   )
 }
 
-function emptyWizardValues(): WizardValues {
-  return { executorOrganizationId: null, details: emptyRequestDraft() }
+function emptyWizardValues(mode: 'create' | 'edit'): WizardValues {
+  const details = emptyRequestDraft()
+  if (mode === 'create') details.priority = 'medium'
+  return { customerOrganizationId: null, executorOrganizationId: null, details }
 }
 
 function wizardValuesFrom(request: RequestListItem): WizardValues {
   return {
+    customerOrganizationId: request.customerOrganizationId,
     executorOrganizationId: request.executorOrganizationId,
     details: draftFromRecord(request),
   }

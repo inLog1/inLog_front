@@ -1,3 +1,4 @@
+import { draftFromRecord } from '../../../entities/request/model/draft'
 import { migrateCreatedAtFilters } from '../../../entities/table-view/model/created-at'
 import { taskFixturesForProjects } from '../tasks/fixtures'
 import { FORM_GRANT_DEFINITIONS } from './form-grants'
@@ -46,6 +47,11 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 14 adds the request grant rows that were not already stored.
  * requests.read and requests.create keep their existing ids. Stored role grant lists are not extended.
  * The requests collection is not invented and serviceRequests is left in place.
+ * Version 15 normalizes request details that were saved before fields and needs existed.
+ * Records without details stay without details. Request revision, parties and title stay as stored.
+ * Running the migration again does not append a second copy of a derived field or need.
+ * Programme grants are added only to a role that already holds the full filing set or the full review set.
+ * A role that was stored without that set is left unchanged. Employees do not receive the grants.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -86,16 +92,22 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const residentsChanged = withResidents !== withPersonnel
   const withRequests = ensureRequestGrants(withResidents)
   const requestsChanged = withRequests !== withResidents
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged && !requestsChanged) {
+  const withRequestBodies = migrateStoredRequestDetails(withRequests)
+  const requestBodiesChanged = withRequestBodies !== withRequests
+  const withRequestFiles = ensureRequestStorage(withRequestBodies)
+  const requestFilesChanged = withRequestFiles !== withRequestBodies
+  const programRoles = attachRequestProgramGrants(roles)
+  const programRolesChanged = programRoles.changed
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged && !requestsChanged && !requestBodiesChanged && !requestFilesChanged && !programRolesChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withRequests,
+      ...withRequestFiles,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
-      roles,
+      roles: programRoles.roles,
     },
   }
 }
@@ -316,6 +328,79 @@ function ensureTaskCatalog(record: MockState): MockState {
     taskComments: Array.isArray(source.taskComments) ? source.taskComments : catalog.taskComments,
     taskFiles: Array.isArray(source.taskFiles) ? source.taskFiles : catalog.taskFiles,
   }
+}
+
+function ensureRequestStorage(record: MockState): MockState {
+  const source = record as MockState & { requestBasisFiles?: unknown; requestEvents?: unknown }
+  const missing = !Array.isArray(source.requestBasisFiles) || !Array.isArray(source.requestEvents)
+  if (!missing) return record
+  return {
+    ...record,
+    requestBasisFiles: Array.isArray(source.requestBasisFiles) ? source.requestBasisFiles : [],
+    requestEvents: Array.isArray(source.requestEvents) ? source.requestEvents : [],
+  }
+}
+
+function migrateStoredRequestDetails(record: MockState): MockState {
+  if (!Array.isArray(record.requests)) return record
+  let changed = false
+  const requests = record.requests.map((request) => {
+    if (request.details == null) return request
+    const details = draftFromRecord({ title: request.title, details: request.details })
+    if (JSON.stringify(request.details) === JSON.stringify(details)) return request
+    changed = true
+    return { ...request, details }
+  })
+  if (!changed) return record
+  return { ...record, requests }
+}
+
+const REQUEST_REVIEW_ROLE_GRANTS = [
+  'g-requests-read',
+  'g-requests-create',
+  'g-requests-update',
+  'g-requests-send',
+  'g-requests-accept',
+  'g-requests-reject',
+  'g-requests-assign',
+  'g-requests-cancel',
+] as const
+
+const REQUEST_AUTHOR_ROLE_GRANTS = [
+  'g-requests-read',
+  'g-requests-create',
+  'g-requests-update',
+  'g-requests-send',
+  'g-requests-cancel',
+] as const
+
+const REQUEST_PROGRAM_ROLE_GRANTS = ['g-requests-manage-program', 'g-requests-approve-program'] as const
+
+function grantListCovers(ids: readonly string[], required: readonly string[]): boolean {
+  return required.every((id) => ids.includes(id))
+}
+
+function withProgramGrants(ids: readonly string[], patterns: readonly (readonly string[])[]): { ids: string[]; changed: boolean } {
+  if (!patterns.some((pattern) => grantListCovers(ids, pattern))) return { ids: [...ids], changed: false }
+  const missing = REQUEST_PROGRAM_ROLE_GRANTS.filter((id) => !ids.includes(id))
+  if (missing.length === 0) return { ids: [...ids], changed: false }
+  return { ids: [...ids, ...missing], changed: true }
+}
+
+/**
+ * Demo filing and review roles already name a complete request set.
+ * Those roles gain programme preparation and approval. A shorter list is not completed.
+ */
+function attachRequestProgramGrants(roles: AccessRole[]): { roles: AccessRole[]; changed: boolean } {
+  let changed = false
+  const next = roles.map((role) => {
+    const grants = withProgramGrants(role.grantIds, [REQUEST_REVIEW_ROLE_GRANTS, REQUEST_AUTHOR_ROLE_GRANTS])
+    const delegation = withProgramGrants(role.delegationGrantIds ?? [], [REQUEST_REVIEW_ROLE_GRANTS])
+    if (!grants.changed && !delegation.changed) return role
+    changed = true
+    return { ...role, grantIds: grants.ids, delegationGrantIds: delegation.ids }
+  })
+  return { roles: changed ? next : roles, changed }
 }
 
 function ensureRequestGrants(record: MockState): MockState {

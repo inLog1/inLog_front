@@ -161,7 +161,11 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(createOnly).some((item) => item.id === 'requests')).toBe(false)
     expect(sectionByPath('/requests/new')?.id).toBe('requests')
     expect(sectionByPath('/requests/req-customer-draft/edit')?.id).toBe('requests')
-    expect(showsProjectSelector('/requests/new')).toBe(true)
+    expect(showsProjectSelector('/')).toBe(false)
+    expect(showsProjectSelector('/requests')).toBe(false)
+    expect(showsProjectSelector('/requests/new')).toBe(false)
+    expect(showsProjectSelector('/requests/req-customer-draft/edit')).toBe(false)
+    expect(showsProjectSelector('/scheduler/tasks')).toBe(true)
   })
 
   it('keeps implemented sections in live without pretending grants were checked', () => {

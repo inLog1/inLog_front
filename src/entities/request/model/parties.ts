@@ -12,27 +12,29 @@ export type PartyResult =
   | { ok: false; code: PartyFailure }
 
 /**
- * Customer files for a laboratory.
- * A laboratory files only for itself, and that is still one record: both ids match.
- * The active organization is the filing side. A caller cannot name a different customer.
+ * The active organization files the draft and must be the customer or the executor.
+ * A customer organization stays the customer and names a laboratory.
+ * A laboratory may stay the customer and name another laboratory, or stay the executor for a customer organization.
+ * Omitting the customer keeps the active organization as the customer.
  */
-export function resolveRequestParties(active: RequestParty, executor: RequestParty | null): PartyResult {
+export function resolveRequestParties(
+  active: RequestParty,
+  executor: RequestParty | null,
+  customer?: RequestParty | null,
+): PartyResult {
   if (!executor) return { ok: false, code: 'unknown_executor' }
-  if (active.kind === 'laboratory') {
-    if (executor.id !== active.id || executor.kind !== 'laboratory') {
-      return { ok: false, code: 'foreign_party' }
-    }
-    return {
-      ok: true,
-      parties: { customerOrganizationId: active.id, executorOrganizationId: active.id },
-    }
+  if (executor.kind !== 'laboratory') return { ok: false, code: 'not_laboratory' }
+  const customerParty = customer === undefined ? active : customer
+  if (!customerParty) return { ok: false, code: 'foreign_party' }
+  if (active.kind === 'customer' && customerParty.id !== active.id) return { ok: false, code: 'foreign_party' }
+  if (active.kind === 'laboratory' && customerParty.id !== active.id && customerParty.kind !== 'customer') {
+    return { ok: false, code: 'foreign_party' }
   }
-  if (executor.kind !== 'laboratory' || executor.id === active.id) {
-    return { ok: false, code: 'not_laboratory' }
-  }
+  if (customerParty.id !== active.id && executor.id !== active.id) return { ok: false, code: 'foreign_party' }
+  if (active.kind === 'customer' && executor.id === active.id) return { ok: false, code: 'not_laboratory' }
   return {
     ok: true,
-    parties: { customerOrganizationId: active.id, executorOrganizationId: executor.id },
+    parties: { customerOrganizationId: customerParty.id, executorOrganizationId: executor.id },
   }
 }
 

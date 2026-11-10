@@ -3,23 +3,28 @@ import type { RequestStatus } from './types'
 export type VisibleRequest = {
   customerOrganizationId: number
   executorOrganizationId: number
+  filedByOrganizationId?: number
   authorId: number
   status: RequestStatus
+}
+
+function draftOwnerId(request: VisibleRequest): number {
+  return request.filedByOrganizationId ?? request.customerOrganizationId
 }
 
 /**
  * Read access inside one organization context.
  * `readable` must already be the grant check for that organization.
  * The organization id does not grant access by itself.
- * A draft is visible only to the filing organization. The other party sees it after it leaves draft.
+ * A draft is visible only to the organization that filed it. The other party sees it after it leaves draft.
  * Own-record scope is not consulted here.
  */
 export function canReadRequest(request: VisibleRequest, activeOrganizationId: number, readable: boolean): boolean {
   if (!readable) return false
-  const filing = request.customerOrganizationId === activeOrganizationId
-  const executing = request.executorOrganizationId === activeOrganizationId
-  if (!filing && !executing) return false
-  if (request.status === 'draft' && !filing) return false
+  const party = request.customerOrganizationId === activeOrganizationId
+    || request.executorOrganizationId === activeOrganizationId
+  if (!party) return false
+  if (request.status === 'draft' && draftOwnerId(request) !== activeOrganizationId) return false
   return true
 }
 
@@ -29,10 +34,10 @@ export function requestReadDenial(
   activeOrganizationId: number,
   readable: boolean,
 ): 'ok' | 'hidden' | 'forbidden' {
-  const filing = request.customerOrganizationId === activeOrganizationId
-  const executing = request.executorOrganizationId === activeOrganizationId
-  if (!filing && !executing) return 'hidden'
-  if (request.status === 'draft' && !filing) return 'hidden'
+  const party = request.customerOrganizationId === activeOrganizationId
+    || request.executorOrganizationId === activeOrganizationId
+  if (!party) return 'hidden'
+  if (request.status === 'draft' && draftOwnerId(request) !== activeOrganizationId) return 'hidden'
   if (!readable) return 'forbidden'
   return 'ok'
 }

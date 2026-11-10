@@ -218,11 +218,17 @@ export type WorkspaceLinkScope = 'project' | 'organization' | 'app' | 'public'
 
 const WORKSPACE_KEYS = ['org', 'project', 'task', 'node', 'tab'] as const
 
+/** Home and requests do not carry the header workspace in the address. */
+export function omitsWorkspaceAddress(pathname: string): boolean {
+  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  return path === '/' || path === '/requests' || path.startsWith('/requests/')
+}
+
 /**
  * One builder for section links.
  * A project section keeps a verified org and project.
  * An organization section keeps org, and a project only when it is already verified in the URL.
- * App pages have no header organization selector, so they do not receive org or project.
+ * Home, requests and other app pages have no header workspace selector, so they do not receive org or project.
  * task, node and tab are never copied. Public destinations and logout get none of them.
  */
 export function workspaceHref(
@@ -231,7 +237,7 @@ export function workspaceHref(
   verified: { organizationId: number | null; projectId: number | null },
   explicitProject: boolean,
 ): string {
-  if (scope === 'public' || scope === 'app') return pathname
+  if (scope === 'public' || scope === 'app' || omitsWorkspaceAddress(pathname)) return pathname
   const params = new URLSearchParams()
   if (verified.organizationId != null) params.set('org', String(verified.organizationId))
   const keepProject = scope === 'organization' ? explicitProject : verified.projectId != null

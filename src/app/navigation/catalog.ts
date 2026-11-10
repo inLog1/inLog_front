@@ -539,8 +539,9 @@ export function sectionByPath(pathname: string): AppSection | null {
   return best
 }
 
+/** Project sections keep the header workspace controls. Home and requests do not. */
 export function showsProjectSelector(pathname: string): boolean {
   const section = sectionByPath(pathname)
   if (!section) return false
-  return section.context === 'project' || section.id === 'home' || section.id === 'requests'
+  return section.context === 'project'
 }

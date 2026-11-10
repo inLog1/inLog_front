@@ -42,9 +42,21 @@ describe('request parties', () => {
     })
   })
 
-  it('refuses a laboratory request filed as another organization', () => {
-    expect(resolveRequestParties(laboratory, otherLaboratory).ok).toBe(false)
+  it('lets a laboratory choose another laboratory or a customer organization while staying a party', () => {
+    expect(resolveRequestParties(laboratory, otherLaboratory)).toEqual({
+      ok: true,
+      parties: { customerOrganizationId: 101, executorOrganizationId: 102 },
+    })
+    expect(resolveRequestParties(laboratory, laboratory, customer)).toEqual({
+      ok: true,
+      parties: { customerOrganizationId: 201, executorOrganizationId: 101 },
+    })
+  })
+
+  it('refuses a laboratory request that leaves the active organization out or names a non-laboratory', () => {
+    expect(resolveRequestParties(laboratory, otherLaboratory, customer)).toEqual({ ok: false, code: 'foreign_party' })
     expect(resolveRequestParties(laboratory, customer).ok).toBe(false)
+    expect(resolveRequestParties(laboratory, laboratory, null)).toEqual({ ok: false, code: 'foreign_party' })
   })
 
   it('refuses a customer request that does not name a laboratory', () => {
@@ -58,6 +70,18 @@ describe('request visibility', () => {
     const filed = request()
     expect(canReadRequest(filed, 201, false)).toBe(false)
     expect(requestReadDenial(filed, 201, false)).toBe('forbidden')
+  })
+
+  it('shows a laboratory the draft it filed while acting as executor', () => {
+    const draft = request({
+      status: 'draft',
+      customerOrganizationId: 201,
+      executorOrganizationId: 101,
+      filedByOrganizationId: 101,
+    })
+    expect(canReadRequest(draft, 101, true)).toBe(true)
+    expect(canReadRequest(draft, 201, true)).toBe(false)
+    expect(requestReadDenial(draft, 201, true)).toBe('hidden')
   })
 
   it('hides a draft from the executor and does not call that draft incoming', () => {
@@ -106,9 +130,13 @@ describe('request status groups', () => {
   it('keeps draft, work in progress and closed work apart', () => {
     expect(requestStatusGroup('draft')).toBe('draft')
     expect(requestStatusGroup('in_progress')).toBe('inProgress')
+    expect(requestStatusGroup('in_review')).toBe('inProgress')
+    expect(requestStatusGroup('rework')).toBe('inProgress')
     expect(requestStatusGroup('completed')).toBe('closed')
     expect(requestStatusGroup('cancelled')).toBe('closed')
+    expect(requestStatusGroup('withdrawn')).toBe('closed')
     expect(requestStatusLabelKey('clarification')).toBe('requests.status.clarification')
+    expect(requestStatusLabelKey('in_review')).toBe('requests.status.in_review')
   })
 })
 

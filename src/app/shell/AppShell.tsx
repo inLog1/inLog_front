@@ -40,7 +40,8 @@ const ICONS: Record<string, LucideIcon> = {
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
-  if (section.id === 'home' || section.context === 'project') return 'project'
+  if (section.id === 'home' || section.id === 'requests') return 'app'
+  if (section.context === 'project') return 'project'
   if (section.context === 'organization') return 'organization'
   return 'app'
 }
