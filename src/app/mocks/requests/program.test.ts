@@ -196,7 +196,7 @@ describe('request programme agreement', () => {
       expectedRevision: requestOf(saved).revision,
     })
     expect(submitted.status).toBe(200)
-    expect(requestOf(submitted).status).toBe('in_review')
+    expect(requestOf(submitted).status).toBe('program_approval')
     expect(requestOf(submitted).details?.programMeta.approval).toBe('pending_customer')
     expect(requestOf(submitted).details?.programMeta.version).toBe(1)
     const seen = readRequest(submitted.state, filed.customerToken, 201, filed.id)
@@ -265,6 +265,7 @@ describe('request programme agreement', () => {
       organizationId: 101,
       expectedRevision: requestOf(revised).revision,
     })
+    expect(requestOf(again).status).toBe('program_approval')
     expect(requestOf(again).details?.programMeta.approval).toBe('pending_customer')
     expect(requestOf(again).details?.programMeta.version).toBe(2)
     expect(requestOf(again).details?.needs[0]?.researchId).toBe('')

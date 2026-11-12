@@ -1,11 +1,11 @@
-import { Loader2, Plus } from 'lucide-react'
+import { Building2, FolderKanban, Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { useGetSessionAccessQuery } from '../../../entities/access'
 import { routes } from '../../../shared/lib/routes'
-import { cn } from '../../../shared/lib/utils'
 import { Button } from '../../../shared/ui/button'
+import { LabeledIconSelect } from '../../../shared/ui/labeled-icon-select'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
 import { type OrgProjectSelectorType, useEnsureOrgProjectParams } from '../model/useEnsureOrgProjectParams'
 
@@ -76,36 +76,33 @@ const OrgProjectSelector = ({
                     </Button>
                 ) : null}
                 {showOrganization && organizations.length > 0 && (
-                    <Select value={currentOrgId ? String(currentOrgId) : undefined} onValueChange={handleOrgChange}>
-                        <SelectTrigger className="h-8 w-auto min-w-0 max-w-[11rem] flex-1 bg-background sm:w-[11rem] sm:flex-none" aria-label={t('scheduler-page.organization')}>
-                            <SelectValue placeholder={t('scheduler-page.select-organization-first')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {organizations.map((org) => (
-                                <SelectItem key={org.id} value={org.id.toString()}>
-                                    {org.fullName}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <LabeledIconSelect
+                        label={t('shell.organization')}
+                        icon={Building2}
+                        value={currentOrgId ? String(currentOrgId) : ''}
+                        options={organizations.map((org) => ({
+                            value: String(org.id),
+                            label: org.fullName,
+                        }))}
+                        onValueChange={handleOrgChange}
+                        placeholder={t('scheduler-page.select-organization-first')}
+                        className="max-w-[14rem] sm:max-w-[18rem]"
+                    />
                 )}
                 {showProject && (
-                    <Select
-                        value={currentProjectId ? String(currentProjectId) : undefined}
+                    <LabeledIconSelect
+                        label={t('shell.project')}
+                        icon={FolderKanban}
+                        value={currentProjectId ? String(currentProjectId) : ''}
+                        options={projects.map((proj) => ({
+                            value: String(proj.id),
+                            label: proj.name,
+                        }))}
                         onValueChange={handleProjectChange}
-                        disabled={!currentOrgId || (!projectsLoading && projects.length === 0)}
-                    >
-                        <SelectTrigger className={cn('h-8 w-auto min-w-0 max-w-[11rem] flex-1 bg-background sm:w-[11rem] sm:flex-none')} aria-label={t('scheduler-page.projects')}>
-                            <SelectValue placeholder={projectsLoading ? t('workspace.loading') : t('scheduler-page.select-project-first')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {projects.map((proj) => (
-                                <SelectItem key={proj.id} value={proj.id.toString()}>
-                                    {proj.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        placeholder={projectsLoading ? t('workspace.loading') : t('scheduler-page.select-project-first')}
+                        disabled={!currentOrgId || projectsLoading || projects.length === 0}
+                        className="max-w-[14rem] sm:max-w-[18rem]"
+                    />
                 )}
             </div>
         )

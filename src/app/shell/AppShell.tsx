@@ -10,6 +10,7 @@ import {
   APP_SECTIONS,
   isOrganizationDetailPath,
   sectionByPath,
+  showsOrganizationSelector,
   showsProjectSelector,
   visibleNavigation,
   visibleOrganizationModules,
@@ -150,6 +151,7 @@ function Shell() {
         <Header
           crumbs={crumbs}
           showWorkspace={showsProjectSelector(location.pathname)}
+          showOrganization={showsOrganizationSelector(location.pathname)}
           menuOpen={menuOpen}
           onOpenMenu={openMenu}
         />

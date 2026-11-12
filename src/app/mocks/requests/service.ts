@@ -904,17 +904,19 @@ export function saveRequestProgram(
   if (!opened.ok) return opened.result
   const { request, organizationId, userId } = opened.gate
   if (!request.details) return problem(state, 400, 'invalid_draft')
-  if (request.status !== 'in_review') return problem(state, 409, 'invalid_status')
+  if (request.status !== 'in_review' && request.status !== 'program_approval') return problem(state, 409, 'invalid_status')
   const meta = metaOf(request)
   if (meta.approval === 'approved') return problem(state, 409, 'invalid_status')
   const own = ownRequest(request)
   const executor = request.executorOrganizationId === organizationId
   const customer = request.customerOrganizationId === organizationId
   let mode: 'laboratory' | 'customer'
-  if (executor) {
+  if (executor && request.status === 'in_review') {
     if (!own && meta.approval === 'pending_customer') return problem(state, 409, 'invalid_status')
     if (!own && customerDefinedProgram(request)) return problem(state, 409, 'customer_program')
     mode = 'laboratory'
+  } else if (executor && request.status === 'program_approval') {
+    return problem(state, 409, 'invalid_status')
   } else if (customer && meta.approval === 'pending_customer') {
     mode = 'customer'
   } else {
@@ -974,7 +976,7 @@ export function submitRequestProgram(
     submittedAt: now,
     returnReason: '',
   }
-  return commitProgram(state, request, nextMeta, userId, 'program_submitted', meta.approval, request.status)
+  return commitProgram(state, request, nextMeta, userId, 'program_submitted', meta.approval, 'program_approval')
 }
 
 export function approveRequestProgram(
@@ -987,14 +989,16 @@ export function approveRequestProgram(
   if (!opened.ok) return opened.result
   const { request, organizationId, userId } = opened.gate
   if (!request.details) return problem(state, 400, 'invalid_draft')
-  if (request.status !== 'in_review') return problem(state, 409, 'invalid_status')
+  if (request.status !== 'in_review' && request.status !== 'program_approval') return problem(state, 409, 'invalid_status')
   const meta = metaOf(request)
   if (meta.approval === 'approved') return problem(state, 409, 'invalid_status')
   const own = ownRequest(request)
   const defined = customerDefinedProgram(request)
   if (own) {
+    if (request.status !== 'in_review') return problem(state, 409, 'invalid_status')
     if (request.executorOrganizationId !== organizationId) return problem(state, 403, 'not_executor')
   } else if (defined) {
+    if (request.status !== 'in_review') return problem(state, 409, 'invalid_status')
     if (request.executorOrganizationId !== organizationId) return problem(state, 403, 'not_approver')
   } else if (request.customerOrganizationId !== organizationId || meta.approval !== 'pending_customer') {
     if (request.customerOrganizationId !== organizationId) return problem(state, 403, 'not_approver')
@@ -1040,7 +1044,7 @@ export function returnRequestProgram(
   if (!request.details) return problem(state, 400, 'invalid_draft')
   if (ownRequest(request)) return problem(state, 409, 'own_request')
   if (request.customerOrganizationId !== organizationId) return problem(state, 403, 'not_customer')
-  if (request.status !== 'in_review') return problem(state, 409, 'invalid_status')
+  if (request.status !== 'program_approval' && request.status !== 'in_review') return problem(state, 409, 'invalid_status')
   const meta = metaOf(request)
   if (meta.approval !== 'pending_customer') return problem(state, 409, 'invalid_status')
   const reason = readRequestReason(body.reason)
@@ -1050,5 +1054,5 @@ export function returnRequestProgram(
     approval: 'returned',
     returnReason: reason.reason,
   }
-  return commitProgram(state, request, nextMeta, userId, 'program_returned', meta.approval, request.status, reason.reason)
+  return commitProgram(state, request, nextMeta, userId, 'program_returned', meta.approval, 'in_review', reason.reason)
 }

@@ -11,8 +11,8 @@ export type RequestTabScope = {
 }
 
 export function requestTabs(kind: OrganizationKind): readonly RequestTab[] {
-  if (kind === 'laboratory') return ['all', 'incoming', 'filed', 'inProgress', 'closed']
-  return ['all', 'mine', 'drafts', 'inProgress', 'closed']
+  if (kind === 'laboratory') return ['all', 'incoming', 'filed']
+  return ['all', 'mine', 'drafts']
 }
 
 export function requestMatchesTab(request: VisibleRequest, tab: RequestTab, scope: RequestTabScope): boolean {

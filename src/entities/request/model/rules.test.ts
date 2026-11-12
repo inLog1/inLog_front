@@ -129,21 +129,22 @@ describe('request visibility', () => {
 describe('request status groups', () => {
   it('keeps draft, work in progress and closed work apart', () => {
     expect(requestStatusGroup('draft')).toBe('draft')
-    expect(requestStatusGroup('in_progress')).toBe('inProgress')
+    expect(requestStatusGroup('sent')).toBe('inProgress')
     expect(requestStatusGroup('in_review')).toBe('inProgress')
     expect(requestStatusGroup('rework')).toBe('inProgress')
-    expect(requestStatusGroup('completed')).toBe('closed')
-    expect(requestStatusGroup('cancelled')).toBe('closed')
+    expect(requestStatusGroup('program_approval')).toBe('inProgress')
+    expect(requestStatusGroup('approved')).toBe('inProgress')
+    expect(requestStatusGroup('rejected')).toBe('closed')
     expect(requestStatusGroup('withdrawn')).toBe('closed')
-    expect(requestStatusLabelKey('clarification')).toBe('requests.status.clarification')
-    expect(requestStatusLabelKey('in_review')).toBe('requests.status.in_review')
+    expect(requestStatusLabelKey('program_approval')).toBe('requests.status.program_approval')
+    expect(requestStatusLabelKey('sent')).toBe('requests.status.sent')
   })
 })
 
 describe('request registry', () => {
   it('uses different tabs for a customer and a laboratory', () => {
-    expect(requestTabs('customer')).toEqual(['all', 'mine', 'drafts', 'inProgress', 'closed'])
-    expect(requestTabs('laboratory')).toEqual(['all', 'incoming', 'filed', 'inProgress', 'closed'])
+    expect(requestTabs('customer')).toEqual(['all', 'mine', 'drafts'])
+    expect(requestTabs('laboratory')).toEqual(['all', 'incoming', 'filed'])
   })
 
   it('counts each permitted request once and does not invent an overdue date', () => {

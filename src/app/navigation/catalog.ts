@@ -5,6 +5,7 @@ import {
   registrySchemaResource,
 } from '../../entities/access/model/permission-catalog'
 import type { EffectiveGrant, SystemCapabilityCode } from '../../entities/access/model/types'
+import { isRequestPath } from '../../features/org-project-selector/model/workspace-context'
 import { routes } from '../../shared/lib/routes'
 
 /**
@@ -539,9 +540,14 @@ export function sectionByPath(pathname: string): AppSection | null {
   return best
 }
 
-/** Project sections keep the header workspace controls. Home and requests do not. */
+/** Project sections keep both header workspace controls. */
 export function showsProjectSelector(pathname: string): boolean {
   const section = sectionByPath(pathname)
   if (!section) return false
   return section.context === 'project'
+}
+
+/** Requests keep the organization control and not the project control. */
+export function showsOrganizationSelector(pathname: string): boolean {
+  return isRequestPath(pathname)
 }

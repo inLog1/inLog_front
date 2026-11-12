@@ -1,15 +1,13 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import {
-  REQUEST_STATUSES,
+  isRequestPriority,
   requestMatchesTab,
-  requestRegistryStats,
   requestTabs,
   useGetRequestsQuery,
-  type RequestStatus,
   type RequestTab,
 } from '../../../../entities/request'
 import { selectSession } from '../../../../entities/session'
@@ -21,17 +19,25 @@ import { routes } from '../../../../shared/lib/routes'
 import { Button } from '../../../../shared/ui/button'
 import { Card } from '../../../../shared/ui/card'
 import { Input } from '../../../../shared/ui/input'
-import { PageHeader, PageState, WorkPage } from '../../../../shared/ui/page'
+import { Label } from '../../../../shared/ui/label'
+import { PageState, WorkPage } from '../../../../shared/ui/page'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../shared/ui/select'
 import { TabButton } from '../../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
 import { formatRequestWhen, requestLabel, requestMatchesQuery } from '../model/display'
+import {
+  requestListFilterChoices,
+  requestMatchesListFilters,
+  requestPartyFilterValue,
+  type FilterChoice,
+  type RequestListFilterState,
+} from '../model/list-filters'
 import { RequestStatusBadge } from './RequestStatusBadge'
 import { RequestsBoundary } from './RequestsBoundary'
 
-type StatusFilter = 'all' | RequestStatus
-
-const STATS = ['total', 'fresh', 'inProgress', 'closed', 'overdue'] as const
+type StatusFilter = RequestListFilterState['status']
+type PriorityFilter = RequestListFilterState['priority']
+type PartyFilter = RequestListFilterState['customerId']
 
 export function RequestsPage() {
   return (
@@ -68,12 +74,14 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
   const [tab, setTab] = useState<RequestTab>('all')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
+  const [priority, setPriority] = useState<PriorityFilter>('all')
+  const [customerId, setCustomerId] = useState<PartyFilter>('all')
+  const [executorId, setExecutorId] = useState<PartyFilter>('all')
   const data = query.currentData
   const dash = t('requests.dash')
   if (query.isError && !data) {
     return (
       <WorkPage>
-        <PageHeader title={t('requests.page-title')} description={t('requests.page-lead')} />
         <PageState
           kind="error"
           description={t('requests.load-error')}
@@ -85,7 +93,6 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
   if (!data || (data.organizationKind !== 'customer' && data.organizationKind !== 'laboratory')) {
     return (
       <WorkPage>
-        <PageHeader title={t('requests.page-title')} description={t('requests.page-lead')} />
         <PageState kind="loading" description={t('requests.loading')} />
       </WorkPage>
     )
@@ -93,21 +100,30 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
 
   const tabs = requestTabs(data.organizationKind)
   const activeTab = tabs.includes(tab) ? tab : 'all'
-  const stats = requestRegistryStats(data.requests)
-  const statValue = {
-    total: stats.total,
-    fresh: stats.fresh,
-    inProgress: stats.inProgress,
-    closed: stats.closed,
-    overdue: stats.overdue,
-  }
-  const rows = data.requests
+  const listFilter: RequestListFilterState = { status, priority, customerId, executorId }
+  const scoped = data.requests
     .filter((item) => requestMatchesTab(item, activeTab, { organizationId, userId: userId ?? -1 }))
-    .filter((item) => status === 'all' || item.status === status)
     .filter((item) => requestMatchesQuery(
       [item.number, item.title, item.customerShortName, item.executorShortName],
       search,
     ))
+  const sources = scoped.map((item) => ({
+    status: item.status,
+    priority: item.details?.priority,
+    customerOrganizationId: item.customerOrganizationId,
+    customerShortName: item.customerShortName,
+    executorOrganizationId: item.executorOrganizationId,
+    executorShortName: item.executorShortName,
+  }))
+  const filterChoices = requestListFilterChoices(sources, listFilter, {
+    all: t('requests.filter-all'),
+    status: (item) => t(`requests.status.${item}`),
+    priority: (item) => t(`requests.draft.priority-${item}`),
+    priorityEmpty: t('requests.priority-empty'),
+    unnamed: dash,
+  })
+  const rows = scoped
+    .filter((_, index) => requestMatchesListFilters(sources[index], listFilter))
     .slice()
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.number.localeCompare(left.number))
   const openRow = (row: (typeof rows)[number]) => {
@@ -117,41 +133,42 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
     }
     navigate(href(routes.requests.detail(row.id), 'organization'))
   }
-  const filtersActive = search.trim() !== '' || status !== 'all'
+  const filtersActive = search.trim() !== '' || status !== 'all' || priority !== 'all' || customerId !== 'all' || executorId !== 'all'
+  const resetFilters = () => {
+    setSearch('')
+    setStatus('all')
+    setPriority('all')
+    setCustomerId('all')
+    setExecutorId('all')
+  }
   const when = (value: string) => requestLabel(formatRequestWhen(value, i18n.language), dash)
+  const priorityText = (value: string | undefined) => {
+    if (!value?.trim() || !isRequestPriority(value)) return t('requests.priority-empty')
+    return t(`requests.draft.priority-${value}`)
+  }
 
   return (
     <WorkPage>
-      <PageHeader
-        title={t('requests.page-title')}
-        description={t('requests.page-lead')}
-        actions={canCreate ? (
-          <Button type="button" onClick={() => navigate(href(routes.requests.new(), 'organization'))}>
-            <Plus aria-hidden />
-            {t('requests.create')}
-          </Button>
-        ) : undefined}
-      />
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" aria-label={t('requests.stats.label')}>
-        {STATS.map((key) => (
-          <Card key={key} className="shadow-sm">
-            <div className="p-4">
-              <p className="text-xs font-medium text-muted-foreground">{t(`requests.stats.${key === 'fresh' ? 'new' : key}`)}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{statValue[key]}</p>
-            </div>
-          </Card>
-        ))}
-      </section>
-      <div className="flex gap-4 overflow-x-auto border-b border-border" role="tablist" aria-label={t('requests.tabs.label')}>
-        {tabs.map((item) => (
-          <TabButton key={item} active={activeTab === item} onClick={() => setTab(item)}>
-            <span className="whitespace-nowrap">{t(`requests.tabs.${item}`)}</span>
-          </TabButton>
-        ))}
+      <div className="flex flex-col gap-3 border-b border-border sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex gap-4 overflow-x-auto" role="tablist" aria-label={t('requests.tabs.label')}>
+          {tabs.map((item) => (
+            <TabButton key={item} active={activeTab === item} onClick={() => setTab(item)}>
+              <span className="whitespace-nowrap">{t(`requests.tabs.${item}`)}</span>
+            </TabButton>
+          ))}
+        </div>
+        {canCreate ? (
+          <div className="pb-2">
+            <Button type="button" className="shrink-0" onClick={() => navigate(href(routes.requests.new(), 'organization'))}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {t('requests.create')}
+            </Button>
+          </div>
+        ) : null}
       </div>
       <Card className="min-w-0 overflow-hidden shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 border-b border-border p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -159,24 +176,41 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
               aria-label={t('requests.search-label')}
               className="sm:max-w-xs"
             />
-            <Select value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-              <SelectTrigger className="w-full sm:w-52" aria-label={t('requests.status-filter')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('requests.status-all')}</SelectItem>
-                {REQUEST_STATUSES.map((item) => (
-                  <SelectItem key={item} value={item}>{t(`requests.status.${item}`)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filtersActive ? (
-              <Button type="button" variant="ghost" onClick={() => { setSearch(''); setStatus('all') }}>
-                {t('requests.reset')}
-              </Button>
-            ) : null}
+            <div className="flex items-center gap-3">
+              {filtersActive ? (
+                <Button type="button" variant="ghost" onClick={resetFilters}>
+                  {t('requests.reset')}
+                </Button>
+              ) : null}
+              <p className="text-sm text-muted-foreground">{t('requests.results', { count: rows.length })}</p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">{t('requests.results', { count: rows.length })}</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <CountedFilter
+              label={t('requests.status-filter')}
+              value={status}
+              options={filterChoices.status}
+              onChange={(value) => setStatus(value as StatusFilter)}
+            />
+            <CountedFilter
+              label={t('requests.priority-filter')}
+              value={priority}
+              options={filterChoices.priority}
+              onChange={(value) => setPriority(value as PriorityFilter)}
+            />
+            <CountedFilter
+              label={t('requests.customer-filter')}
+              value={customerId === 'all' ? 'all' : String(customerId)}
+              options={filterChoices.customer}
+              onChange={(value) => setCustomerId(requestPartyFilterValue(value))}
+            />
+            <CountedFilter
+              label={t('requests.executor-filter')}
+              value={executorId === 'all' ? 'all' : String(executorId)}
+              options={filterChoices.executor}
+              onChange={(value) => setExecutorId(requestPartyFilterValue(value))}
+            />
+          </div>
         </div>
         {rows.length === 0 ? (
           <div className="p-4">
@@ -187,11 +221,12 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
             <TableHeader>
               <TableRow>
                 <TableHead className="px-4">{t('requests.columns.number')}</TableHead>
-                <TableHead className="px-4">{t('requests.columns.created')}</TableHead>
+                <TableHead className="px-4">{t('requests.columns.title')}</TableHead>
                 <TableHead className="px-4">{t('requests.columns.customer')}</TableHead>
                 <TableHead className="px-4">{t('requests.columns.executor')}</TableHead>
-                <TableHead className="px-4">{t('requests.columns.title')}</TableHead>
                 <TableHead className="px-4">{t('requests.columns.status')}</TableHead>
+                <TableHead className="px-4">{t('requests.columns.priority')}</TableHead>
+                <TableHead className="px-4">{t('requests.columns.created')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -220,11 +255,12 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
                       {row.number}
                     </button>
                   </TableCell>
-                  <TableCell className="px-4 whitespace-nowrap text-muted-foreground">{when(row.createdAt)}</TableCell>
+                  <TableCell className="px-4 max-w-xs truncate">{requestLabel(row.title, dash)}</TableCell>
                   <TableCell className="px-4">{requestLabel(row.customerShortName, dash)}</TableCell>
                   <TableCell className="px-4">{requestLabel(row.executorShortName, dash)}</TableCell>
-                  <TableCell className="px-4 max-w-xs truncate">{requestLabel(row.title, dash)}</TableCell>
                   <TableCell className="px-4"><RequestStatusBadge status={row.status} /></TableCell>
+                  <TableCell className="px-4 text-muted-foreground">{priorityText(row.details?.priority)}</TableCell>
+                  <TableCell className="px-4 whitespace-nowrap text-muted-foreground">{when(row.createdAt)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -232,5 +268,42 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
         )}
       </Card>
     </WorkPage>
+  )
+}
+
+function CountedFilter({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: FilterChoice[]
+  onChange: (value: string) => void
+}) {
+  const id = useId()
+  const { t } = useTranslation()
+  const counted = (option: FilterChoice) => t('requests.filter-counted', { label: option.label, count: option.count })
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="w-full bg-card">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              className="pr-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus:data-[state=checked]:bg-primary focus:data-[state=checked]:text-primary-foreground [&>span:first-child]:hidden"
+            >
+              {counted(option)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

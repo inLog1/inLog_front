@@ -219,6 +219,9 @@ describe('organization administrator role', () => {
     })
     expect(assigned.status).toBe(201)
     expect(organizationAdministratorLabel(assigned.state, created.organization.id)).toBe('Лебедев Б.И. - Заведующий лабораторией')
+    const card = assigned.state.employees.find((item) => item.accountId === 2 && item.organizationId === created.organization.id)
+    expect(card?.archived).toBe(false)
+    expect(assigned.state.memberships.some((item) => item.userId === 2 && item.organizationId === created.organization.id)).toBe(true)
     expect(createOrganization(ready, 1, { ...organizationInput, inn: '12a', kpp: '770101001' })).toEqual({ error: 'invalid_organization' })
   })
 

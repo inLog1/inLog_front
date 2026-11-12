@@ -12,7 +12,8 @@ import {
     resolveProject,
     selectOrganizationParams,
     selectProjectParams,
-    omitsWorkspaceAddress,
+    shouldPersistWorkspace,
+    workspaceAddressPatch,
     workspaceHref,
     type CatalogLoad,
     type IdProbe,
@@ -83,10 +84,9 @@ function projectProbe(enabled: boolean, query: {
 
 export function useEnsureOrgProjectParams(type: OrgProjectSelectorType = 'all', options?: { persist?: boolean }) {
     const location = useLocation()
-    const bareAddress = omitsWorkspaceAddress(location.pathname)
-    const persist = options?.persist !== false && !bareAddress
-    const [searchParams, setSearchParams] = useSearchParams()
     const scope = type === 'organization' ? 'organization' : 'project'
+    const persist = shouldPersistWorkspace(location.pathname, scope, options?.persist !== false)
+    const [searchParams, setSearchParams] = useSearchParams()
     const organizationsQuery = useGetOrganizationsQuery()
     const organizationItems = useMemo(
         () => (organizationsQuery.data ?? []).filter((item) => Number.isInteger(item.id)),
@@ -152,13 +152,10 @@ export function useEnsureOrgProjectParams(type: OrgProjectSelectorType = 'all', 
     const currentProjectId = status === 'ready' && scope === 'project' ? project?.projectId ?? null : null
 
     useEffect(() => {
-        if (!bareAddress) return
-        if (!searchParams.has('org') && !searchParams.has('project')) return
-        const next = new URLSearchParams(searchParams)
-        next.delete('org')
-        next.delete('project')
+        const next = workspaceAddressPatch(location.pathname, searchParams)
+        if (!next) return
         setSearchParams(next, { replace: true })
-    }, [bareAddress, searchParams, setSearchParams])
+    }, [location.pathname, searchParams, setSearchParams])
 
     useEffect(() => {
         if (!persist) return

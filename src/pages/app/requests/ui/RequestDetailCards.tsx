@@ -3,17 +3,100 @@ import { useTranslation } from 'react-i18next'
 import {
   effectiveProgramLines,
   findWellById,
+  isRequestPriority,
   isRequestStatus,
   programPreparedSide,
   readProgramMeta,
   type RequestCatalog,
   type RequestEventView,
   type RequestListItem,
+  type RequestPriority,
+  type RequestProgramApproval,
   type RequestProgramStudyLine,
 } from '../../../../entities/request'
+import { cn } from '../../../../shared/lib/utils'
 import { Card } from '../../../../shared/ui/card'
 import { formatRequestDay, formatRequestWhen, requestLabel } from '../model/display'
 import { fieldCaption, optionLabel, wellCaption } from './draft/draft-labels'
+import { RequestStatusBadge, RequestStatusText } from './RequestStatusBadge'
+
+const PRIORITY_TOKEN: Record<RequestPriority, string> = {
+  low: '--low-priority',
+  medium: '--medium-priority',
+  high: '--important-priority',
+  critical: '--critical-priority',
+  normal: '--medium-priority',
+  urgent: '--important-priority',
+}
+
+const STAGE_TONE: Record<RequestProgramApproval, { chip: string; text: string }> = {
+  unspecified: {
+    chip: 'bg-muted text-muted-foreground',
+    text: 'text-muted-foreground',
+  },
+  draft: {
+    chip: 'bg-muted text-muted-foreground',
+    text: 'text-muted-foreground',
+  },
+  pending_customer: {
+    chip: 'bg-[color-mix(in_srgb,var(--primary)_14%,transparent)] text-primary',
+    text: 'text-primary',
+  },
+  returned: {
+    chip: 'bg-[color-mix(in_srgb,var(--warning)_22%,transparent)] text-[color-mix(in_srgb,var(--warning)_62%,var(--foreground))]',
+    text: 'text-[color-mix(in_srgb,var(--warning)_62%,var(--foreground))]',
+  },
+  approved: {
+    chip: 'bg-[color-mix(in_srgb,var(--success)_16%,transparent)] text-[color-mix(in_srgb,var(--success)_75%,var(--foreground))]',
+    text: 'text-[color-mix(in_srgb,var(--success)_75%,var(--foreground))]',
+  },
+}
+
+function isProgramApproval(value: string): value is RequestProgramApproval {
+  return value in STAGE_TONE
+}
+
+function FactRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-x-4 gap-y-1">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-right">{value}</dd>
+    </div>
+  )
+}
+
+function PriorityValue({ priority }: { priority: RequestPriority }) {
+  const { t } = useTranslation()
+  const token = PRIORITY_TOKEN[priority]
+  const color = `color-mix(in srgb, var(${token}) 70%, var(--foreground))`
+  return (
+    <span className="inline-flex items-center justify-end gap-1.5 font-medium">
+      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: `var(${token})` }} aria-hidden />
+      <span style={{ color }}>{t(`requests.draft.priority-${priority}`)}</span>
+    </span>
+  )
+}
+
+function StageValue({ approval }: { approval: RequestProgramApproval }) {
+  const { t } = useTranslation()
+  return (
+    <span className={cn('inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-0.5 text-left text-xs font-medium', STAGE_TONE[approval].chip)}>
+      <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+      <span className="min-w-0">{t(`requests.program.approval.${approval}`)}</span>
+    </span>
+  )
+}
+
+function StatusMark({ value, dash }: { value: string; dash: string }) {
+  if (!isRequestStatus(value)) return dash
+  return <RequestStatusText status={value} />
+}
+
+function StageMark({ value, dash }: { value: string; dash: string }) {
+  const { t } = useTranslation()
+  if (!isProgramApproval(value)) return dash
+  return <span className={cn('font-medium', STAGE_TONE[value].text)}>{t(`requests.program.approval.${value}`)}</span>
+}
 
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -42,26 +125,27 @@ export function RequestFactsCard({
     : ''
   const when = (value?: string) => value ? requestLabel(formatRequestWhen(value, i18n.language), dash) : dash
   const own = request.customerOrganizationId === request.executorOrganizationId
-  const rows = [
-    [t('requests.field-status'), t(`requests.status.${request.status}`)],
-    [t('requests.field-customer'), requestLabel(request.customerShortName, dash)],
-    [t('requests.columns.executor'), requestLabel(request.executorShortName, dash)],
-    [t('requests.field-author'), requestLabel(request.authorName, dash)],
-    [t('requests.field-sent'), when(request.sentAt)],
-    [t('requests.card.priority'), priority ? t(`requests.draft.priority-${priority}`, { defaultValue: priority }) : dash],
-    [t('requests.card.desired'), requestLabel(desired, dash)],
-    [t('requests.program.stage'), t(`requests.program.approval.${meta.approval}`)],
-    [t('requests.program.prepared-by'), side ? t(`requests.program.side.${side}`) : dash],
-    [t('requests.program.version'), meta.version > 0 ? String(meta.version) : dash],
+  const rows: { key: string; label: string; value: ReactNode }[] = [
+    { key: 'status', label: t('requests.field-status'), value: <RequestStatusBadge status={request.status} /> },
+    { key: 'customer', label: t('requests.field-customer'), value: requestLabel(request.customerShortName, dash) },
+    { key: 'executor', label: t('requests.columns.executor'), value: requestLabel(request.executorShortName, dash) },
+    { key: 'author', label: t('requests.field-author'), value: requestLabel(request.authorName, dash) },
+    { key: 'sent', label: t('requests.field-sent'), value: when(request.sentAt) },
+    {
+      key: 'priority',
+      label: t('requests.card.priority'),
+      value: priority && isRequestPriority(priority) ? <PriorityValue priority={priority} /> : dash,
+    },
+    { key: 'desired', label: t('requests.card.desired'), value: requestLabel(desired, dash) },
+    { key: 'stage', label: t('requests.program.stage'), value: <StageValue approval={meta.approval} /> },
+    { key: 'prepared', label: t('requests.program.prepared-by'), value: side ? t(`requests.program.side.${side}`) : dash },
+    { key: 'version', label: t('requests.program.version'), value: meta.version > 0 ? String(meta.version) : dash },
   ]
   return (
     <SectionCard title={t('requests.card.facts')}>
       <dl className="space-y-3">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="mt-1">{value}</dd>
-          </div>
+        {rows.map((row) => (
+          <FactRow key={row.key} label={row.label} value={row.value} />
         ))}
       </dl>
       {own ? <p className="text-muted-foreground">{t('requests.program.own')}</p> : null}
@@ -250,7 +334,6 @@ export function RequestBasisCard({
 export function RequestHistoryCard({ request, dash }: { request: RequestListItem; dash: string }) {
   const { t, i18n } = useTranslation()
   const events = request.events ?? []
-  const statusLabel = (value: string) => isRequestStatus(value) ? t(`requests.status.${value}`) : dash
   const title = (event: RequestEventView) => {
     if (event.type === 'derived' && event.previousStatus !== event.newStatus) {
       return t('requests.events.derived', { number: event.comment ?? dash })
@@ -271,16 +354,18 @@ export function RequestHistoryCard({ request, dash }: { request: RequestListItem
               {requestLabel(formatRequestWhen(event.at, i18n.language), dash)}
             </p>
             {event.previousStatus !== event.newStatus ? (
-              <p className="text-muted-foreground">{t('requests.events.transition', {
-                previous: statusLabel(event.previousStatus),
-                next: statusLabel(event.newStatus),
-              })}</p>
+              <p className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
+                <StatusMark value={event.previousStatus} dash={dash} />
+                <span aria-hidden>→</span>
+                <StatusMark value={event.newStatus} dash={dash} />
+              </p>
             ) : null}
             {event.previousApproval && event.nextApproval ? (
-              <p className="text-muted-foreground">{t('requests.events.program-transition', {
-                previous: t(`requests.program.approval.${event.previousApproval}`, { defaultValue: event.previousApproval }),
-                next: t(`requests.program.approval.${event.nextApproval}`, { defaultValue: event.nextApproval }),
-              })}</p>
+              <p className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
+                <StageMark value={event.previousApproval} dash={dash} />
+                <span aria-hidden>→</span>
+                <StageMark value={event.nextApproval} dash={dash} />
+              </p>
             ) : null}
             {event.comment && event.type !== 'derived' ? <p className="whitespace-pre-wrap">{event.comment}</p> : null}
           </li>

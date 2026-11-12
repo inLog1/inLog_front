@@ -13,7 +13,10 @@ import {
   searchWithoutWorkspace,
   selectOrganizationParams,
   selectProjectParams,
+  isRequestPath,
   omitsWorkspaceAddress,
+  shouldPersistWorkspace,
+  workspaceAddressPatch,
   workspaceHref,
 } from './workspace-context'
 
@@ -164,10 +167,21 @@ describe('workspace context', () => {
     expect(workspaceHref('/settings/profile', 'app', verified, true)).toBe('/settings/profile')
     expect(workspaceHref('/settings/organizations', 'app', verified, true)).toBe('/settings/organizations')
     expect(workspaceHref('/', 'project', verified, true)).toBe('/')
-    expect(workspaceHref('/requests', 'organization', verified, true)).toBe('/requests')
-    expect(workspaceHref('/requests/new', 'organization', verified, false)).toBe('/requests/new')
+    expect(workspaceHref('/requests', 'app', verified, true)).toBe('/requests?org=101')
+    expect(workspaceHref('/requests', 'organization', verified, true)).toBe('/requests?org=101')
+    expect(workspaceHref('/requests/new', 'organization', verified, false)).toBe('/requests/new?org=101')
+    expect(workspaceHref('/requests/req-1', 'organization', { organizationId: null, projectId: 1001 }, true)).toBe('/requests/req-1')
+    expect(isRequestPath('/requests/req-1/edit')).toBe(true)
     expect(omitsWorkspaceAddress('/requests/req-1/edit')).toBe(true)
     expect(omitsWorkspaceAddress('/scheduler/tasks')).toBe(false)
+    expect(shouldPersistWorkspace('/requests', 'organization', true)).toBe(true)
+    expect(shouldPersistWorkspace('/requests', 'project', true)).toBe(false)
+    expect(shouldPersistWorkspace('/', 'organization', true)).toBe(false)
+    const kept = workspaceAddressPatch('/requests', new URLSearchParams('org=201&project=1001'))
+    expect(kept?.get('org')).toBe('201')
+    expect(kept?.get('project')).toBeNull()
+    expect(workspaceAddressPatch('/requests', new URLSearchParams('org=201'))).toBeNull()
+    expect(workspaceAddressPatch('/', new URLSearchParams('org=201&project=1001'))?.toString()).toBe('')
     expect(searchWithoutWorkspace('?org=101&project=1001&task=slug&node=8&tab=2&next=1')).toBe('?next=1')
     expect(searchWithoutWorkspace('?org=101&project=1003')).toBe('')
   })

@@ -10,6 +10,7 @@ import { DIRECTORY_CATALOG_GRANTS } from './organization-grants'
 import { PERSONNEL_GRANT_DEFINITIONS } from './personnel-grants'
 import { REGISTRY_GRANT_DEFINITIONS } from './registry-grants'
 import { REQUEST_GRANT_DEFINITIONS } from './request-grants'
+import { ensureAssignedAdministratorStaff } from '../personnel/administrator-card'
 import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import { withResidentUsers } from './resident-users'
 import type { MockState } from './types'
@@ -36,6 +37,8 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Version 10 adds empty personnel collections and the personnel grant rows.
  * Organizations that have no workspace row receive the starter once. Existing workspace rows,
  * edited records and stored role grant lists are left as they are. Role origin is not invented.
+ * An assigned organization-administrator receives one personnel card and membership in that
+ * organization when they are still missing. Existing cards keep their stored values.
  * A ready personal installation also receives the resident accounts when their emails are absent.
  * Those accounts have no grants. Other namespaces are not extended.
  * Version 11 adds the system-registry grant rows for departments and workplaces.
@@ -88,8 +91,10 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const revisionsChanged = withRevisions !== withInstallation
   const withPersonnel = ensurePersonnelCatalog(withRevisions)
   const personnelChanged = withPersonnel !== withRevisions
-  const withResidents = withResidentUsers(withPersonnel)
-  const residentsChanged = withResidents !== withPersonnel
+  const withAdminStaff = ensureAssignedAdministratorStaff(withPersonnel)
+  const adminStaffChanged = withAdminStaff !== withPersonnel
+  const withResidents = withResidentUsers(withAdminStaff)
+  const residentsChanged = withResidents !== withAdminStaff
   const withRequests = ensureRequestGrants(withResidents)
   const requestsChanged = withRequests !== withResidents
   const withRequestBodies = migrateStoredRequestDetails(withRequests)
@@ -98,7 +103,7 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const requestFilesChanged = withRequestFiles !== withRequestBodies
   const programRoles = attachRequestProgramGrants(roles)
   const programRolesChanged = programRoles.changed
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !residentsChanged && !requestsChanged && !requestBodiesChanged && !requestFilesChanged && !programRolesChanged) {
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !adminStaffChanged && !residentsChanged && !requestsChanged && !requestBodiesChanged && !requestFilesChanged && !programRolesChanged) {
     return { state: record, changed: false }
   }
   return {

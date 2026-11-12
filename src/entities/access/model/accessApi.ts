@@ -92,7 +92,7 @@ export const accessApi = platformApi.injectEndpoints({
     }),
     createAccessAssignment: build.mutation<{ assignment: AccessDirectory['assignments'][number]; idempotent: boolean }, AssignmentWrite>({
       query: (body) => ({ url: 'access/assignments/', method: 'POST', body }),
-      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }],
+      invalidatesTags: ['AccessControl', 'SessionAccess', { type: 'Personnel', id: 'overview' }, { type: 'Personnel', id: 'list' }],
     }),
     revokeAccessAssignment: build.mutation<{ revoked: string }, { assignmentId: string; expectedAccessVersion?: number }>({
       query: ({ assignmentId, expectedAccessVersion }) => ({

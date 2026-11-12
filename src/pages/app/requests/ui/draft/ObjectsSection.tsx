@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Trash2 } from 'lucide-react'
 import {
-  REQUEST_DEPTH_UNITS,
   REQUEST_TITLE_MAX,
   describeIntervalRemoval,
   describeWellRemoval,
@@ -124,7 +123,9 @@ export function ObjectsSection({
   }
 
   const changeRow = (wellId: string, current: IntervalRow, patch: Partial<IntervalRow>) => {
-    const next = { ...current, ...patch, wellId }
+    const next = { ...current, ...patch, wellId, unit: 'm' as const }
+    if (patch.from != null) next.from = depthText(patch.from)
+    if (patch.to != null) next.to = depthText(patch.to)
     setRows((prev) => ({ ...prev, [next.id]: next }))
     const issue = intervalDraftIssue(next.from, next.to, next.unit)
     if (issue) return
@@ -252,20 +253,6 @@ export function ObjectsSection({
                                   <Trash2 aria-hidden />
                                 </Button>
                               </div>
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                <DraftField label={t('requests.draft.interval-unit')}>
-                                  <Select value={row.unit} onValueChange={(unit) => changeRow(well.id, row, { unit: unit === 'm' ? 'm' : row.unit })}>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {REQUEST_DEPTH_UNITS.map((unit) => (
-                                        <SelectItem key={unit} value={unit}>{t('requests.draft.depth-m')}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </DraftField>
-                              </div>
                               {issue && (started || saveAttempted) ? <p className="text-xs text-destructive">{t(`requests.errors.${issue}`)}</p> : null}
                             </div>
                           )
@@ -377,6 +364,20 @@ export function ObjectsSection({
       </Dialog>
     </DraftSection>
   )
+}
+
+function depthText(value: string): string {
+  const normalized = value.replace(',', '.')
+  let result = ''
+  let dotted = false
+  for (const char of normalized) {
+    if (char >= '0' && char <= '9') result += char
+    else if (char === '.' && !dotted) {
+      dotted = true
+      result += char
+    }
+  }
+  return result
 }
 
 function visibleRows(well: RequestWell, rows: Record<string, IntervalRow>): IntervalRow[] {

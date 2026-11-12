@@ -4,6 +4,7 @@ import { switchUser } from '../auth/flow'
 import { createEmptyInstallation } from '../db/empty-installation'
 import { configureInstallation, createOrganization } from '../installation/service'
 import { ORGANIZATION_ADMINISTRATOR_ROLE_NAME } from '../organizations/organization-admin-role'
+import { createAssignment } from '../access/service'
 import { archiveEmployee, createEmployee, linkEmployeeAccount } from './employees'
 import { readCorporateOverview } from './overview'
 
@@ -245,5 +246,62 @@ describe('corporate personnel overview', () => {
     })
     expect(body.organizations.find((item) => item.id === opened.secondId)?.requestCount).toBe(1)
     expect(body.organizations.find((item) => item.id === opened.secondId)?.administrator).toBeNull()
+  })
+
+  it('lists the assigned organization administrator as personnel of that organization', () => {
+    const opened = twoOrganizations()
+    const role = opened.state.roles.find((item) =>
+      item.origin?.template === 'organization-administrator'
+      && item.ownerScope?.type === 'organization'
+      && item.ownerScope.organizationId === opened.firstId,
+    )
+    const prepared = {
+      ...opened.state,
+      users: [
+        ...opened.state.users,
+        {
+          id: 2,
+          email: 'lab@example.test',
+          name: 'Борис',
+          patronymic: 'Ильич',
+          surname: 'Лебедев',
+          position: 'Заведующий лабораторией',
+          legacyRole: 'member' as const,
+          status: 'active' as const,
+        },
+      ],
+    }
+    const owner = tokenFor(prepared, 1)
+    const assigned = createAssignment(owner.state, owner.token, {
+      userId: 2,
+      roleId: role?.id ?? '',
+      scope: { type: 'organization', organizationId: opened.firstId, corporationId: 1 },
+    })
+    expect(assigned.status).toBe(201)
+    const view = readCorporateOverview(assigned.state, owner.token)
+    const body = view.body as {
+      organizations: Array<{ id: number; employeeCount: number | null; administrator: string | null }>
+      personnel: Array<{ name: string; organizationId: number; archived: boolean; position: string; roles: { displayName: string }[] | null }>
+    }
+    expect(body.organizations.find((item) => item.id === opened.firstId)).toMatchObject({
+      employeeCount: 1,
+      administrator: 'Лебедев Б.И. - Заведующий лабораторией',
+    })
+    const row = body.personnel.find((item) => item.organizationId === opened.firstId)
+    expect(row).toMatchObject({
+      name: 'Лебедев Борис Ильич',
+      archived: false,
+      position: 'Заведующий лабораторией',
+    })
+    expect(row?.roles?.map((item) => item.displayName)).toEqual([ORGANIZATION_ADMINISTRATOR_ROLE_NAME])
+    expect(body.personnel.some((item) => item.organizationId === opened.secondId)).toBe(false)
+
+    const again = createAssignment(assigned.state, owner.token, {
+      userId: 2,
+      roleId: role?.id ?? '',
+      scope: { type: 'organization', organizationId: opened.firstId, corporationId: 1 },
+    })
+    expect(again.status).toBe(200)
+    expect(again.state.employees.filter((item) => item.accountId === 2 && item.organizationId === opened.firstId)).toHaveLength(1)
   })
 })

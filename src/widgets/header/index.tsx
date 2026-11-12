@@ -2,6 +2,7 @@ import { ChevronDown, Languages, Menu } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useUpdateUserSettingsMutation } from '../../entities/user/model/userSlice'
 import { OrgProjectSelector } from '../../features/org-project-selector'
+import { OrganizationSwitcher } from '../../features/org-project-selector/ui/OrganizationSwitcher'
 import { errorsHandler } from '../../shared/lib/errors-handler'
 import { cn } from '../../shared/lib/utils'
 import type { LanguageType } from '../../shared/types/enums'
@@ -14,11 +15,12 @@ import { NotificationsMenu } from './ui/NotificationsMenu'
 type HeaderProps = {
   crumbs: PageCrumb[]
   showWorkspace: boolean
+  showOrganization: boolean
   menuOpen: boolean
   onOpenMenu: () => void
 }
 
-export function Header({ crumbs, showWorkspace, menuOpen, onOpenMenu }: HeaderProps) {
+export function Header({ crumbs, showWorkspace, showOrganization, menuOpen, onOpenMenu }: HeaderProps) {
   const { t } = useTranslation()
 
   return (
@@ -36,9 +38,13 @@ export function Header({ crumbs, showWorkspace, menuOpen, onOpenMenu }: HeaderPr
         >
           <Menu className="h-4 w-4" />
         </Button>
-        <div className="min-w-0 flex-1 text-shell-header-foreground">
-          {crumbs.length > 0 ? <PageCrumbs items={crumbs} tone="shell" /> : null}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="min-w-0 text-shell-header-foreground">
+            {crumbs.length > 0 ? <PageCrumbs items={crumbs} tone="shell" /> : null}
+          </div>
+          {showOrganization ? <OrganizationSwitcher /> : null}
         </div>
+        <div className="min-w-0 flex-1 md:hidden" />
         <CompactTools className="md:hidden" />
       </div>
 

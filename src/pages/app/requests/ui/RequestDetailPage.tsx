@@ -280,7 +280,7 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
         actions={actions}
       />
       <RequestReasonNotice request={request} />
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
         <div className="min-w-0 space-y-4">
           <RequestObjectsCard request={request} catalog={catalog.currentData} dash={dash} />
           <RequestNeedsCard request={request} catalog={catalog.currentData} dash={dash} />
@@ -300,9 +300,11 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
             ) : undefined}
           />
           <RequestBasisCard request={request} organizationId={organizationId} />
+        </div>
+        <div className="space-y-4">
+          <RequestFactsCard request={request} dash={dash} />
           <RequestHistoryCard request={request} dash={dash} />
         </div>
-        <RequestFactsCard request={request} dash={dash} />
       </div>
       <RequestReviewDialog kind={dialog} busy={busy} onClose={() => { if (!busy) setDialog(null) }} onConfirm={confirm} />
     </WorkPage>

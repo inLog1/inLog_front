@@ -30,6 +30,7 @@ import type { AccessAuditEntry, AccessRole, AccessScope } from '../../../entitie
 import type { FlowResult } from '../auth/flow'
 import { principal, toSnapshot } from '../auth/flow'
 import type { MockState, MockUser } from '../db/types'
+import { ensureOrganizationAdministratorStaff } from '../personnel/administrator-card'
 
 type RoleBodyWrite = RoleBody
 type AssignmentBodyWrite = AssignmentBody
@@ -296,6 +297,13 @@ function scopeInOrganization(scope: AccessScope, organizationId: number): boolea
 
 function memberOf(state: MockState, userId: number, organizationId: number): boolean {
   return state.memberships.some((item) => item.userId === userId && item.organizationId === organizationId)
+}
+
+function withAdministratorStaff(state: MockState, role: AccessRole, userId: number, scope: AccessScope): MockState {
+  if (role.origin?.template !== 'organization-administrator') return state
+  const organizationId = organizationOf(scope)
+  if (organizationId == null) return state
+  return ensureOrganizationAdministratorStaff(state, organizationId, userId)
 }
 
 function assignmentInView(
@@ -1015,6 +1023,7 @@ export function createAssignment(state: MockState, token: string | null, write: 
     item.userId === write.userId && item.roleId === write.roleId && sameScope(item.scope, write.scope),
   )
   if (existing) {
+    const staffed = withAdministratorStaff(state, role, write.userId, write.scope)
     const view: AccessAssignmentView = {
       id: existing.id,
       userId: existing.userId,
@@ -1022,9 +1031,9 @@ export function createAssignment(state: MockState, token: string | null, write: 
       roleId: existing.roleId,
       roleName: role.displayName,
       scope: existing.scope,
-      canRevoke: assignmentCanBeRevoked(state, who.user.id, existing.scope),
+      canRevoke: assignmentCanBeRevoked(staffed, who.user.id, existing.scope),
     }
-    return { state, status: 200, body: { assignment: view, idempotent: true } }
+    return { state: staffed, status: 200, body: { assignment: view, idempotent: true } }
   }
   const denial = rolePlacementDenial(snapshot, who.user.id, role, write.scope, write.userId)
   if (denial) return fail(state, 403, denial)
@@ -1043,8 +1052,9 @@ export function createAssignment(state: MockState, token: string | null, write: 
     after: assignment,
   })
   saved.assignments = [...state.assignments, assignment]
+  const staffed = withAdministratorStaff(saved, role, write.userId, write.scope)
   return {
-    state: saved,
+    state: staffed,
     status: 201,
     body: {
       assignment: {
@@ -1054,7 +1064,7 @@ export function createAssignment(state: MockState, token: string | null, write: 
         roleId: assignment.roleId,
         roleName: role.displayName,
         scope: assignment.scope,
-        canRevoke: assignmentCanBeRevoked(saved, who.user.id, assignment.scope),
+        canRevoke: assignmentCanBeRevoked(staffed, who.user.id, assignment.scope),
       },
       idempotent: false,
     },

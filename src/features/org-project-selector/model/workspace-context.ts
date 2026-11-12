@@ -218,17 +218,55 @@ export type WorkspaceLinkScope = 'project' | 'organization' | 'app' | 'public'
 
 const WORKSPACE_KEYS = ['org', 'project', 'task', 'node', 'tab'] as const
 
-/** Home and requests do not carry the header workspace in the address. */
+function barePath(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+}
+
+/** Requests show one organization. They do not carry a project. */
+export function isRequestPath(pathname: string): boolean {
+  const path = barePath(pathname)
+  return path === '/requests' || path.startsWith('/requests/')
+}
+
+/** Home carries no workspace params. Requests carry the organization only, so both omit the project address. */
 export function omitsWorkspaceAddress(pathname: string): boolean {
-  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
-  return path === '/' || path === '/requests' || path.startsWith('/requests/')
+  const path = barePath(pathname)
+  return path === '/' || isRequestPath(path)
+}
+
+/**
+ * Home drops org and project.
+ * Requests keep org and drop project.
+ * Other addresses stay as they are. Null means nothing to change.
+ */
+export function workspaceAddressPatch(pathname: string, current: URLSearchParams): URLSearchParams | null {
+  if (!omitsWorkspaceAddress(pathname)) return null
+  const next = new URLSearchParams(current)
+  let changed = false
+  if (next.has('project')) {
+    next.delete('project')
+    changed = true
+  }
+  if (!isRequestPath(pathname) && next.has('org')) {
+    next.delete('org')
+    changed = true
+  }
+  return changed ? next : null
+}
+
+/** Requests remember the organization. Home does not write a workspace selection. */
+export function shouldPersistWorkspace(pathname: string, scope: WorkspaceScope, persist: boolean): boolean {
+  if (!persist) return false
+  if (!omitsWorkspaceAddress(pathname)) return true
+  return isRequestPath(pathname) && scope === 'organization'
 }
 
 /**
  * One builder for section links.
  * A project section keeps a verified org and project.
  * An organization section keeps org, and a project only when it is already verified in the URL.
- * Home, requests and other app pages have no header workspace selector, so they do not receive org or project.
+ * Requests keep the organization and never a project.
+ * Home and other app pages do not receive org or project.
  * task, node and tab are never copied. Public destinations and logout get none of them.
  */
 export function workspaceHref(
@@ -237,7 +275,12 @@ export function workspaceHref(
   verified: { organizationId: number | null; projectId: number | null },
   explicitProject: boolean,
 ): string {
-  if (scope === 'public' || scope === 'app' || omitsWorkspaceAddress(pathname)) return pathname
+  if (scope === 'public') return pathname
+  if (isRequestPath(pathname)) {
+    if (verified.organizationId == null) return pathname
+    return `${pathname}?org=${verified.organizationId}`
+  }
+  if (scope === 'app' || omitsWorkspaceAddress(pathname)) return pathname
   const params = new URLSearchParams()
   if (verified.organizationId != null) params.set('org', String(verified.organizationId))
   const keepProject = scope === 'organization' ? explicitProject : verified.projectId != null

@@ -12,6 +12,7 @@ import {
   canOpenProjectManagement,
   sectionAccess,
   sectionByPath,
+  showsOrganizationSelector,
   showsProjectSelector,
   shouldLoadProjectTasks,
   showRequestsNotice,
@@ -166,6 +167,11 @@ describe('navigation catalog', () => {
     expect(showsProjectSelector('/requests/new')).toBe(false)
     expect(showsProjectSelector('/requests/req-customer-draft/edit')).toBe(false)
     expect(showsProjectSelector('/scheduler/tasks')).toBe(true)
+    expect(showsOrganizationSelector('/requests')).toBe(true)
+    expect(showsOrganizationSelector('/requests/new')).toBe(true)
+    expect(showsOrganizationSelector('/requests/req-customer-draft/edit')).toBe(true)
+    expect(showsOrganizationSelector('/scheduler/tasks')).toBe(false)
+    expect(showsOrganizationSelector('/')).toBe(false)
   })
 
   it('keeps implemented sections in live without pretending grants were checked', () => {

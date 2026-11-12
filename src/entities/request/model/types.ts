@@ -36,21 +36,20 @@ export type RequestRecord = {
 
 export const REQUEST_TITLE_MAX = 200
 
+/**
+ * Agreement lifecycle. Codes stay stable when a label changes.
+ * `sent` is shown as «Направлена»: the laboratory has the request, review has not started.
+ * `program_approval` is the request status while the customer decides on the programme.
+ */
 export const REQUEST_STATUSES = [
   'draft',
   'sent',
   'in_review',
   'rework',
-  'clarification',
-  'accepted',
+  'program_approval',
   'approved',
-  'distributed',
-  'in_progress',
-  'results_published',
-  'completed',
   'rejected',
   'withdrawn',
-  'cancelled',
 ] as const
 
 export type RequestStatus = (typeof REQUEST_STATUSES)[number]
@@ -58,8 +57,8 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number]
 /** Buckets for later list filters. Incoming and "mine" are not statuses. */
 export const REQUEST_STATUS_GROUPS = {
   draft: ['draft'],
-  inProgress: ['sent', 'in_review', 'rework', 'clarification', 'accepted', 'approved', 'distributed', 'in_progress', 'results_published'],
-  closed: ['completed', 'rejected', 'withdrawn', 'cancelled'],
+  inProgress: ['sent', 'in_review', 'rework', 'program_approval', 'approved'],
+  closed: ['rejected', 'withdrawn'],
 } as const satisfies Record<string, readonly RequestStatus[]>
 
 export type RequestStatusGroup = keyof typeof REQUEST_STATUS_GROUPS
