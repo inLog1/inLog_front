@@ -7,6 +7,7 @@ import { routes } from '../../../shared/lib/routes'
 import { Button } from '../../../shared/ui/button'
 import { LabeledIconSelect } from '../../../shared/ui/labeled-icon-select'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select'
+import { organizationOptionLabel } from '../model/request-organizations'
 import { type OrgProjectSelectorType, useEnsureOrgProjectParams } from '../model/useEnsureOrgProjectParams'
 
 interface Props {
@@ -82,7 +83,7 @@ const OrgProjectSelector = ({
                         value={currentOrgId ? String(currentOrgId) : ''}
                         options={organizations.map((org) => ({
                             value: String(org.id),
-                            label: org.fullName,
+                            label: organizationOptionLabel(org),
                         }))}
                         onValueChange={handleOrgChange}
                         placeholder={t('scheduler-page.select-organization-first')}
