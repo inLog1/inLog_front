@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyRequestDraft } from './draft'
-import { emptyProgramMeta, inspectProgramForApproval, lineFromNeed } from './program'
+import { emptyProgramMeta, inspectProgramForApproval, lineFromNeed, programLinesRepeatNeeds } from './program'
 
 const catalog = {
   workKinds: ['work-porosity', 'work-permeability'],
@@ -92,5 +92,14 @@ describe('study programme approval', () => {
       meta: { ...emptyProgramMeta(), lines: [{ ...line, quantity: null }] },
       catalog,
     }).ok).toBe(true)
+  })
+
+  it('treats a copied study line as the same need, and a changed quantity as a laboratory decision', () => {
+    const details = openNeed()
+    const need = { ...details.needs[0]!, researchId: 'work-porosity', quantity: 15, unitId: 'unit-sample' }
+    expect(programLinesRepeatNeeds([need], [lineFromNeed(need)])).toBe(true)
+    expect(programLinesRepeatNeeds([need], [])).toBe(false)
+    expect(programLinesRepeatNeeds([need], [{ ...lineFromNeed(need), quantity: 4 }])).toBe(false)
+    expect(programLinesRepeatNeeds([need], [{ ...lineFromNeed(need), note: 'Уточнение' }])).toBe(false)
   })
 })

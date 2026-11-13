@@ -2,6 +2,7 @@ import { http, HttpResponse, type HttpHandler } from 'msw'
 import { bearer, commit, json, load, MOCK_PREFIX, positiveId, readJson, reply } from '../http'
 import {
   createRequest,
+  deleteRequest,
   deleteRequestBasis,
   approveRequestProgram,
   deriveRequest,
@@ -62,6 +63,13 @@ export const requestHandlers: HttpHandler[] = [
   http.patch(`${MOCK_PREFIX}/requests/:requestId/`, async ({ request, params }) => {
     const body = await readJson(request)
     return commit((state) => updateRequest(state, bearer(request), String(params.requestId), body))
+  }),
+  http.delete(`${MOCK_PREFIX}/requests/:requestId/`, async ({ request, params }) => {
+    const ready = await load('requests/:requestId/')
+    if (ready instanceof Response) return ready
+    const organizationId = organizationQuery(request)
+    if (organizationId == null) return json({ code: 'invalid_organization' }, 400)
+    return commit((state) => deleteRequest(state, bearer(request), String(params.requestId), organizationId))
   }),
   http.post(`${MOCK_PREFIX}/requests/:requestId/basis/`, async ({ request, params }) => {
     const ready = await load('requests/:requestId/basis/')

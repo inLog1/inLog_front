@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
+  effectiveProgramLines,
+  programLinesRepeatNeeds,
   readProgramMeta,
   type RequestProgramStudyLine,
   useApproveRequestProgramMutation,
@@ -137,12 +139,17 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
   const executor = request.executorOrganizationId === organizationId
   const customer = request.customerOrganizationId === organizationId
   const meta = readProgramMeta(request.details?.programMeta)
+  const needs = request.details?.needs ?? []
+  const programLines = meta.approval === 'approved' && meta.approvedSnapshot
+    ? meta.approvedSnapshot.lines
+    : effectiveProgramLines(needs, meta)
+  const programNote = (meta.approval === 'approved' && meta.approvedSnapshot ? meta.approvedSnapshot.note : meta.note).trim()
   const program = programActions({
     status: request.status,
     customerOrganizationId: request.customerOrganizationId,
     executorOrganizationId: request.executorOrganizationId,
     organizationId,
-    needs: request.details?.needs ?? [],
+    needs,
     meta,
     canManage: canManageProgram,
     canApprove: canApproveProgram,
@@ -161,6 +168,9 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
       toast.success(t(done))
     })
   }
+  const showSeparateProgram = program.includes('save')
+    || programNote !== ''
+    || (programLines.length > 0 && !programLinesRepeatNeeds(needs, programLines))
   const actions = (
     <>
       {executor && canAccept && request.status === 'sent' ? (
@@ -284,21 +294,23 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
         <div className="min-w-0 space-y-4">
           <RequestObjectsCard request={request} catalog={catalog.currentData} dash={dash} />
           <RequestNeedsCard request={request} catalog={catalog.currentData} dash={dash} />
-          <RequestProgramCard
-            request={request}
-            catalog={catalog.currentData}
-            dash={dash}
-            editor={program.includes('save') ? (
-              <RequestProgramEditor
-                request={request}
-                catalog={catalog.currentData}
-                lines={lines}
-                note={note}
-                onLines={setLines}
-                onNote={setNote}
-              />
-            ) : undefined}
-          />
+          {showSeparateProgram ? (
+            <RequestProgramCard
+              request={request}
+              catalog={catalog.currentData}
+              dash={dash}
+              editor={program.includes('save') ? (
+                <RequestProgramEditor
+                  request={request}
+                  catalog={catalog.currentData}
+                  lines={lines}
+                  note={note}
+                  onLines={setLines}
+                  onNote={setNote}
+                />
+              ) : undefined}
+            />
+          ) : null}
           <RequestBasisCard request={request} organizationId={organizationId} />
         </div>
         <div className="space-y-4">

@@ -3,7 +3,7 @@ import { organizationRequestTotal } from './count'
 import { resolveRequestParties } from './parties'
 import { requestStatusGroup, requestStatusLabelKey } from './status'
 import { requestMatchesTab, requestRegistryStats, requestTabs } from './registry'
-import { canReadRequest, isAuthoredBy, isIncomingSent, requestReadDenial } from './visibility'
+import { canReadRequest, isAuthoredBy, isIncomingSent, isRequestFiler, requestReadDenial } from './visibility'
 import type { RequestRecord } from './types'
 
 const customer = { id: 201, kind: 'customer' as const }
@@ -117,6 +117,20 @@ describe('request visibility', () => {
     expect(canReadRequest(own, 101, true)).toBe(true)
     expect(canReadRequest(draft, 101, false)).toBe(false)
     expect(canReadRequest(own, 201, true)).toBe(false)
+  })
+
+  it('lets only the filing organization delete, including after the request was sent', () => {
+    const customerFiled = request({ status: 'in_review' })
+    expect(isRequestFiler(customerFiled, 201)).toBe(true)
+    expect(isRequestFiler(customerFiled, 101)).toBe(false)
+    const laboratoryFiled = request({
+      status: 'sent',
+      customerOrganizationId: 201,
+      executorOrganizationId: 101,
+      filedByOrganizationId: 101,
+    })
+    expect(isRequestFiler(laboratoryFiled, 101)).toBe(true)
+    expect(isRequestFiler(laboratoryFiled, 201)).toBe(false)
   })
 
   it('filters my requests by author after the read check', () => {

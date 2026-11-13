@@ -3,6 +3,7 @@ import {
   REQUEST_TITLE_MAX,
   canReadRequest,
   canReviseRequest,
+  isRequestFiler,
   copyProgramSnapshot,
   copyRequestDetails,
   customerProgramIsComplete,
@@ -433,6 +434,35 @@ export function uploadRequestBasis(
     requests: current.map((item) => item.id === request.id ? nextRequest : item),
   }
   return done(nextState, 200, present(nextState, nextRequest))
+}
+
+/**
+ * Removes the request, its basis file and its history.
+ * The filing organization needs requests.update. A separate delete grant is not added:
+ * a stored role is not rewritten when the catalog grows, and update is already on the filing roles.
+ * The other party can see that the row is gone. They cannot delete it.
+ */
+export function deleteRequest(
+  state: MockState,
+  token: string | null,
+  requestId: string,
+  organizationId: number,
+): FlowResult {
+  const who = principal(state, token)
+  if (!who.ok) return who.result
+  if (!organizationOf(state, organizationId)) return problem(state, 404, 'not_found')
+  const request = requestsOf(state).find((item) => item.id === requestId)
+  if (!request) return problem(state, 404, 'not_found')
+  const denial = requestReadDenial(request, organizationId, allows(state, who.user.id, organizationId, 'update'))
+  if (denial === 'hidden') return problem(state, 404, 'not_found')
+  if (denial === 'forbidden') return problem(state, 403, 'forbidden')
+  if (!isRequestFiler(request, organizationId)) return problem(state, 403, 'not_filer')
+  const withoutRequest = {
+    ...state,
+    requests: requestsOf(state).filter((item) => item.id !== request.id),
+    requestEvents: (state.requestEvents ?? []).filter((item) => item.requestId !== request.id),
+  }
+  return done(removeBasisFile(withoutRequest, request.id), 200, { id: request.id })
 }
 
 export function deleteRequestBasis(

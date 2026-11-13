@@ -170,6 +170,13 @@ export const requestApi = platformApi.injectEndpoints({
         { type: 'Requests', id: `org-${arg.organizationId}` },
       ],
     }),
+    deleteRequest: build.mutation<{ id: string }, { organizationId: number; requestId: string }>({
+      query: ({ organizationId, requestId }) => ({
+        url: `requests/${requestId}/?organization=${organizationId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [ { type: 'Requests' }, overviewTag ],
+    }),
     deleteRequestBasis: build.mutation<RequestResponse, { organizationId: number; requestId: string }>({
       query: ({ organizationId, requestId }) => ({
         url: `requests/${requestId}/basis/?organization=${organizationId}`,
@@ -252,6 +259,7 @@ export const {
   useUpdateRequestMutation,
   useUploadRequestBasisMutation,
   useDeleteRequestBasisMutation,
+  useDeleteRequestMutation,
   useDeriveRequestMutation,
   useRejectRequestMutation,
   useReturnRequestMutation,

@@ -8,8 +8,21 @@ export type VisibleRequest = {
   status: RequestStatus
 }
 
-function draftOwnerId(request: VisibleRequest): number {
+function draftOwnerId(request: Pick<VisibleRequest, 'customerOrganizationId' | 'filedByOrganizationId'>): number {
   return request.filedByOrganizationId ?? request.customerOrganizationId
+}
+
+/**
+ * The organization that saved the request may delete it.
+ * A missing filedByOrganizationId means the customer filed it.
+ * Status is not part of this check: a sent or reviewed request can still be removed.
+ * This is the party check. The update grant is checked separately.
+ */
+export function isRequestFiler(
+  request: Pick<VisibleRequest, 'customerOrganizationId' | 'filedByOrganizationId'>,
+  organizationId: number,
+): boolean {
+  return draftOwnerId(request) === organizationId
 }
 
 /**

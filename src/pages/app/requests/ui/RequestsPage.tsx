@@ -2,11 +2,14 @@ import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import {
+  isRequestFiler,
   isRequestPriority,
   requestMatchesTab,
   requestTabs,
+  useDeleteRequestMutation,
   useGetRequestsQuery,
   type RequestTab,
 } from '../../../../entities/request'
@@ -16,15 +19,30 @@ import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useWorkspaceHref } from '../../../../features/org-project-selector/model/useEnsureOrgProjectParams'
 import { useHasOrganizationGrant, useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
 import { routes } from '../../../../shared/lib/routes'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../../shared/ui/alert-dialog'
 import { Button } from '../../../../shared/ui/button'
 import { Card } from '../../../../shared/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../../shared/ui/dropdown-menu'
 import { Input } from '../../../../shared/ui/input'
 import { Label } from '../../../../shared/ui/label'
 import { PageState, WorkPage } from '../../../../shared/ui/page'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../shared/ui/select'
 import { TabButton } from '../../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
-import { formatRequestWhen, requestLabel, requestMatchesQuery } from '../model/display'
+import { formatRequestWhen, requestFailureCode, requestLabel, requestMatchesQuery } from '../model/display'
 import {
   requestListFilterChoices,
   requestMatchesListFilters,
@@ -38,6 +56,7 @@ import { RequestsBoundary } from './RequestsBoundary'
 type StatusFilter = RequestListFilterState['status']
 type PriorityFilter = RequestListFilterState['priority']
 type PartyFilter = RequestListFilterState['customerId']
+type PendingDelete = { id: string; number: string }
 
 export function RequestsPage() {
   return (
@@ -77,6 +96,9 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
   const [priority, setPriority] = useState<PriorityFilter>('all')
   const [customerId, setCustomerId] = useState<PartyFilter>('all')
   const [executorId, setExecutorId] = useState<PartyFilter>('all')
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [removeRequest, removeState] = useDeleteRequestMutation()
   const data = query.currentData
   const dash = t('requests.dash')
   if (query.isError && !data) {
@@ -145,6 +167,24 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
   const priorityText = (value: string | undefined) => {
     if (!value?.trim() || !isRequestPriority(value)) return t('requests.priority-empty')
     return t(`requests.draft.priority-${value}`)
+  }
+  const askDelete = (row: PendingDelete) => {
+    setDeleteError('')
+    setPendingDelete(row)
+  }
+  const confirmDelete = () => {
+    if (pendingDelete == null) return
+    const target = pendingDelete
+    void removeRequest({ organizationId, requestId: target.id }).unwrap()
+      .then(() => {
+        setPendingDelete(null)
+        setDeleteError('')
+        toast.success(t('requests.deleted'))
+      })
+      .catch((error: unknown) => {
+        const code = requestFailureCode(error)
+        setDeleteError(t(`requests.errors.${code ?? 'delete_failed'}`, { defaultValue: t('requests.errors.delete_failed') }))
+      })
   }
 
   return (
@@ -217,7 +257,7 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
             <PageState kind="empty" description={filtersActive || activeTab !== 'all' ? t('requests.empty-filter') : t('requests.empty')} />
           </div>
         ) : (
-          <Table className="min-w-[52rem]">
+          <Table className="min-w-[58rem]">
             <TableHeader>
               <TableRow>
                 <TableHead className="px-4">{t('requests.columns.number')}</TableHead>
@@ -227,6 +267,7 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
                 <TableHead className="px-4">{t('requests.columns.status')}</TableHead>
                 <TableHead className="px-4">{t('requests.columns.priority')}</TableHead>
                 <TableHead className="px-4">{t('requests.columns.created')}</TableHead>
+                <TableHead className="px-4 text-right">{t('requests.columns.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -236,7 +277,11 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
                   tabIndex={0}
                   className="cursor-pointer"
                   aria-label={t('requests.open-row', { number: row.number })}
-                  onClick={() => openRow(row)}
+                  onClick={(event) => {
+                    const target = event.target
+                    if (target instanceof Element && target.closest('button, a, [role="menu"], [role="menuitem"]')) return
+                    openRow(row)
+                  }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return
                     event.preventDefault()
@@ -261,13 +306,80 @@ function RequestsDesk({ organizationId }: { organizationId: number }) {
                   <TableCell className="px-4"><RequestStatusBadge status={row.status} /></TableCell>
                   <TableCell className="px-4 text-muted-foreground">{priorityText(row.details?.priority)}</TableCell>
                   <TableCell className="px-4 whitespace-nowrap text-muted-foreground">{when(row.createdAt)}</TableCell>
+                  <TableCell className="px-4 text-right">
+                    {canUpdate && isRequestFiler(row, organizationId) ? (
+                      <div className="flex justify-end">
+                        <RequestActionsMenu number={row.number} onDelete={() => askDelete({ id: row.id, number: row.number })} />
+                      </div>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </Card>
+      <AlertDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => {
+          if (!open && !removeState.isLoading) {
+            setPendingDelete(null)
+            setDeleteError('')
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('requests.delete-title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('requests.delete-body', { number: pendingDelete?.number ?? '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? <p className="text-sm text-destructive" role="alert">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button" disabled={removeState.isLoading}>{t('requests.delete-cancel')}</AlertDialogCancel>
+            <Button type="button" variant="destructive" disabled={removeState.isLoading || pendingDelete == null} onClick={confirmDelete}>
+              {t('requests.delete-confirm')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </WorkPage>
+  )
+}
+
+function RequestActionsMenu({ number, onDelete }: { number: string; onDelete: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label={t('requests.actions-label', { number })}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <MoreHorizontal aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        onClick={(event) => event.stopPropagation()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={(event) => event.stopPropagation()}
+          onSelect={onDelete}
+        >
+          <Trash2 aria-hidden />
+          {t('requests.delete')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -140,6 +140,30 @@ export function effectiveProgramLines(
   return [...kept, ...meta.lines.map(copyLine)]
 }
 
+/**
+ * True when every study line is the customer's need copied across:
+ * same research, sample, quantity, unit and wells, and no laboratory note.
+ * Such a line is not a second stage of the request.
+ */
+export function programLinesRepeatNeeds(
+  needs: readonly RequestResearchNeed[],
+  lines: readonly RequestProgramStudyLine[],
+): boolean {
+  if (lines.length === 0 || lines.some((line) => line.note.trim() !== '')) return false
+  const sourced = needs.filter((need) => need.researchId.trim() !== '')
+  if (lines.length !== sourced.length) return false
+  const pending = new Map(sourced.map((need) => [need.id, need]))
+  for (const line of lines) {
+    const need = pending.get(line.needId)
+    if (!need) return false
+    pending.delete(line.needId)
+    if (line.researchId !== need.researchId || line.sampleTypeId !== need.sampleTypeId) return false
+    if (line.quantity !== need.quantity || line.unitId !== need.unitId) return false
+    if (!sameTargetSet(line.targets, need.targets)) return false
+  }
+  return pending.size === 0
+}
+
 export function programPreparedSide(
   needs: readonly RequestResearchNeed[],
   meta: RequestProgramMeta,
@@ -300,6 +324,13 @@ export function copyProgramSnapshot(meta: RequestProgramMeta, lines: readonly Re
     lines: lines.map(copyLine),
     note: meta.note,
   }
+}
+
+function sameTargetSet(left: readonly RequestNeedTarget[], right: readonly RequestNeedTarget[]): boolean {
+  if (left.length !== right.length) return false
+  const key = (target: RequestNeedTarget) => `${target.wellId}|${target.selection}|${[...target.intervalIds].sort().join(',')}`
+  const keys = (targets: readonly RequestNeedTarget[]) => targets.map(key).sort()
+  return keys(left).every((item, index) => item === keys(right)[index])
 }
 
 function lineAsNeed(line: RequestProgramStudyLine): RequestResearchNeed {

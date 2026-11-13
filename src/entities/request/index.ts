@@ -103,6 +103,7 @@ export {
   inspectProgramForApproval,
   inspectProgramStudyLines,
   lineFromNeed,
+  programLinesRepeatNeeds,
   programPreparedSide,
 } from './model/program'
 export { emptyProgramMeta, readProgramMeta, subjectNeedsClarification, withDerivedStudy } from './model/normalize'
@@ -110,7 +111,7 @@ export { REQUEST_STATUSES, REQUEST_STATUS_GROUPS, REQUEST_TITLE_MAX } from './mo
 export { isRequestStatus, requestStatusGroup, requestStatusGroupLabelKey, requestStatusLabelKey } from './model/status'
 export { resolveRequestParties, sameRequestParties } from './model/parties'
 export type { PartyFailure, RequestParties } from './model/parties'
-export { canReadRequest, isAuthoredBy, isFiledByOrganization, isIncomingSent, requestReadDenial } from './model/visibility'
+export { canReadRequest, isAuthoredBy, isFiledByOrganization, isIncomingSent, isRequestFiler, requestReadDenial } from './model/visibility'
 export { copyRequestDetails } from './model/clone'
 export { REQUEST_REASON_MAX, canReviseRequest, readRequestReason } from './model/review'
 export { organizationRequestTotal } from './model/count'
@@ -121,6 +122,7 @@ export {
   requestBasisUploadRequest,
   useCreateRequestMutation,
   useDeleteRequestBasisMutation,
+  useDeleteRequestMutation,
   useDeriveRequestMutation,
   useGetExecutorLaboratoriesQuery,
   useGetRequestCatalogQuery,

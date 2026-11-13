@@ -10,6 +10,7 @@ import { readCorporateOverview } from '../personnel/overview'
 import { requestDraftCatalogIds } from './catalog'
 import {
   createRequest,
+  deleteRequest,
   deriveRequest,
   listExecutorLaboratories,
   listRequestCatalog,
@@ -1008,5 +1009,72 @@ describe('request laboratory review', () => {
     const registry = listRequests(reader.state, reader.token, 101)
     expect(listed(registry).some((item) => item.id === 'req-customer-sent')).toBe(true)
     expect(listed(registry).some((item) => item.id === 'req-lab-self')).toBe(true)
+  })
+})
+
+describe('request deletion', () => {
+  it('removes a sent request for both parties, including its file and history', () => {
+    const filed = sentRequest()
+    const laboratory = session('admin.a@example.test', filed.state)
+    const started = startRequestReview(laboratory.state, laboratory.token, filed.id, {
+      organizationId: 101,
+      expectedRevision: filed.revision,
+    })
+    expect(requestOf(started).status).toBe('in_review')
+    const blocked = deleteRequest(started.state, laboratory.token, filed.id, 101)
+    expect(blocked.status).toBe(403)
+    expect(codeOf(blocked)).toBe('not_filer')
+    expect(recordOf(blocked.state, filed.id).status).toBe('in_review')
+    const removed = deleteRequest(blocked.state, filed.customerToken, filed.id, 201)
+    expect(removed.status).toBe(200)
+    expect((removed.body as { id: string }).id).toBe(filed.id)
+    expect(removed.state.requests?.some((item) => item.id === filed.id)).toBe(false)
+    expect(removed.state.requestEvents?.some((item) => item.requestId === filed.id)).toBe(false)
+    expect(removed.state.requestBasisFiles?.some((item) => item.requestId === filed.id)).toBe(false)
+    expect(readRequest(removed.state, filed.customerToken, 201, filed.id).status).toBe(404)
+    expect(readRequest(removed.state, laboratory.token, 101, filed.id).status).toBe(404)
+    const owner = session('owner@example.test', removed.state)
+    const view = readCorporateOverview(owner.state, owner.token)
+    const organizations = (view.body as { organizations: Array<{ id: number; requestCount: number }> }).organizations
+    expect(organizations.find((item) => item.id === 201)?.requestCount).toBe(2)
+    expect(organizations.find((item) => item.id === 101)?.requestCount).toBe(4)
+  })
+
+  it('lets the filing laboratory delete its draft and hides that draft from the customer', () => {
+    const laboratory = session('admin.a@example.test')
+    const created = createRequest(laboratory.state, laboratory.token, {
+      organizationId: 101,
+      executorOrganizationId: 101,
+      customerOrganizationId: 201,
+      title: 'От лаборатории',
+    })
+    const id = requestOf(created).id
+    const customer = session('customer@example.test', created.state)
+    const hidden = deleteRequest(customer.state, customer.token, id, 201)
+    expect(hidden.status).toBe(404)
+    expect(codeOf(hidden)).toBe('not_found')
+    expect(hidden.state.requests?.some((item) => item.id === id)).toBe(true)
+    const removed = deleteRequest(hidden.state, laboratory.token, id, 101)
+    expect(removed.status).toBe(200)
+    expect(removed.state.requests?.some((item) => item.id === id)).toBe(false)
+  })
+
+  it('refuses deletion without the update grant and leaves the row in place', () => {
+    const seed = createSeed()
+    const narrowed: MockState = {
+      ...seed,
+      roles: seed.roles.map((role) => role.id === 'role-customer'
+        ? { ...role, grantIds: role.grantIds.filter((id) => id !== 'g-requests-update') }
+        : role),
+    }
+    const reader = session('customer@example.test', narrowed)
+    const denied = deleteRequest(reader.state, reader.token, 'req-customer-draft', 201)
+    expect(denied.status).toBe(403)
+    expect(codeOf(denied)).toBe('forbidden')
+    expect(denied.state.requests?.some((item) => item.id === 'req-customer-draft')).toBe(true)
+    const missing = deleteRequest(reader.state, reader.token, 'req-missing', 201)
+    expect(missing.status).toBe(404)
+    const unknownOrganization = deleteRequest(reader.state, reader.token, 'req-customer-draft', 999)
+    expect(unknownOrganization.status).toBe(404)
   })
 })

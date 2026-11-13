@@ -230,23 +230,78 @@ export function RequestNeedsCard({ request, catalog, dash }: { request: RequestL
   const needs = request.details?.needs ?? []
   const legacy = request.details?.program ?? []
   return (
-    <SectionCard title={t('requests.card.needs')}>
-      {needs.length === 0 && legacy.length === 0 ? <p className="text-muted-foreground">{t('requests.card.needs-empty')}</p> : null}
-      {needs.map((need, index) => {
-        const research = optionLabel(t, catalog?.workKinds ?? [], need.researchId)
-        return (
-          <div key={need.id} className="space-y-1">
-            <p className="font-medium">{t('requests.draft.need-title', { index: index + 1 })}</p>
-            <p>{requestLabel(need.desiredResult || research, dash)}</p>
-            {need.desiredResult && research ? <p className="text-muted-foreground">{research}</p> : null}
-            <TargetList lines={[{ id: need.id, targets: need.targets }]} request={request} catalog={catalog} dash={dash} />
-          </div>
-        )
-      })}
+    <SectionCard title={t('requests.draft.sections.program')}>
+      {needs.length === 0 && legacy.length === 0 ? <p className="text-muted-foreground">{t('requests.draft.needs-empty')}</p> : null}
+      {needs.map((need, index) => (
+        <NeedReadout key={need.id} need={need} index={index} request={request} catalog={catalog} dash={dash} />
+      ))}
       {needs.length === 0 ? legacy.map((line) => (
         <p key={line.id}>{requestLabel(optionLabel(t, catalog?.workKinds ?? [], line.workKindId), dash)}{line.quantity ? ` — ${line.quantity}` : ''}</p>
       )) : null}
     </SectionCard>
+  )
+}
+
+function LabeledValue({ label, value }: { label: string; value: string }) {
+  if (!value.trim()) return null
+  return (
+    <div className="space-y-0.5">
+      <p className="text-muted-foreground">{label}</p>
+      <p className="whitespace-pre-wrap">{value}</p>
+    </div>
+  )
+}
+
+function NeedReadout({
+  need,
+  index,
+  request,
+  catalog,
+  dash,
+}: {
+  need: NonNullable<RequestListItem['details']>['needs'][number]
+  index: number
+  request: RequestListItem
+  catalog?: RequestCatalog
+  dash: string
+}) {
+  const { t } = useTranslation()
+  const research = optionLabel(t, catalog?.workKinds ?? [], need.researchId)
+  const sample = optionLabel(t, catalog?.sampleKinds ?? [], need.sampleTypeId)
+  const unit = optionLabel(t, catalog?.units ?? [], need.unitId)
+  const quantity = need.quantity == null ? '' : [String(need.quantity), unit].filter(Boolean).join(' ')
+  const fields = request.details?.fields ?? []
+  const targets = need.targets.map((target) => {
+    const located = findWellById(fields, target.wellId)
+    const well = located ? wellCaption(t, located.well, catalog?.wells ?? [], dash) : dash
+    const field = located ? fieldCaption(t, located.field, catalog?.fields ?? [], '') : ''
+    const intervals = target.selection === 'intervals'
+      ? target.intervalIds
+        .map((intervalId) => located?.well.intervals.find((item) => item.id === intervalId))
+        .filter((item) => item != null)
+        .map((item) => t('requests.card.interval', { from: item.from, to: item.to, unit: item.unit }))
+        .join(', ')
+      : t('requests.card.whole-well')
+    return { key: `${need.id}:${target.wellId}`, text: [field, well, intervals].filter(Boolean).join(' · ') }
+  })
+  return (
+    <div className="space-y-3">
+      <p className="font-medium">{t('requests.draft.need-title', { index: index + 1 })}</p>
+      {need.clarification === 'unlinked_program_line' ? <p className="text-muted-foreground">{t('requests.draft.unlinked')}</p> : null}
+      {targets.length > 0 ? (
+        <div className="space-y-1">
+          <p className="text-muted-foreground">{t('requests.draft.need-objects')}</p>
+          <ul className="space-y-1">
+            {targets.map((target) => <li key={target.key}>{target.text}</li>)}
+          </ul>
+        </div>
+      ) : null}
+      <LabeledValue label={t('requests.draft.research')} value={research} />
+      <LabeledValue label={t('requests.draft.sample-type')} value={sample} />
+      <LabeledValue label={t('requests.draft.desired-result')} value={need.desiredResult} />
+      <LabeledValue label={t('requests.draft.quantity')} value={quantity} />
+      <LabeledValue label={t('requests.draft.comment')} value={need.comment} />
+    </div>
   )
 }
 
