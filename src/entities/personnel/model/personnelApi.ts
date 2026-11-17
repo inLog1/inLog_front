@@ -152,12 +152,23 @@ export const personnelApi = platformApi.injectEndpoints({
     }),
     createDirectoryDefinition: build.mutation<
       DirectoryDefinition,
-      { organizationId: number; title: string; description?: string; section?: DirectoryCatalogSection }
+      {
+        organizationId: number
+        title: string
+        description?: string
+        section?: DirectoryCatalogSection
+        sections?: DirectoryCatalogSection[]
+      }
     >({
-      query: ({ organizationId, title, description, section }) => ({
+      query: ({ organizationId, title, description, section, sections }) => ({
         url: 'directories/',
         method: 'POST',
-        body: { organizationId, title, description: description ?? '', section: section ?? 'other' },
+        body: {
+          organizationId,
+          title,
+          description: description ?? '',
+          ...(sections?.length ? { sections } : { section: section ?? 'other' }),
+        },
       }),
       invalidatesTags: (_result, _error, arg) => [{ type: 'Directories', id: `org-${arg.organizationId}` }],
     }),

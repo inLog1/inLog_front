@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   personnelError,
@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../shared/ui/select'
+import { Checkbox } from '../../../shared/ui/checkbox'
 import { Switch } from '../../../shared/ui/switch'
 import {
   appendField,
@@ -41,9 +42,10 @@ import {
 import {
   constraintsForTypeChange,
   defaultConstraintsForType,
-  NEW_ATTRIBUTE_GROUP_ID,
 } from '../model/attribute-field'
 import { AttributeFieldConstraints } from './AttributeFieldConstraints'
+import { focusFormField } from './focus-form-field'
+import { FieldLabel, MembershipChoices } from './membership-choices'
 
 export function AttributeEditorDialog({
   organizationId,
@@ -60,11 +62,16 @@ export function AttributeEditorDialog({
   field: DirectoryField | null
   initialDirectoryId: string
   onClose: () => void
-  onSubmit: (target: DirectoryDefinition, fields: FieldWrite[]) => Promise<void>
+  onSubmit: (target: DirectoryDefinition, fields: FieldWrite[], announce?: boolean) => Promise<void>
 }) {
   const { t } = useTranslation()
+  const formRef = useRef<HTMLFormElement>(null)
+  const bundleId = useRef(`ab-${crypto.randomUUID()}`)
   const creating = field == null
   const protectedField = field != null && directory != null && isProtectedCatalogField(directory, field)
+  const initialGroups = initialDirectoryId && directories.some((item) => item.id === initialDirectoryId)
+    ? [initialDirectoryId]
+    : []
   const [label, setLabel] = useState(field?.label ?? '')
   const [required, setRequired] = useState(field?.required ?? false)
   const [archived, setArchived] = useState(field?.archived ?? false)
@@ -72,14 +79,18 @@ export function AttributeEditorDialog({
   const [constraints, setConstraints] = useState<DirectoryAttributeConstraints>(
     field?.constraints ?? defaultConstraintsForType(field?.type ?? 'text'),
   )
-  const [groupId, setGroupId] = useState(initialDirectoryId || directories[0]?.id || NEW_ATTRIBUTE_GROUP_ID)
+  const [groupIds, setGroupIds] = useState<string[]>(initialGroups)
+  const [creatingNew, setCreatingNew] = useState(false)
   const [newGroupTitle, setNewGroupTitle] = useState('')
+  const [createdDirectory, setCreatedDirectory] = useState<DirectoryDefinition | null>(null)
+  const [appliedIds, setAppliedIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [createDefinition, createDefinitionState] = useCreateDirectoryDefinitionMutation()
+  const groupsDirty = groupIds.length !== initialGroups.length || groupIds.some((id) => !initialGroups.includes(id))
 
   const dirty = creating
-    ? label.trim() !== '' || required || groupId === NEW_ATTRIBUTE_GROUP_ID || newGroupTitle.trim() !== ''
+    ? label.trim() !== '' || required || groupsDirty || creatingNew || newGroupTitle.trim() !== ''
     : label !== field?.label || required !== field?.required || archived !== field?.archived
       || JSON.stringify(constraints) !== JSON.stringify(field?.constraints ?? defaultConstraintsForType(fieldType))
   useUnsavedSource(`attribute:${field?.id ?? 'create'}`, dirty)
@@ -88,58 +99,87 @@ export function AttributeEditorDialog({
     () => directories.map((item) => ({ value: item.id, label: item.title })),
     [directories],
   )
-  const canPickGroup = creating && directories.length > 0
 
   const onTypeChange = (next: CatalogAttributeType) => {
     setFieldType(next)
     setConstraints(constraintsForTypeChange(next))
   }
 
-  const resolveDirectory = async (): Promise<DirectoryDefinition | null> => {
-    if (!creating) return directory
-    if (groupId === NEW_ATTRIBUTE_GROUP_ID) {
+  const resolveTargets = async (): Promise<DirectoryDefinition[] | null> => {
+    if (!creating) return directory ? [directory] : null
+    if (creatingNew && newGroupTitle.trim() === '') return null
+    if (groupIds.length === 0 && !creatingNew) return null
+    const targets: DirectoryDefinition[] = []
+    for (const id of groupIds) {
+      const picked = directories.find((item) => item.id === id)
+      if (picked && !targets.some((item) => item.id === picked.id)) targets.push(picked)
+    }
+    if (creatingNew) {
       const title = newGroupTitle.trim()
-      if (!title) return null
-      try {
-        const created = await createDefinition({
+      let created = createdDirectory
+      if (!created) {
+        created = await createDefinition({
           organizationId,
           title,
           description: '',
-          section: 'other',
+          sections: ['other'],
         }).unwrap()
-        return created
-      } catch {
-        return null
+        setCreatedDirectory(created)
       }
+      if (!targets.some((item) => item.id === created.id)) targets.push(created)
     }
-    const picked = directories.find((item) => item.id === groupId) ?? directories[0]
-    return picked ?? null
+    return targets
   }
 
   const save = async () => {
     const trimmed = label.trim()
     if (!trimmed || trimmed.length > 200) {
       setError(t('directories.errors.invalid_value'))
+      focusFormField(formRef.current, 'label')
       return
     }
-    const target = await resolveDirectory()
-    if (!target) {
+    if (creating && creatingNew && newGroupTitle.trim() === '') {
       setError(t('directories.catalog.field-group-required'))
+      focusFormField(formRef.current, 'group-title')
       return
     }
-    const fields = creating
-      ? appendField(target.fields, { label: trimmed, required, type: fieldType, constraints }, `new:${crypto.randomUUID()}`)
-      : directory && field
-        ? replaceField(directory, field.id, { label: trimmed, required, archived, type: field.type, constraints })
-        : null
-    if (!fields) {
-      setError(t('directories.errors.unknown_field'))
+    if (creating && groupIds.length === 0 && !creatingNew) {
+      setError(t('directories.catalog.field-groups-required'))
+      focusFormField(formRef.current, 'groups')
       return
     }
     setSaving(true)
     setError('')
     try {
-      await onSubmit(target, fields)
+      const targets = await resolveTargets()
+      if (!targets?.length) {
+        setError(t('directories.catalog.field-groups-required'))
+        focusFormField(formRef.current, 'groups')
+        return
+      }
+      const done = new Set(appliedIds)
+      const pendingTargets = targets.filter((target) => !done.has(target.id))
+      for (let index = 0; index < pendingTargets.length; index += 1) {
+        const target = pendingTargets[index]
+        if (!target) continue
+        const fields = creating
+          ? appendField(
+            target.fields,
+            { label: trimmed, required, type: fieldType, constraints },
+            `new:${crypto.randomUUID()}`,
+            bundleId.current,
+          )
+          : directory && field
+            ? replaceField(directory, field.id, { label: trimmed, required, archived, type: field.type, constraints })
+            : null
+        if (!fields) {
+          setError(t('directories.errors.unknown_field'))
+          return
+        }
+        await onSubmit(target, fields, index === pendingTargets.length - 1)
+        done.add(target.id)
+        setAppliedIds([...done])
+      }
       onClose()
     } catch (caught) {
       setError(t(`directories.errors.${personnelError(caught).code}`, { defaultValue: t('directories.errors.generic') }))
@@ -154,6 +194,7 @@ export function AttributeEditorDialog({
     <Dialog open onOpenChange={(open) => { if (!open && !pending) onClose() }}>
       <DialogContent className="flex max-h-[min(90vh,44rem)] w-[min(100%,36rem)] max-w-xl flex-col gap-0 overflow-hidden p-0">
         <form
+          ref={formRef}
           className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault()
@@ -169,8 +210,8 @@ export function AttributeEditorDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="attribute-label">{t('directories.catalog.field-name')}</Label>
+            <div className="grid gap-1.5" data-field="label">
+              <FieldLabel htmlFor="attribute-label" required>{t('directories.catalog.field-name')}</FieldLabel>
               <Input
                 id="attribute-label"
                 value={label}
@@ -179,29 +220,40 @@ export function AttributeEditorDialog({
                 onChange={(event) => setLabel(event.target.value)}
               />
             </div>
-            {canPickGroup ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="attribute-group">{t('directories.catalog.field-group')}</Label>
-                <Select value={groupId} disabled={pending} onValueChange={setGroupId}>
-                  <SelectTrigger id="attribute-group">
-                    <SelectValue placeholder={t('directories.catalog.field-group-placeholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                    <SelectItem value={NEW_ATTRIBUTE_GROUP_ID}>{t('directories.catalog.field-group-new')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {groupId === NEW_ATTRIBUTE_GROUP_ID ? (
-                  <Input
-                    aria-label={t('directories.catalog.field-group-new-title')}
-                    value={newGroupTitle}
-                    maxLength={200}
+            {creating ? (
+              <div className="grid gap-1.5" data-field="groups">
+                <FieldLabel id="attribute-group-label" required>{t('directories.catalog.field-group')}</FieldLabel>
+                {groupOptions.length > 0 ? (
+                  <MembershipChoices
+                    labelledBy="attribute-group-label"
+                    value={groupIds}
                     disabled={pending}
-                    placeholder={t('directories.catalog.field-group-new-placeholder')}
-                    onChange={(event) => setNewGroupTitle(event.target.value)}
+                    onChange={setGroupIds}
+                    options={groupOptions}
                   />
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('directories.catalog.empty-directories')}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{t('directories.catalog.field-group-hint')}</p>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={creatingNew}
+                    disabled={pending}
+                    onCheckedChange={(next) => setCreatingNew(next === true)}
+                  />
+                  {t('directories.catalog.field-group-new')}
+                </label>
+                {creatingNew ? (
+                  <div data-field="group-title">
+                    <Input
+                      aria-label={t('directories.catalog.field-group-new-title')}
+                      value={newGroupTitle}
+                      maxLength={200}
+                      disabled={pending}
+                      placeholder={t('directories.catalog.field-group-new-placeholder')}
+                      onChange={(event) => setNewGroupTitle(event.target.value)}
+                    />
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -262,7 +314,12 @@ export function AttributeEditorDialog({
             <Button type="button" variant="outline" disabled={pending} onClick={onClose}>{t('directories.cancel')}</Button>
             <Button
               type="submit"
-              disabled={pending || label.trim() === '' || (creating && groupId === NEW_ATTRIBUTE_GROUP_ID && newGroupTitle.trim() === '')}
+              disabled={
+                pending
+                || label.trim() === ''
+                || (creating && groupIds.length === 0 && !creatingNew)
+                || (creating && creatingNew && newGroupTitle.trim() === '')
+              }
             >
               {t('directories.catalog.save-attribute')}
             </Button>

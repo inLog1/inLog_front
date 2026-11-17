@@ -445,6 +445,85 @@ describe('personnel and directories', () => {
     expect((updated.body as { sections?: string[] }).sections).toEqual(['measurements'])
   })
 
+  it('stores several sections and keeps a shared attribute bundle id', () => {
+    const { state, token, organizationId } = opened()
+    const created = createDirectoryDefinition(state, token, {
+      organizationId,
+      title: 'Станки',
+      description: '',
+      sections: ['equipment', 'measurements'],
+    })
+    expect(created.status).toBe(201)
+    const body = created.body as {
+      id: string
+      revision: number
+      sections?: string[]
+      fields: Array<{ id: string; label: string; required: boolean; archived: boolean; type: 'text' }>
+    }
+    expect(body.sections).toEqual(['equipment', 'measurements'])
+    const empty = createDirectoryDefinition(created.state, token, {
+      organizationId,
+      title: 'Пусто',
+      description: '',
+      sections: [],
+    })
+    expect((empty.body as { code?: string }).code).toBe('invalid_value')
+    const both = createDirectoryDefinition(created.state, token, {
+      organizationId,
+      title: 'Оба',
+      description: '',
+      section: 'other',
+      sections: ['other'],
+    })
+    expect((both.body as { code?: string }).code).toBe('invalid_value')
+    const bundleId = 'ab-11111111-1111-4111-8111-111111111111'
+    const added = updateDirectoryDefinition(created.state, token, body.id, {
+      organizationId,
+      expectedRevision: body.revision,
+      title: 'Станки',
+      description: '',
+      archived: false,
+      sections: ['equipment'],
+      fields: [
+        ...body.fields.map((field) => ({
+          id: field.id,
+          label: field.label,
+          required: field.required,
+          archived: field.archived,
+          type: field.type,
+        })),
+        { id: 'new:note', label: 'Примечание', required: false, archived: false, type: 'text' as const, bundleId },
+      ],
+    })
+    expect(added.status).toBe(200)
+    const addedBody = added.body as {
+      revision: number
+      sections?: string[]
+      fields: Array<{ id: string; label: string; required: boolean; archived: boolean; type: 'text'; bundleId?: string }>
+    }
+    expect(addedBody.sections).toEqual(['equipment'])
+    expect(addedBody.fields.find((field) => field.label === 'Примечание')?.bundleId).toBe(bundleId)
+    const kept = updateDirectoryDefinition(added.state, token, body.id, {
+      organizationId,
+      expectedRevision: addedBody.revision,
+      title: 'Станки',
+      description: 'цех',
+      archived: false,
+      sections: ['equipment', 'personnel'],
+      fields: addedBody.fields.map((field) => ({
+        id: field.id,
+        label: field.label,
+        required: field.required,
+        archived: field.archived,
+        type: field.type,
+      })),
+    })
+    expect(kept.status).toBe(200)
+    const keptBody = kept.body as { sections?: string[]; fields: Array<{ label: string; bundleId?: string }> }
+    expect(keptBody.sections).toEqual(['equipment', 'personnel'])
+    expect(keptBody.fields.find((field) => field.label === 'Примечание')?.bundleId).toBe(bundleId)
+  })
+
   it('adds a custom attribute to a registry directory and keeps system columns intact', () => {
     const { state, token, organizationId } = opened()
     const dirId = directoryId(organizationId, 'departments')

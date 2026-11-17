@@ -37,7 +37,6 @@ export type DirectoryAttributeConstraints = {
   photoFormats?: string | null
   maxPhotoSizeMb?: number | null
   maxPhotoCount?: number | null
-  internationalPhone?: boolean
   phoneMask?: string | null
   validateEmailFormat?: boolean
   maxEmailLength?: number | null
@@ -71,6 +70,8 @@ export type DirectoryField = {
   required: boolean
   archived: boolean
   constraints?: DirectoryAttributeConstraints
+  /** Shared id when the same attribute was added to several directories at once. */
+  bundleId?: string
 }
 
 export type DirectoryDefinition = {

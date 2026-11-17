@@ -6,8 +6,6 @@ import {
   type DirectoryAttributeConstraints,
 } from '../../../entities/personnel/model/types'
 
-export const NEW_ATTRIBUTE_GROUP_ID = '__new_group__'
-
 export function isCatalogAttributeType(value: unknown): value is CatalogAttributeType {
   return typeof value === 'string' && (CATALOG_ATTRIBUTE_TYPES as readonly string[]).includes(value)
 }
@@ -18,7 +16,6 @@ export function emptyAttributeConstraints(): DirectoryAttributeConstraints {
 
 export function defaultConstraintsForType(type: CatalogAttributeType): DirectoryAttributeConstraints {
   if (type === 'email') return { validateEmailFormat: true, maxEmailLength: 254 }
-  if (type === 'phone') return { internationalPhone: false }
   return emptyAttributeConstraints()
 }
 
@@ -79,7 +76,6 @@ export function normalizeConstraintsForWrite(
     if (maxPhotoCount != null && maxPhotoCount > 0) next.maxPhotoCount = Math.floor(maxPhotoCount)
   }
   if (type === 'phone') {
-    if (draft.internationalPhone === true) next.internationalPhone = true
     const phoneMask = textOrNull(draft.phoneMask, 80)
     if (phoneMask) next.phoneMask = phoneMask
   }
@@ -164,7 +160,6 @@ export function constraintPhrases(
     }
   }
   if (type === 'phone') {
-    if (draft.internationalPhone) phrases.push({ key: 'directories.catalog.constraints.summary.phone-international' })
     if (draft.phoneMask) phrases.push({ key: 'directories.catalog.constraints.summary.phone-mask', values: { mask: draft.phoneMask } })
   }
   if (type === 'email') {

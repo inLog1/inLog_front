@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import {
@@ -27,6 +28,8 @@ function dateFromIso(value: string | null | undefined): Date | undefined {
   const parsed = new Date(`${value}T12:00:00`)
   return Number.isNaN(parsed.getTime()) ? undefined : parsed
 }
+
+const ATTRIBUTE_DATE_MAX_YEAR = 2100
 
 export function AttributeFieldConstraints({
   type,
@@ -104,6 +107,7 @@ export function AttributeFieldConstraints({
           id="attribute-min-date"
           label={t('directories.catalog.constraints.min-date')}
           disabled={disabled}
+          toYear={ATTRIBUTE_DATE_MAX_YEAR}
           value={dateFromIso(constraints.minDate)}
           onChange={(value) => patch({ minDate: isoFromDate(value) })}
         />
@@ -111,6 +115,7 @@ export function AttributeFieldConstraints({
           id="attribute-max-date"
           label={t('directories.catalog.constraints.max-date')}
           disabled={disabled}
+          toYear={ATTRIBUTE_DATE_MAX_YEAR}
           value={dateFromIso(constraints.maxDate)}
           onChange={(value) => patch({ maxDate: isoFromDate(value) })}
         />
@@ -204,25 +209,15 @@ export function AttributeFieldConstraints({
 
   if (type === 'phone') {
     return (
-      <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={constraints.internationalPhone === true}
-            disabled={disabled}
-            onCheckedChange={(checked) => patch({ internationalPhone: checked === true })}
-          />
-          {t('directories.catalog.constraints.international-phone')}
-        </label>
-        <div className="grid gap-1.5">
-          <Label htmlFor="attribute-phone-mask">{t('directories.catalog.constraints.phone-mask')}</Label>
-          <Input
-            id="attribute-phone-mask"
-            disabled={disabled}
-            placeholder={t('directories.catalog.constraints.phone-mask-placeholder')}
-            value={constraints.phoneMask ?? ''}
-            onChange={(event) => patch({ phoneMask: event.target.value || null })}
-          />
-        </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="attribute-phone-mask">{t('directories.catalog.constraints.phone-mask')}</Label>
+        <Input
+          id="attribute-phone-mask"
+          disabled={disabled}
+          placeholder={t('directories.catalog.constraints.phone-mask-placeholder')}
+          value={constraints.phoneMask ?? ''}
+          onChange={(event) => patch({ phoneMask: event.target.value || null })}
+        />
       </div>
     )
   }
@@ -269,6 +264,12 @@ function BoundNumber({
   onChange: (value: number | null) => void
 }) {
   const pattern = integer ? /^(?:0|[1-9]\d*)$/ : /^-?(?:\d+|\d*\.\d+)$/
+  const [text, setText] = useState(value === null ? '' : String(value))
+  const [seen, setSeen] = useState(value)
+  if (value !== seen) {
+    setSeen(value)
+    setText(value === null ? '' : String(value))
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -276,11 +277,16 @@ function BoundNumber({
         id={id}
         disabled={disabled}
         inputMode={integer ? 'numeric' : 'decimal'}
-        value={value === null ? '' : String(value)}
+        value={text}
         onChange={(event) => {
           const next = event.target.value
+          if (integer && next.trim() !== '' && !pattern.test(next)) return
+          setText(next)
           if (next.trim() === '') onChange(null)
           else if (pattern.test(next)) onChange(Number(next))
+        }}
+        onBlur={() => {
+          if (text.trim() !== '' && !pattern.test(text)) setText(value === null ? '' : String(value))
         }}
       />
     </div>

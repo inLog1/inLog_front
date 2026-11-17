@@ -243,6 +243,61 @@ describe('system registry access', () => {
     expect(unknown.state.departments).toEqual(added.state.departments)
   })
 
+  it('adds a required attribute with a negative range after records exist', () => {
+    const { state, token, organizationId } = opened()
+    const dirId = directoryId(organizationId, 'departments')
+    const created = createDirectoryRecord(state, token, dirId, {
+      organizationId,
+      name: 'Химия',
+      code: 'Х',
+      parentId: null,
+    })
+    expect(created.status).toBe(201)
+    const listed = listDirectories(created.state, token, organizationId)
+    const definition = (listed.body as { directories: Array<{ id: string; revision: number; title: string; description: string; archived: boolean; fields: Array<{ id: string; label: string; required: boolean; archived: boolean; type: 'text' }> }> }).directories
+      .find((item) => item.id === dirId)
+    if (!definition) throw new Error('departments')
+    const added = updateDirectoryDefinition(created.state, token, dirId, {
+      organizationId,
+      expectedRevision: definition.revision,
+      title: definition.title,
+      description: definition.description,
+      archived: definition.archived,
+      fields: [
+        ...fieldWrites(definition.fields),
+        {
+          id: 'new:score',
+          label: 'Балл',
+          required: true,
+          archived: false,
+          type: 'number',
+          constraints: { min: -100, max: -10 },
+        },
+        {
+          id: 'new:phone',
+          label: 'Телефон',
+          required: true,
+          archived: false,
+          type: 'phone',
+          constraints: { internationalPhone: true, phoneMask: '+7 (___) ___-__-__' },
+        },
+      ],
+    })
+    expect(added.status).toBe(200)
+    const fields = (added.body as { fields: Array<{ label: string; required: boolean; type: string; constraints?: Record<string, unknown> }> }).fields
+    expect(fields.find((field) => field.label === 'Балл')).toMatchObject({
+      required: true,
+      type: 'number',
+      constraints: { min: -100, max: -10 },
+    })
+    expect(fields.find((field) => field.label === 'Телефон')).toMatchObject({
+      required: true,
+      type: 'phone',
+      constraints: { phoneMask: '+7 (___) ___-__-__' },
+    })
+    expect(fields.find((field) => field.label === 'Телефон')?.constraints).not.toHaveProperty('internationalPhone')
+  })
+
   it('keeps record create, record update and schema create independent', () => {
     const { state, token, organizationId } = opened()
     const reader = withMember(state, organizationId, [['registry.departments.records', 'read']])

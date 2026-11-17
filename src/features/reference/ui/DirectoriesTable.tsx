@@ -1,6 +1,6 @@
-import { BookOpen, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { DirectoryDefinition, DirectoryPermissions } from '../../../entities/personnel/model/types'
+import type { DirectoryPermissions } from '../../../entities/personnel/model/types'
 import type { DirectoryView } from '../../../entities/personnel/model/personnelApi'
 import { Button } from '../../../shared/ui/button'
 import {
@@ -60,7 +60,7 @@ export function DirectoriesTable({
   onPageSizeChange: (size: number) => void
   onOpen: (directoryId: string) => void
   onEditStructure: (directoryId: string) => void
-  onDelete: (directory: DirectoryDefinition) => void
+  onDelete: (directory: DirectoryView) => void
 }) {
   const { t } = useTranslation()
   const pages = pageCount(total, pageSize)
@@ -86,7 +86,7 @@ export function DirectoriesTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>
+              <TableHead className="pl-4">
                 <button type="button" className="font-medium" onClick={() => onSortChange('title')}>
                   {t('directories.column-name')}{sortLabel('title')}
                 </button>
@@ -115,15 +115,16 @@ export function DirectoriesTable({
               const sections = directorySections(item)
               const rowPermissions = item.permissions ?? permissions
               const extraSections = sections.length - 1
+              const canFullDelete = Boolean(rowPermissions.delete) && canDeleteDirectoryDefinition(item)
+              const canTrimSections = Boolean(rowPermissions.structure) && sections.length > 1
               return (
                 <TableRow key={item.id}>
-                  <TableCell>
+                  <TableCell className="pl-4">
                     <button
                       type="button"
-                      className="inline-flex max-w-full items-center gap-2 text-left font-medium text-primary hover:underline"
+                      className="inline-flex max-w-full text-left font-medium text-primary hover:underline"
                       onClick={() => onOpen(item.id)}
                     >
-                      <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="truncate">{item.title}</span>
                     </button>
                   </TableCell>
@@ -154,7 +155,7 @@ export function DirectoriesTable({
                         {rowPermissions.structure ? (
                           <DropdownMenuItem onClick={() => onEditStructure(item.id)}>{t('directories.edit')}</DropdownMenuItem>
                         ) : null}
-                        {rowPermissions.delete && canDeleteDirectoryDefinition(item) ? (
+                        {canFullDelete || canTrimSections ? (
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => onDelete(item)}

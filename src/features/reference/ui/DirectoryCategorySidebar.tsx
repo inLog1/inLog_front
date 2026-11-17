@@ -1,13 +1,3 @@
-import {
-  Building2,
-  FlaskConical,
-  LayoutGrid,
-  MoreHorizontal,
-  Ruler,
-  Users,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../shared/lib/utils'
 import { Input } from '../../../shared/ui/input'
@@ -17,15 +7,6 @@ import {
   sectionCounts,
 } from '../model/directory-sections'
 import type { DirectoryDefinition } from '../../../entities/personnel/model/types'
-
-const SECTION_ICONS: Record<Exclude<DirectorySectionId, 'all'>, LucideIcon> = {
-  equipment: Wrench,
-  'test-requests': FlaskConical,
-  'org-structure': Building2,
-  personnel: Users,
-  measurements: Ruler,
-  other: MoreHorizontal,
-}
 
 export function DirectoryCategorySidebar({
   directories,
@@ -59,7 +40,6 @@ export function DirectoryCategorySidebar({
       />
       <nav className="flex flex-col gap-1" aria-label={t('directories.sections-nav')}>
         {visibleSections.map((id) => {
-          const Icon = id === 'all' ? LayoutGrid : SECTION_ICONS[id]
           const active = sectionId === id
           return (
             <button
@@ -73,10 +53,7 @@ export function DirectoryCategorySidebar({
                   : 'border-transparent text-foreground hover:bg-muted/60',
               )}
             >
-              <span className="flex min-w-0 items-center gap-2">
-                <Icon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                <span className="truncate">{t(`directories.sections.${id}`)}</span>
-              </span>
+              <span className="truncate">{t(`directories.sections.${id}`)}</span>
               <span className={cn('shrink-0 text-xs tabular-nums', active ? 'text-primary' : 'text-muted-foreground')}>
                 {counts[id]}
               </span>

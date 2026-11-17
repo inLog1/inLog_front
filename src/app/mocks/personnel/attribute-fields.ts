@@ -107,7 +107,6 @@ export function parseDirectoryConstraints(
     if (maxPhotoCount != null) next.maxPhotoCount = maxPhotoCount
   }
   if (type === 'phone') {
-    if (record.internationalPhone === true) next.internationalPhone = true
     const phoneMask = shortText(record.phoneMask, 80)
     if (phoneMask) next.phoneMask = phoneMask
   }

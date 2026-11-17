@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { constraintPhrases } from './attribute-field'
+import { constraintPhrases, normalizeConstraintsForWrite } from './attribute-field'
 
 describe('constraint phrases', () => {
   it('describes each field type in short phrases', () => {
@@ -19,5 +19,16 @@ describe('constraint phrases', () => {
       { key: 'directories.catalog.constraints.date-formats.dmy' },
     ])
     expect(constraintPhrases('text', undefined)).toEqual([])
+    expect(constraintPhrases('number', { min: -100, max: -10 })).toEqual([
+      { key: 'directories.catalog.constraints.summary.range', values: { min: -100, max: -10 } },
+      { key: 'directories.catalog.constraints.summary.decimal' },
+    ])
+    expect(normalizeConstraintsForWrite('number', { min: -100, max: -10 })).toEqual({ min: -100, max: -10 })
+    expect(normalizeConstraintsForWrite('phone', { phoneMask: '+7 (___) ___-__-__' })).toEqual({
+      phoneMask: '+7 (___) ___-__-__',
+    })
+    expect(constraintPhrases('phone', { phoneMask: '+7 (___) ___-__-__' })).toEqual([
+      { key: 'directories.catalog.constraints.summary.phone-mask', values: { mask: '+7 (___) ___-__-__' } },
+    ])
   })
 })

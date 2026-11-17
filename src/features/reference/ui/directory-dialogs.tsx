@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   personnelError,
@@ -17,9 +17,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '../../../shared/ui/input'
 import { Label } from '../../../shared/ui/label'
 import type { DirectoryCatalogSection } from '../../../entities/personnel/model/types'
-import { initialCatalogSection } from '../model/directory-metadata'
+import { initialCatalogSections } from '../model/directory-metadata'
+import { sameSectionSet } from '../model/directory-sections'
 import { DirectoryRecordSelect } from '../../../shared/ui/directory-record-select'
-import { DirectorySectionField, DirectoryTypeField } from './directory-meta-fields'
+import { DirectorySectionsField, DirectoryTypeField } from './directory-meta-fields'
+import { focusFormField } from './focus-form-field'
+import { FieldLabel } from './membership-choices'
 
 type Draft = {
   name: string
@@ -43,18 +46,19 @@ export function CreateDirectoryDialog({
   onCreated?: (directoryId: string) => void
 }) {
   const { t } = useTranslation()
+  const formRef = useRef<HTMLFormElement>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [section, setSection] = useState<DirectoryCatalogSection>('other')
+  const [sections, setSections] = useState<DirectoryCatalogSection[]>(['other'])
   const [error, setError] = useState('')
   const [createDefinition, createState] = useCreateDirectoryDefinitionMutation()
-  const dirty = open && (title.trim() !== '' || description.trim() !== '' || section !== 'other')
+  const dirty = open && (title.trim() !== '' || description.trim() !== '' || !sameSectionSet(sections, ['other']))
   useUnsavedSource('directory-create', dirty)
 
   const reset = () => {
     setTitle('')
     setDescription('')
-    setSection('other')
+    setSections(['other'])
     setError('')
   }
 
@@ -63,6 +67,12 @@ export function CreateDirectoryDialog({
     const trimmed = title.trim()
     if (!trimmed) {
       setError(t('directories.errors.invalid_value'))
+      focusFormField(formRef.current, 'title')
+      return
+    }
+    if (sections.length === 0) {
+      setError(t('directories.definition-sections-required'))
+      focusFormField(formRef.current, 'sections')
       return
     }
     try {
@@ -70,7 +80,7 @@ export function CreateDirectoryDialog({
         organizationId,
         title: trimmed,
         description: description.trim(),
-        section,
+        sections,
       }).unwrap()
       reset()
       onOpenChange(false)
@@ -89,29 +99,39 @@ export function CreateDirectoryDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('directories.create-title')}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <label className="grid gap-1 text-sm">
-            {t('directories.definition-title')}
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} />
-          </label>
-          <label className="grid gap-1 text-sm">
-            {t('directories.definition-description')}
-            <Input value={description} onChange={(event) => setDescription(event.target.value)} />
-          </label>
-          <DirectorySectionField
-            id="directory-create-section"
-            value={section}
-            onChange={setSection}
-          />
-          {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('directories.cancel')}</Button>
-          <Button type="button" disabled={createState.isLoading} onClick={() => void save()}>{t('directories.create')}</Button>
-        </DialogFooter>
+        <form
+          ref={formRef}
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{t('directories.create-title')}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-1.5" data-field="title">
+              <FieldLabel htmlFor="directory-create-title" required>{t('directories.definition-title')}</FieldLabel>
+              <Input id="directory-create-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <FieldLabel>{t('directories.definition-description')}</FieldLabel>
+              <Input value={description} onChange={(event) => setDescription(event.target.value)} />
+            </div>
+            <DirectorySectionsField
+              id="sections"
+              required
+              value={sections}
+              onChange={setSections}
+            />
+            {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('directories.cancel')}</Button>
+            <Button type="submit" disabled={createState.isLoading}>{t('directories.create')}</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )
@@ -280,7 +300,7 @@ export function StructureDialog({
   const { t } = useTranslation()
   const [title, setTitle] = useState(directory.title)
   const [description, setDescription] = useState(directory.description)
-  const [section, setSection] = useState<DirectoryCatalogSection>(() => initialCatalogSection(directory))
+  const [sections, setSections] = useState<DirectoryCatalogSection[]>(() => initialCatalogSections(directory))
   const [archived, setArchived] = useState(directory.archived)
   const [fields, setFields] = useState(directory.fields.map((field) => ({
     id: field.id,
@@ -294,12 +314,16 @@ export function StructureDialog({
   const dirty = title !== directory.title
     || description !== directory.description
     || archived !== directory.archived
-    || section !== initialCatalogSection(directory)
+    || !sameSectionSet(sections, initialCatalogSections(directory))
   useUnsavedSource(`directory-structure:${directory.id}`, dirty)
   const manual = directory.source.type === 'manual'
 
   const save = async () => {
     setError('')
+    if (sections.length === 0) {
+      setError(t('directories.definition-sections-required'))
+      return
+    }
     try {
       await saveDefinition({
         directoryId: directory.id,
@@ -310,7 +334,7 @@ export function StructureDialog({
           description,
           archived,
           fields,
-          section,
+          sections,
         },
       }).unwrap()
       onClose()
@@ -330,10 +354,11 @@ export function StructureDialog({
           <Input value={title} onChange={(event) => setTitle(event.target.value)} />
           <Label>{t('directories.definition-description')}</Label>
           <Input value={description} onChange={(event) => setDescription(event.target.value)} />
-          <DirectorySectionField
+          <DirectorySectionsField
             id={`directory-structure-section-${directory.id}`}
-            value={section}
-            onChange={setSection}
+            value={sections}
+            onChange={setSections}
+            required
           />
           <DirectoryTypeField mode="edit" definition={directory} />
           <label className="flex items-center gap-2 text-sm">

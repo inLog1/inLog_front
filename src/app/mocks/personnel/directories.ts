@@ -235,6 +235,41 @@ function parseCatalogSection(value: unknown): DirectoryCatalogSection | null {
   return (DIRECTORY_CATALOG_SECTIONS as readonly string[]).includes(value) ? value as DirectoryCatalogSection : null
 }
 
+function parseCatalogSections(value: unknown): DirectoryCatalogSection[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > DIRECTORY_CATALOG_SECTIONS.length) return null
+  const sections: DirectoryCatalogSection[] = []
+  for (const item of value) {
+    const section = parseCatalogSection(item)
+    if (!section || sections.includes(section)) return null
+    sections.push(section)
+  }
+  return sections
+}
+
+/** `sections` replaces a single `section`. Sending both is rejected. Missing both keeps `fallback`. */
+function sectionsFromBody(
+  body: Record<string, unknown>,
+  fallback: DirectoryCatalogSection[] | undefined,
+): DirectoryCatalogSection[] | null | undefined {
+  const hasSections = Object.prototype.hasOwnProperty.call(body, 'sections')
+  const hasSection = Object.prototype.hasOwnProperty.call(body, 'section')
+  if (hasSections && hasSection) return null
+  if (hasSections) return parseCatalogSections(body.sections)
+  if (hasSection) {
+    const section = parseCatalogSection(body.section)
+    return section ? [section] : null
+  }
+  return fallback
+}
+
+const ATTRIBUTE_BUNDLE_ID = /^ab-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function parseBundleId(value: unknown): string | undefined | null {
+  if (value == null) return undefined
+  if (typeof value !== 'string' || !ATTRIBUTE_BUNDLE_ID.test(value)) return null
+  return value.toLowerCase()
+}
+
 function departmentView(state: MockState, row: Department) {
   const parent = row.parentId
     ? departments(state).find((item) => item.id === row.parentId && item.organizationId === row.organizationId) ?? null
@@ -685,11 +720,11 @@ export function createDirectoryDefinition(
   const organizationId = typeof body.organizationId === 'number' ? body.organizationId : 0
   const who = enter(state, token, organizationId, 'directories.structure', 'update')
   if (!who.ok) return who.result
-  if (!allowedKeys(body, ['organizationId', 'title', 'description', 'section'])) return problem(state, 400, 'unknown_key')
+  if (!allowedKeys(body, ['organizationId', 'title', 'description', 'section', 'sections'])) return problem(state, 400, 'unknown_key')
   const title = requiredText(body.title, 200)
   const description = optionalText(body.description, 500)
-  const section = body.section === undefined ? 'other' : parseCatalogSection(body.section)
-  if (!title || description === undefined || section == null) return problem(state, 400, 'invalid_value')
+  const sections = sectionsFromBody(body, ['other'])
+  if (!title || description === undefined || !sections || sections.length === 0) return problem(state, 400, 'invalid_value')
   const workspace = ensureOrganizationWorkspace(state, organizationId)
   if (!workspace) return problem(state, 404, 'not_found')
   const key = uniqueDirectoryKey(workspace, organizationId, title)
@@ -701,7 +736,7 @@ export function createDirectoryDefinition(
     description: description ?? '',
     revision: 1,
     source: { type: 'manual' },
-    sections: [section],
+    sections,
     archived: false,
     fields: [{
       id: directoryFieldId(organizationId, key, 'title'),
@@ -762,7 +797,7 @@ export function updateDirectoryDefinition(
   const organizationId = typeof body.organizationId === 'number' ? body.organizationId : 0
   const who = authenticate(state, token, organizationId)
   if (!who.ok) return who.result
-  if (!allowedKeys(body, ['organizationId', 'expectedRevision', 'title', 'description', 'archived', 'fields', 'section'])) {
+  if (!allowedKeys(body, ['organizationId', 'expectedRevision', 'title', 'description', 'archived', 'fields', 'section', 'sections'])) {
     return problem(state, 400, 'unknown_key')
   }
   const definition = definitionIn(state, organizationId, directoryId)
@@ -792,12 +827,10 @@ export function updateDirectoryDefinition(
   }
   const rewritten = rewriteFields(state, definition, body.fields)
   if ('error' in rewritten) return problem(state, 400, rewritten.error)
-  let sections = definition.sections
-  if (body.section !== undefined) {
-    const section = parseCatalogSection(body.section)
-    if (!section) return problem(state, 400, 'invalid_value')
-    sections = [section]
-  }
+  const parsedSections = sectionsFromBody(body, definition.sections)
+  const sectionKeysSent = Object.prototype.hasOwnProperty.call(body, 'sections') || Object.prototype.hasOwnProperty.call(body, 'section')
+  if (sectionKeysSent && (!parsedSections || parsedSections.length === 0)) return problem(state, 400, 'invalid_value')
+  const sections = parsedSections ?? definition.sections
   if (registry) {
     const metaChanged = title !== definition.title
       || (description ?? '') !== definition.description
@@ -851,16 +884,6 @@ function usedFieldIdsOf(state: MockState, definition: DirectoryDefinition): stri
   return definition.fields.filter((field) => fieldHasValues(state, definition, field.id)).map((field) => field.id)
 }
 
-function directoryHasRecords(state: MockState, definition: DirectoryDefinition): boolean {
-  if (definition.source.type === 'registry' && definition.source.registry === 'departments') {
-    return departments(state).some((row) => row.organizationId === definition.organizationId)
-  }
-  if (definition.source.type === 'registry' && definition.source.registry === 'workplaces') {
-    return workplaces(state).some((row) => row.organizationId === definition.organizationId)
-  }
-  return entries(state).some((entry) => entry.directoryId === definition.id)
-}
-
 function recordsMissingValue(state: MockState, definition: DirectoryDefinition, fieldId: string): boolean {
   if (definition.source.type === 'registry' && definition.source.registry === 'departments') {
     return departments(state).some((row) =>
@@ -888,7 +911,7 @@ function rewriteFields(
   for (const item of raw) {
     if (!item || typeof item !== 'object') return { error: 'invalid_value' }
     const field = item as Record<string, unknown>
-    if (!allowedKeys(field, ['id', 'label', 'required', 'archived', 'type', 'constraints'])) return { error: 'unknown_key' }
+    if (!allowedKeys(field, ['id', 'label', 'required', 'archived', 'type', 'constraints', 'bundleId'])) return { error: 'unknown_key' }
     const label = requiredText(field.label, 200)
     if (!label || typeof field.required !== 'boolean' || typeof field.archived !== 'boolean') return { error: 'invalid_value' }
     const id = typeof field.id === 'string' ? field.id : ''
@@ -897,7 +920,8 @@ function rewriteFields(
       if (parsedType == null) return { error: 'invalid_value' }
       const constraints = parseDirectoryConstraints(parsedType, field.constraints)
       if (constraints === 'invalid') return { error: 'invalid_value' }
-      if (field.required && !field.archived && directoryHasRecords(state, definition)) return { error: 'required' }
+      const bundleId = parseBundleId(field.bundleId)
+      if (bundleId === null) return { error: 'invalid_value' }
       next.push({
         id: `df-${crypto.randomUUID()}`,
         key: 'custom',
@@ -906,6 +930,7 @@ function rewriteFields(
         required: field.required,
         archived: field.archived,
         ...(constraints ? { constraints } : {}),
+        ...(bundleId ? { bundleId } : {}),
       })
       continue
     }

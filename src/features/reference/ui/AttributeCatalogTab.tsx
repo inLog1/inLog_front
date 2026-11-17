@@ -16,12 +16,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, MoreHorizontal, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GripVertical, MoreHorizontal, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   personnelError,
+  useDeleteDirectoryDefinitionMutation,
   useGetDirectoryQuery,
   useUpdateDirectoryDefinitionMutation,
 } from '../../../entities/personnel'
@@ -30,7 +31,6 @@ import type { DirectoryView } from '../../../entities/personnel/model/personnelA
 import { cn } from '../../../shared/lib/utils'
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -58,8 +58,10 @@ import { TabButton } from '../../../shared/ui/tab-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/table'
 import {
   attributeDeleteBlock,
+  attributePlacements,
   canAddAttribute,
   canDeleteAttribute,
+  canDeleteAttributeGroup,
   canEditDirectoryStructure,
   canReorderAttributes,
   CATALOG_ALL_ID,
@@ -76,10 +78,18 @@ import {
   type CatalogFieldRow,
   type FieldWrite,
 } from '../model/attribute-catalog'
-import { sortDirectories } from '../model/directory-list'
+import { DIRECTORY_PAGE_SIZES, pageCount, paginateDirectories, sortDirectories } from '../model/directory-list'
 import { AttributeConstraintCell } from './AttributeConstraintCell'
 import { AttributeEditorDialog } from './AttributeEditorDialog'
 import { DirectoryAttributeSettings } from './DirectoryAttributeSettings'
+import { MembershipChoices } from './membership-choices'
+
+type PendingAttributeDelete = {
+  fieldId: string
+  bundleId?: string
+  label: string
+  removeDirectoryIds: string[]
+}
 
 function sameFieldIds(left: DirectoryField[], right: DirectoryField[]): boolean {
   if (left.length !== right.length) return false
@@ -102,13 +112,16 @@ export function AttributeCatalogTab({
   const [search, setSearch] = useSearchParams()
   const [directoryQuery, setDirectoryQuery] = useState('')
   const [attributeQuery, setAttributeQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(DIRECTORY_PAGE_SIZES[0])
   const [panel, setPanel] = useState<'attributes' | 'settings'>('attributes')
   const [editor, setEditor] = useState<null | { mode: 'create' } | { mode: 'edit'; fieldId: string }>(null)
-  const [pendingDelete, setPendingDelete] = useState<DirectoryField | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingAttributeDelete | null>(null)
   const [actionError, setActionError] = useState('')
   const [draftOrder, setDraftOrder] = useState<DirectoryField[] | null>(null)
   const [focusDirectoryId, setFocusDirectoryId] = useState<string | null>(null)
   const [updateDefinition, updateState] = useUpdateDirectoryDefinitionMutation()
+  const [removeDefinition] = useDeleteDirectoryDefinitionMutation()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -148,6 +161,7 @@ export function AttributeCatalogTab({
 
   const canEdit = directory ? canEditDirectoryStructure(activePermissions) : false
   const canDelete = directory ? canDeleteAttribute(directory, activePermissions) : false
+  const canDeleteGroup = directory ? canDeleteAttributeGroup(directory, activePermissions) : false
   const reorder = Boolean(directory)
     && !isAllCatalog
     && canReorderAttributes(activePermissions)
@@ -166,6 +180,11 @@ export function AttributeCatalogTab({
     ? draftOrder
     : directory?.fields ?? []
   const visibleFields = filterCatalogFields(shownFields, attributeQuery)
+  const listedCount = isAllCatalog ? visibleAllFields.length : visibleFields.length
+  const pages = pageCount(listedCount, pageSize)
+  const currentPage = Math.min(page, pages)
+  const pagedAllFields = paginateDirectories(visibleAllFields, currentPage, pageSize)
+  const pagedFields = paginateDirectories(visibleFields, currentPage, pageSize)
   const addableDirectories = useMemo(
     () => sorted.filter((item) => canAddAttribute(item, item.permissions ?? permissions)),
     [permissions, sorted],
@@ -203,7 +222,8 @@ export function AttributeCatalogTab({
     current: DirectoryDefinition,
     fields: FieldWrite[],
     message: string,
-    patch?: { title: string; description: string; archived: boolean; section?: string },
+    patch?: { title: string; description: string; archived: boolean; sections?: string[] },
+    announce = true,
   ) => {
     try {
       await updateDefinition({
@@ -215,10 +235,10 @@ export function AttributeCatalogTab({
           description: patch?.description ?? current.description,
           archived: patch?.archived ?? current.archived,
           fields,
-          ...(patch?.section ? { section: patch.section } : {}),
+          ...(patch?.sections ? { sections: patch.sections } : {}),
         },
       }).unwrap()
-      toast.success(message)
+      if (announce && message) toast.success(message)
     } catch (caught) {
       void detail.refetch()
       throw caught
@@ -240,28 +260,95 @@ export function AttributeCatalogTab({
       })
   }
 
-  const confirmDelete = () => {
-    const targetDirectory = mutationDirectory
-    if (!targetDirectory || !pendingDelete) return
-    const block = attributeDeleteBlock(targetDirectory, pendingDelete, usageRecords, usageKnown)
-    const target = pendingDelete
-    if (block) {
-      setActionError(t(`directories.catalog.delete-${block}`))
-      setPendingDelete(null)
+  const deletePlacements = useMemo(() => {
+    if (!pendingDelete) return []
+    return attributePlacements(sorted, { id: pendingDelete.fieldId, bundleId: pendingDelete.bundleId })
+  }, [pendingDelete, sorted])
+
+  const blockForPlacement = (place: (typeof deletePlacements)[number]) => {
+    if (isProtectedCatalogField(place.directory, place.field)) return 'registry' as const
+    if (place.directory.id !== (usageTarget?.id ?? null)) return null
+    return attributeDeleteBlock(place.directory, place.field, usageRecords, usageKnown)
+  }
+  const selectedDirectoryIds = (pendingDelete?.removeDirectoryIds ?? []).filter((id) => {
+    const place = deletePlacements.find((item) => item.directory.id === id)
+    if (!place) return false
+    const block = blockForPlacement(place)
+    return block == null || block === 'loading'
+  })
+
+  const openAttributeDelete = (originDirectoryId: string, field: DirectoryField) => {
+    setActionError('')
+    setFocusDirectoryId(originDirectoryId)
+    setPendingDelete({
+      fieldId: field.id,
+      bundleId: field.bundleId,
+      label: field.label,
+      removeDirectoryIds: attributePlacements(sorted, field).map((place) => place.directory.id),
+    })
+  }
+
+  const confirmAttributeDelete = async (everywhere: boolean) => {
+    if (!pendingDelete) return
+    const chosen = everywhere
+      ? deletePlacements
+      : deletePlacements.filter((place) => selectedDirectoryIds.includes(place.directory.id))
+    const removable = chosen.filter((place) => blockForPlacement(place) == null)
+    if (removable.length === 0) {
+      setActionError(t('directories.catalog.delete-none'))
       return
     }
-    const fields = omitField(targetDirectory.fields, target.id)
+    const failures: string[] = []
+    const succeeded: string[] = []
+    for (const place of removable) {
+      const fields = omitField(place.directory.fields, place.field.id)
+      if (!fields) continue
+      try {
+        await submit(place.directory, fields, '', undefined, false)
+        succeeded.push(place.directory.id)
+      } catch (caught) {
+        failures.push(t('directories.catalog.delete-blocked-line', {
+          group: place.directory.title,
+          reason: errorText(caught),
+        }))
+      }
+    }
+    if (failures.length > 0) {
+      setActionError(failures.join(' '))
+      setPendingDelete((current) => current ? {
+        ...current,
+        removeDirectoryIds: current.removeDirectoryIds.filter((id) => !succeeded.includes(id)),
+      } : current)
+      if (succeeded.length > 0) toast.success(t('directories.catalog.deleted-partial'))
+      return
+    }
+    if (succeeded.length === 0) {
+      setActionError(t('directories.catalog.delete-none'))
+      return
+    }
+    const blockedLeft = deletePlacements.some((place) => blockForPlacement(place) != null)
+    const removedAllSelected = everywhere || succeeded.length === deletePlacements.length
+    toast.success(blockedLeft || !removedAllSelected
+      ? t('directories.catalog.deleted-partial')
+      : t('directories.catalog.deleted'))
+    if (blockedLeft && everywhere) {
+      const lines = deletePlacements
+        .filter((place) => blockForPlacement(place) != null)
+        .map((place) => t('directories.catalog.delete-blocked-line', {
+          group: place.directory.title,
+          reason: t(`directories.catalog.delete-${blockForPlacement(place)}`),
+        }))
+      setActionError(lines.join(' '))
+      return
+    }
     setPendingDelete(null)
-    if (!fields) return
-    void submit(targetDirectory, fields, t('directories.catalog.deleted')).catch((caught: unknown) => {
-      setActionError(errorText(caught))
-    })
   }
 
   const selectDirectory = (directoryId: string) => {
     const currentId = isAllCatalog ? CATALOG_ALL_ID : directory?.id
     if (directoryId !== currentId) {
       setAttributeQuery('')
+      setPage(1)
       setPanel('attributes')
       setEditor(null)
       setPendingDelete(null)
@@ -366,8 +453,18 @@ export function AttributeCatalogTab({
                   key={directory.id}
                   directory={directory}
                   canEdit={canEdit}
+                  canDelete={canDeleteGroup}
                   onSave={async (patch) => {
                     await submit(directory, directory.fields.map(fieldWrite), t('directories.catalog.settings-saved'), patch)
+                  }}
+                  onDelete={async () => {
+                    await removeDefinition({
+                      organizationId,
+                      directoryId: directory.id,
+                      expectedRevision: directory.revision,
+                    }).unwrap()
+                    toast.success(t('directories.catalog.delete-group-done'))
+                    selectDirectory(CATALOG_ALL_ID)
                   }}
                 />
               </div>
@@ -377,7 +474,10 @@ export function AttributeCatalogTab({
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
                   <Input
                     value={attributeQuery}
-                    onChange={(event) => setAttributeQuery(event.target.value)}
+                    onChange={(event) => {
+                      setAttributeQuery(event.target.value)
+                      setPage(1)
+                    }}
                     placeholder={t('directories.catalog.search-attribute')}
                     aria-label={t('directories.catalog.search-attribute')}
                     className="pl-8"
@@ -398,7 +498,6 @@ export function AttributeCatalogTab({
                         <TableRow>
                           <TableHead>{t('directories.catalog.columns.group')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.name')}</TableHead>
-                          <TableHead>{t('directories.catalog.columns.code')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.type')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.constraints')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.required')}</TableHead>
@@ -407,13 +506,18 @@ export function AttributeCatalogTab({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {visibleAllFields.map((row) => {
+                        {pagedAllFields.map((row) => {
                           const rowDirectory = sorted.find((item) => item.id === row.directoryId)
                           if (!rowDirectory) return null
                           const rowPermissions = rowDirectory.permissions ?? permissions
                           const rowCanEdit = canEditDirectoryStructure(rowPermissions)
                           const rowCanDelete = canDeleteAttribute(rowDirectory, rowPermissions)
                           const rowUsageKnown = focusDirectoryId === row.directoryId && usageKnown
+                          const rowBlock = attributeDeleteBlock(rowDirectory, row.field, usageRecords, rowUsageKnown)
+                          const linked = attributePlacements(sorted, row.field)
+                          const canOpenDelete = rowBlock == null || linked.some((place) =>
+                            place.directory.id !== row.directoryId && !isProtectedCatalogField(place.directory, place.field),
+                          )
                           return (
                             <AllAttributeRow
                               key={`${row.directoryId}:${row.field.id}`}
@@ -422,16 +526,12 @@ export function AttributeCatalogTab({
                               userField={isUserCatalogField(row.field)}
                               canEdit={rowCanEdit}
                               canDelete={rowCanDelete}
-                              deleteBlock={attributeDeleteBlock(rowDirectory, row.field, usageRecords, rowUsageKnown)}
+                              deleteBlock={canOpenDelete ? null : rowBlock}
                               onEdit={() => {
                                 focusDirectoryForField(row.directoryId)
                                 setEditor({ mode: 'edit', fieldId: row.field.id })
                               }}
-                              onDelete={() => {
-                                setActionError('')
-                                focusDirectoryForField(row.directoryId)
-                                setPendingDelete(row.field)
-                              }}
+                              onDelete={() => openAttributeDelete(row.directoryId, row.field)}
                             />
                           )
                         })}
@@ -459,7 +559,6 @@ export function AttributeCatalogTab({
                             <span className="sr-only">{t('directories.catalog.reorder-handle')}</span>
                           </TableHead>
                           <TableHead>{t('directories.catalog.columns.name')}</TableHead>
-                          <TableHead>{t('directories.catalog.columns.code')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.type')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.constraints')}</TableHead>
                           <TableHead>{t('directories.catalog.columns.required')}</TableHead>
@@ -467,30 +566,46 @@ export function AttributeCatalogTab({
                           <TableHead className="w-12"><span className="sr-only">{t('directories.catalog.columns.actions')}</span></TableHead>
                         </TableRow>
                       </TableHeader>
-                      <SortableContext items={visibleFields.map((field) => field.id)} strategy={verticalListSortingStrategy}>
+                      <SortableContext items={pagedFields.map((field) => field.id)} strategy={verticalListSortingStrategy}>
                         <TableBody>
-                          {visibleFields.map((field) => (
-                            <AttributeRow
-                              key={field.id}
-                              field={field}
-                              protectedField={isProtectedCatalogField(directory!, field)}
-                              userField={isUserCatalogField(field)}
-                              reorder={reorder}
-                              canEdit={canEdit}
-                              canDelete={canDelete}
-                              deleteBlock={attributeDeleteBlock(directory!, field, usageRecords, usageKnown)}
-                              onEdit={() => setEditor({ mode: 'edit', fieldId: field.id })}
-                              onDelete={() => {
-                                setActionError('')
-                                setPendingDelete(field)
-                              }}
-                            />
-                          ))}
+                          {pagedFields.map((field) => {
+                            const fieldBlock = attributeDeleteBlock(directory!, field, usageRecords, usageKnown)
+                            const linked = attributePlacements(sorted, field)
+                            const canOpenDelete = fieldBlock == null || linked.some((place) =>
+                              place.directory.id !== directory!.id && !isProtectedCatalogField(place.directory, place.field),
+                            )
+                            return (
+                              <AttributeRow
+                                key={field.id}
+                                field={field}
+                                protectedField={isProtectedCatalogField(directory!, field)}
+                                userField={isUserCatalogField(field)}
+                                reorder={reorder}
+                                canEdit={canEdit}
+                                canDelete={canDelete}
+                                deleteBlock={canOpenDelete ? null : fieldBlock}
+                                onEdit={() => setEditor({ mode: 'edit', fieldId: field.id })}
+                                onDelete={() => openAttributeDelete(directory!.id, field)}
+                              />
+                            )
+                          })}
                         </TableBody>
                       </SortableContext>
                     </Table>
                   </DndContext>
                 )}
+                {listedCount > 0 ? (
+                  <AttributeCatalogPager
+                    page={currentPage}
+                    pages={pages}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                    onPageSizeChange={(size) => {
+                      setPageSize(size)
+                      setPage(1)
+                    }}
+                  />
+                ) : null}
               </div>
             )}
           </section>
@@ -506,7 +621,7 @@ export function AttributeCatalogTab({
           field={editor.mode === 'edit' ? editingField : null}
           initialDirectoryId={mutationDirectory?.id ?? directory?.id ?? addableDirectories[0]?.id ?? ''}
           onClose={() => setEditor(null)}
-          onSubmit={async (target, fields) => {
+          onSubmit={async (target, fields, announce = true) => {
             if (editor.mode === 'create' && target.id !== focusDirectoryId) {
               setFocusDirectoryId(target.id)
             }
@@ -514,25 +629,66 @@ export function AttributeCatalogTab({
               target,
               fields,
               editor.mode === 'create' ? t('directories.catalog.created') : t('directories.catalog.saved'),
+              undefined,
+              announce,
             )
           }}
         />
       ) : null}
 
-      <AlertDialog open={pendingDelete != null} onOpenChange={(open) => { if (!open) setPendingDelete(null) }}>
+      <AlertDialog open={pendingDelete != null} onOpenChange={(open) => { if (!open) { setPendingDelete(null); setActionError('') } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('directories.catalog.delete-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('directories.catalog.delete-body', {
-                name: pendingDelete?.label ?? '',
-                directory: mutationDirectory?.title ?? directory?.title ?? '',
-              })}
+              {t('directories.catalog.delete-places', { name: pendingDelete?.label ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deletePlacements.length > 0 ? (
+            <>
+              <p id="attribute-delete-groups" className="sr-only">{t('directories.catalog.field-group')}</p>
+              <MembershipChoices
+                labelledBy="attribute-delete-groups"
+                value={selectedDirectoryIds}
+                onChange={(removeDirectoryIds) => setPendingDelete((current) => current ? { ...current, removeDirectoryIds } : current)}
+                options={deletePlacements.map((place) => {
+                  const block = blockForPlacement(place)
+                  return {
+                    value: place.directory.id,
+                    label: place.directory.title,
+                    disabled: block != null && block !== 'loading',
+                    hint: block ? t(`directories.catalog.delete-${block}`) : undefined,
+                  }
+                })}
+              />
+            </>
+          ) : null}
+          {actionError ? <p className="text-sm text-destructive" role="alert">{actionError}</p> : null}
           <AlertDialogFooter>
             <AlertDialogCancel>{t('directories.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>{t('directories.catalog.delete')}</AlertDialogAction>
+            {selectedDirectoryIds.length > 0
+              && selectedDirectoryIds.length < deletePlacements.filter((place) => blockForPlacement(place) == null).length ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateState.isLoading || deletePlacements.some((place) => blockForPlacement(place) === 'loading')}
+                onClick={() => void confirmAttributeDelete(false)}
+              >
+                {t('directories.catalog.delete-selected')}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={
+                updateState.isLoading
+                || deletePlacements.some((place) => blockForPlacement(place) === 'loading')
+                || deletePlacements.every((place) => blockForPlacement(place) != null)
+              }
+              onClick={() => void confirmAttributeDelete(true)}
+            >
+              {t('directories.catalog.delete-everywhere')}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -593,7 +749,6 @@ function AllAttributeRow({
     <TableRow>
       <TableCell className="text-muted-foreground">{row.directoryTitle}</TableCell>
       <TableCell className="font-medium">{field.label}</TableCell>
-      <TableCell><span className="font-mono text-xs text-muted-foreground">{field.key}</span></TableCell>
       <TableCell>{t(`directories.catalog.types.${field.type}`, { defaultValue: field.type })}</TableCell>
       <TableCell><AttributeConstraintCell field={field} /></TableCell>
       <TableCell>
@@ -649,6 +804,62 @@ function AllAttributeRow({
   )
 }
 
+function AttributeCatalogPager({
+  page,
+  pages,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number
+  pages: number
+  pageSize: number
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span id="attribute-catalog-page-size-label">{t('directories.page-size')}</span>
+        <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+          <SelectTrigger className="h-8 w-[4.5rem]" aria-labelledby="attribute-catalog-page-size-label">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DIRECTORY_PAGE_SIZES.map((size) => (
+              <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          aria-label={t('buttons.previous')}
+          onClick={() => onPageChange(page - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm tabular-nums text-muted-foreground">{page} / {pages}</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page >= pages}
+          aria-label={t('buttons.next')}
+          onClick={() => onPageChange(page + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function AttributeRow({
   field,
   protectedField,
@@ -698,7 +909,6 @@ function AttributeRow({
         </button>
       </TableCell>
       <TableCell className="font-medium">{field.label}</TableCell>
-      <TableCell><span className="font-mono text-xs text-muted-foreground">{field.key}</span></TableCell>
       <TableCell>{t(`directories.catalog.types.${field.type}`, { defaultValue: field.type })}</TableCell>
       <TableCell><AttributeConstraintCell field={field} /></TableCell>
       <TableCell>

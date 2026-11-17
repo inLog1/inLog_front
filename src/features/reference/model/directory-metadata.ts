@@ -5,7 +5,7 @@ import {
   type DirectorySource,
 } from '../../../entities/personnel/model/types'
 import { STARTER_DIRECTORY_KEYS } from '../../../entities/personnel/model/template'
-import { directoryPrimaryCatalogSection } from './directory-sections'
+import { directoryCatalogSections, directoryPrimaryCatalogSection } from './directory-sections'
 
 export const DIRECTORY_CREATE_TYPES = ['manual'] as const
 export type DirectoryCreateType = (typeof DIRECTORY_CREATE_TYPES)[number]
@@ -35,4 +35,8 @@ export function catalogSectionOptions(): DirectoryCatalogSection[] {
 
 export function initialCatalogSection(definition: DirectoryDefinition): DirectoryCatalogSection {
   return directoryPrimaryCatalogSection(definition)
+}
+
+export function initialCatalogSections(definition: DirectoryDefinition): DirectoryCatalogSection[] {
+  return directoryCatalogSections(definition)
 }

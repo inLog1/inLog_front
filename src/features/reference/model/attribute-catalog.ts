@@ -6,6 +6,7 @@ import type {
   DirectoryPermissions,
 } from '../../../entities/personnel/model/types'
 import { normalizeConstraintsForWrite } from './attribute-field'
+import { canDeleteDirectoryDefinition } from './directory-metadata'
 
 export const CATALOG_ALL_ID = '__all__'
 
@@ -58,6 +59,31 @@ export type FieldWrite = {
   archived: boolean
   type: CatalogAttributeType
   constraints?: DirectoryAttributeConstraints
+  bundleId?: string
+}
+
+export type AttributePlacement<T extends { id: string; fields: DirectoryField[] }> = {
+  directory: T
+  field: DirectoryField
+}
+
+/** Copies of one attribute across directories. A bundle id links them; otherwise the field id matches a single directory. */
+export function attributePlacements<T extends { id: string; fields: DirectoryField[] }>(
+  directories: T[],
+  field: Pick<DirectoryField, 'id' | 'bundleId'>,
+): AttributePlacement<T>[] {
+  if (field.bundleId) {
+    const linked = directories.flatMap((directory) =>
+      directory.fields
+        .filter((item) => item.bundleId === field.bundleId)
+        .map((item) => ({ directory, field: item })),
+    )
+    if (linked.length > 0) return linked
+  }
+  const owner = directories.find((directory) => directory.fields.some((item) => item.id === field.id))
+  if (!owner) return []
+  const match = owner.fields.find((item) => item.id === field.id)
+  return match ? [{ directory: owner, field: match }] : []
 }
 
 export type DeleteBlock = 'registry' | 'in-use' | 'label' | 'loading'
@@ -119,6 +145,14 @@ export function canReorderAttributes(permissions: Pick<DirectoryPermissions, 'st
   return permissions.structure
 }
 
+/** Deletes the whole group and its attributes. Registry and starter groups stay. */
+export function canDeleteAttributeGroup(
+  directory: DirectoryDefinition,
+  permissions: Pick<DirectoryPermissions, 'delete'>,
+): boolean {
+  return permissions.delete && canDeleteDirectoryDefinition(directory)
+}
+
 export function fieldWrite(field: DirectoryField): FieldWrite {
   return {
     id: field.id,
@@ -127,6 +161,7 @@ export function fieldWrite(field: DirectoryField): FieldWrite {
     archived: field.archived,
     type: field.type,
     ...(field.constraints ? { constraints: field.constraints } : {}),
+    ...(field.bundleId ? { bundleId: field.bundleId } : {}),
   }
 }
 
@@ -134,6 +169,7 @@ export function appendField(
   fields: DirectoryField[],
   draft: AttributeFieldDraft,
   temporaryId: string,
+  bundleId?: string,
 ): FieldWrite[] {
   const constraints = normalizeConstraintsForWrite(draft.type, draft.constraints ?? {})
   return [
@@ -145,6 +181,7 @@ export function appendField(
       archived: draft.archived ?? false,
       type: draft.type,
       ...(constraints ? { constraints } : {}),
+      ...(bundleId ? { bundleId } : {}),
     },
   ]
 }

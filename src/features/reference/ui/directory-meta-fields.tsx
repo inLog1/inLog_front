@@ -14,32 +14,36 @@ import {
   isDirectoryTypeLocked,
   type DirectoryCreateType,
 } from '../model/directory-metadata'
-export function DirectorySectionField({
+import { FieldLabel, MembershipChoices } from './membership-choices'
+
+export function DirectorySectionsField({
   value,
   onChange,
   id,
   disabled,
+  required,
 }: {
-  value: DirectoryCatalogSection
-  onChange: (value: DirectoryCatalogSection) => void
-  id?: string
+  value: DirectoryCatalogSection[]
+  onChange: (value: DirectoryCatalogSection[]) => void
+  id: string
   disabled?: boolean
+  required?: boolean
 }) {
   const { t } = useTranslation()
   const options = catalogSectionOptions()
+  const labelId = `${id}-label`
+  const ordered = (next: string[]) => options.filter((section) => next.includes(section))
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id}>{t('directories.definition-section')}</Label>
-      <Select value={value} disabled={disabled} onValueChange={(next) => onChange(next as DirectoryCatalogSection)}>
-        <SelectTrigger id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((section) => (
-            <SelectItem key={section} value={section}>{t(`directories.sections.${section}`)}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="grid gap-1.5" data-field={id}>
+      <FieldLabel id={labelId} required={required}>{t('directories.definition-section')}</FieldLabel>
+      <MembershipChoices
+        labelledBy={labelId}
+        disabled={disabled}
+        value={value}
+        onChange={(next) => onChange(ordered(next))}
+        options={options.map((section) => ({ value: section, label: t(`directories.sections.${section}`) }))}
+      />
+      <p className="text-xs text-muted-foreground">{t('directories.definition-sections-hint')}</p>
     </div>
   )
 }

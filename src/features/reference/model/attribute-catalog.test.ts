@@ -3,7 +3,9 @@ import type { DirectoryDefinition, DirectoryField } from '../../../entities/pers
 import {
   appendField,
   attributeDeleteBlock,
+  attributePlacements,
   canAddAttribute,
+  canDeleteAttributeGroup,
   editableFieldPatch,
   isProtectedCatalogField,
   isUserCatalogField,
@@ -60,6 +62,20 @@ describe('attribute catalog writes', () => {
     expect(filterCatalogFields([name, code], 'наз').map((item) => item.id)).toEqual(['name'])
   })
 
+  it('links copies of one attribute by bundle id', () => {
+    const note = { ...field('a', 'custom', 'Примечание'), bundleId: 'ab-1' }
+    const copy = { ...field('b', 'custom', 'Примечание'), bundleId: 'ab-1' }
+    const other = field('c', 'title', 'Название')
+    const left = directory({ type: 'manual' }, [note])
+    const right = { ...directory({ type: 'manual' }, [copy, other]), id: 'dir:101:other', title: 'Должности' }
+    expect(attributePlacements([left, right], note).map((item) => item.field.id)).toEqual(['a', 'b'])
+    expect(attributePlacements([left, right], other).map((item) => item.directory.id)).toEqual([right.id])
+    expect(appendField([other], { label: 'Новое', required: false, type: 'text' }, 'new:1', 'ab-1')[1]).toMatchObject({
+      id: 'new:1',
+      bundleId: 'ab-1',
+    })
+  })
+
   it('allows adding custom fields for manual and registry directories when structure is granted', () => {
     expect(canAddAttribute(manual, { structure: true, schemaCreate: false })).toBe(true)
     expect(canAddAttribute(registry, { structure: false, schemaCreate: true })).toBe(true)
@@ -104,6 +120,15 @@ describe('attribute catalog writes', () => {
     expect(attributeDeleteBlock(manual, code, [{ values: { code: 'А' } }], true)).toBe('in-use')
     expect(attributeDeleteBlock(manual, code, [{ values: { code: '  ' } }], true)).toBeNull()
     expect(omitField([name, code], 'code')?.map((item) => item.id)).toEqual(['name'])
+  })
+
+  it('lets a delete grant remove a custom group and keeps starter and registry groups', () => {
+    const custom = directory({ type: 'manual' }, [name])
+    const starter = { ...custom, key: 'positions' }
+    expect(canDeleteAttributeGroup(custom, { delete: true })).toBe(true)
+    expect(canDeleteAttributeGroup(custom, { delete: false })).toBe(false)
+    expect(canDeleteAttributeGroup(starter, { delete: true })).toBe(false)
+    expect(canDeleteAttributeGroup(registry, { delete: true })).toBe(false)
   })
 
   it('reorders fields without dropping any', () => {

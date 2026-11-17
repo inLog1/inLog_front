@@ -30,10 +30,16 @@ export function directorySections(definition: DirectoryDefinition): DirectorySec
   return ['other']
 }
 
+export function directoryCatalogSections(definition: DirectoryDefinition): DirectoryCatalogSection[] {
+  return directorySections(definition).filter((section): section is DirectoryCatalogSection => section !== 'all')
+}
+
 export function directoryPrimaryCatalogSection(definition: DirectoryDefinition): DirectoryCatalogSection {
-  const section = directorySections(definition)[0]
-  if (section && section !== 'all') return section
-  return 'other'
+  return directoryCatalogSections(definition)[0] ?? 'other'
+}
+
+export function sameSectionSet(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((section) => right.includes(section))
 }
 
 export function primarySection(definition: DirectoryDefinition): DirectorySectionId {
