@@ -293,12 +293,13 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
         <div className="min-w-0 space-y-4">
           <RequestObjectsCard request={request} catalog={catalog.currentData} dash={dash} />
-          <RequestNeedsCard request={request} catalog={catalog.currentData} dash={dash} />
+          <RequestNeedsCard request={request} catalog={catalog.currentData} dash={dash} organizationId={organizationId} />
           {showSeparateProgram ? (
             <RequestProgramCard
               request={request}
               catalog={catalog.currentData}
               dash={dash}
+              organizationId={organizationId}
               editor={program.includes('save') ? (
                 <RequestProgramEditor
                   request={request}
@@ -307,6 +308,7 @@ function RequestCard({ organizationId, requestId }: { organizationId: number; re
                   note={note}
                   onLines={setLines}
                   onNote={setNote}
+                  organizationId={organizationId}
                 />
               ) : undefined}
             />

@@ -228,15 +228,26 @@ export function isRequestPath(pathname: string): boolean {
   return path === '/requests' || path.startsWith('/requests/')
 }
 
-/** Home carries no workspace params. Requests carry the organization only, so both omit the project address. */
+/** The sample registry shows one organization. It does not carry a project. */
+export function isSamplePath(pathname: string): boolean {
+  const path = barePath(pathname)
+  return path === '/samples' || path.startsWith('/samples/')
+}
+
+/** Requests and the sample registry keep the organization and drop the project. */
+function isOrganizationWorkPath(pathname: string): boolean {
+  return isRequestPath(pathname) || isSamplePath(pathname)
+}
+
+/** Home carries no workspace params. Organization work carries the organization only. */
 export function omitsWorkspaceAddress(pathname: string): boolean {
   const path = barePath(pathname)
-  return path === '/' || isRequestPath(path)
+  return path === '/' || isOrganizationWorkPath(path)
 }
 
 /**
  * Home drops org and project.
- * Requests keep org and drop project.
+ * Requests and the sample registry keep org and drop project.
  * Other addresses stay as they are. Null means nothing to change.
  */
 export function workspaceAddressPatch(pathname: string, current: URLSearchParams): URLSearchParams | null {
@@ -247,25 +258,25 @@ export function workspaceAddressPatch(pathname: string, current: URLSearchParams
     next.delete('project')
     changed = true
   }
-  if (!isRequestPath(pathname) && next.has('org')) {
+  if (!isOrganizationWorkPath(pathname) && next.has('org')) {
     next.delete('org')
     changed = true
   }
   return changed ? next : null
 }
 
-/** Requests remember the organization. Home does not write a workspace selection. */
+/** Organization work remembers the organization. Home does not write a workspace selection. */
 export function shouldPersistWorkspace(pathname: string, scope: WorkspaceScope, persist: boolean): boolean {
   if (!persist) return false
   if (!omitsWorkspaceAddress(pathname)) return true
-  return isRequestPath(pathname) && scope === 'organization'
+  return isOrganizationWorkPath(pathname) && scope === 'organization'
 }
 
 /**
  * One builder for section links.
  * A project section keeps a verified org and project.
  * An organization section keeps org, and a project only when it is already verified in the URL.
- * Requests keep the organization and never a project.
+ * Requests and the sample registry keep the organization and never a project.
  * Home and other app pages do not receive org or project.
  * task, node and tab are never copied. Public destinations and logout get none of them.
  */
@@ -276,7 +287,7 @@ export function workspaceHref(
   explicitProject: boolean,
 ): string {
   if (scope === 'public') return pathname
-  if (isRequestPath(pathname)) {
+  if (isOrganizationWorkPath(pathname)) {
     if (verified.organizationId == null) return pathname
     return `${pathname}?org=${verified.organizationId}`
   }

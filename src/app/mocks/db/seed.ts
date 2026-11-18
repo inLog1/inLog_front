@@ -215,6 +215,9 @@ export function createSeed(): MockState {
     employees: [],
     organizationWorkspaces: [],
     requests: DEMO_REQUESTS,
+    samples: [],
+    sampleAttachments: [],
+    sampleCodeCounters: {},
     fault: null,
   }
   const withPasswords = {

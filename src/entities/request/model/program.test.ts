@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyRequestDraft } from './draft'
-import { emptyProgramMeta, inspectProgramForApproval, lineFromNeed, programLinesRepeatNeeds } from './program'
+import { copyProgramSnapshot, emptyProgramMeta, inspectProgramForApproval, inspectProgramStudyLines, lineFromNeed, programLinesRepeatNeeds, readProgramMeta } from './program'
 
 const catalog = {
   workKinds: ['work-porosity', 'work-permeability'],
@@ -101,5 +101,36 @@ describe('study programme approval', () => {
     expect(programLinesRepeatNeeds([need], [])).toBe(false)
     expect(programLinesRepeatNeeds([need], [{ ...lineFromNeed(need), quantity: 4 }])).toBe(false)
     expect(programLinesRepeatNeeds([need], [{ ...lineFromNeed(need), note: 'Уточнение' }])).toBe(false)
+  })
+
+  it('stores registry ids on a line and leaves an approved snapshot unchanged', () => {
+    const details = openNeed()
+    const need = { ...details.needs[0]!, researchId: 'work-porosity', sampleIds: ['sample-a'] }
+    const copied = lineFromNeed(need)
+    expect(copied.sampleIds).toEqual(['sample-a'])
+    expect(programLinesRepeatNeeds([need], [copied])).toBe(true)
+    expect(programLinesRepeatNeeds([need], [{ ...copied, sampleIds: ['sample-b'] }])).toBe(false)
+    expect(programLinesRepeatNeeds([{ ...need, sampleIds: [] }], [{ ...copied, sampleIds: [] }])).toBe(true)
+
+    const parsed = inspectProgramStudyLines([{ ...copied, sampleIds: ['sample-a', 'sample-b'] }], catalog)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.lines[0]?.sampleIds).toEqual(['sample-a', 'sample-b'])
+    const plain = inspectProgramStudyLines([lineFromNeed(details.needs[0]!)], catalog)
+    expect(plain.ok).toBe(true)
+    if (plain.ok) expect(plain.lines[0]).not.toHaveProperty('sampleIds')
+    expect(inspectProgramStudyLines([{ ...copied, sampleIds: ['bad id'] }], catalog).ok).toBe(false)
+
+    const lines = [{ ...copied, sampleIds: ['sample-a'] }]
+    const meta = { ...emptyProgramMeta(), preparedBy: 'laboratory' as const, authorUserId: 4, version: 2, lines }
+    const snapshot = copyProgramSnapshot(meta, lines, 7, '2026-11-17T00:00:00.000Z')
+    lines[0]?.sampleIds?.push('sample-c')
+    expect(snapshot?.lines[0]?.sampleIds).toEqual(['sample-a'])
+    const opened = readProgramMeta({
+      ...meta,
+      lines: [{ ...copied, sampleIds: ['sample-c'] }],
+      approvedSnapshot: snapshot,
+    })
+    expect(opened.lines[0]?.sampleIds).toEqual(['sample-c'])
+    expect(opened.approvedSnapshot?.lines[0]?.sampleIds).toEqual(['sample-a'])
   })
 })

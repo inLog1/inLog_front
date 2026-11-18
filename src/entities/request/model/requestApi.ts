@@ -1,6 +1,7 @@
 import { platformApi } from '../../../shared/api/platformApi'
 import type { RequestBasisDocument } from './basis'
 import type { RequestDraftDetails } from './draft'
+import type { RequestLinkedSamplesResponse } from './linked-samples'
 import type { OrganizationKind, RequestRecord } from './types'
 
 export type RequestEventType =
@@ -142,6 +143,18 @@ export const requestApi = platformApi.injectEndpoints({
       query: ({ organizationId, requestId }) => `requests/${requestId}/?organization=${organizationId}`,
       providesTags: (_result, _error, arg) => [{ type: 'Requests', id: arg.requestId }],
     }),
+    /**
+     * Samples already stored on a request the caller may read.
+     * The query does not accept sample ids. Live mode has no backend for this path.
+     */
+    getRequestLinkedSamples: build.query<RequestLinkedSamplesResponse, { organizationId: number; requestId: string }>({
+      query: ({ organizationId, requestId }) => `requests/${requestId}/linked-samples/?organization=${organizationId}`,
+      providesTags: (result, _error, arg) => [
+        { type: 'Requests', id: arg.requestId },
+        { type: 'Samples', id: `request-${arg.requestId}` },
+        ...(result?.samples ?? []).map((sample) => ({ type: 'Samples' as const, id: sample.id })),
+      ],
+    }),
     getExecutorLaboratories: build.query<ExecutorListResponse, { organizationId: number }>({
       query: ({ organizationId }) => `requests/laboratories/?organization=${organizationId}`,
     }),
@@ -253,6 +266,7 @@ function reviewTags(
 export const {
   useGetRequestsQuery,
   useGetRequestQuery,
+  useGetRequestLinkedSamplesQuery,
   useGetExecutorLaboratoriesQuery,
   useGetRequestCatalogQuery,
   useCreateRequestMutation,

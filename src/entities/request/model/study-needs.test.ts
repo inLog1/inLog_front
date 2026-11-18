@@ -366,4 +366,29 @@ describe('study objects and research needs', () => {
     }
     expect(inspectRequestDraft(approved, catalog).ok).toBe(false)
   })
+
+  it('saves registry ids on a need and reopens them without touching the legacy sample list', () => {
+    const draft = exampleStudy()
+    draft.needs[0] = { ...draft.needs[0]!, sampleIds: ['11111111-1111-4111-8111-111111111111'] }
+    const parsed = inspectRequestDraft(draft, catalog)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.details.needs[0]?.sampleIds).toEqual(['11111111-1111-4111-8111-111111111111'])
+    expect(parsed.details.sampleIds).toEqual([])
+    const opened = draftFromRecord({ title: draft.projectName, details: parsed.details })
+    expect(opened.needs[0]?.sampleIds).toEqual(['11111111-1111-4111-8111-111111111111'])
+    expect(opened.sampleIds).toEqual([])
+
+    const cleared = exampleStudy()
+    cleared.needs[0] = { ...cleared.needs[0]!, sampleIds: [] }
+    const emptySelection = inspectRequestDraft(cleared, catalog)
+    expect(emptySelection.ok).toBe(true)
+    if (emptySelection.ok) expect(emptySelection.details.needs[0]?.sampleIds).toEqual([])
+
+    const legacy = exampleStudy()
+    const kept = inspectRequestDraft(legacy, catalog)
+    expect(kept.ok).toBe(true)
+    if (kept.ok) expect(kept.details.needs[0]).not.toHaveProperty('sampleIds')
+    expect(inspectRequestDraft({ ...exampleStudy(), needs: [{ ...exampleStudy().needs[0], sampleIds: ['bad id'] }] }, catalog).ok).toBe(false)
+  })
 })

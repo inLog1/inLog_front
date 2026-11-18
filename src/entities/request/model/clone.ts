@@ -1,5 +1,6 @@
 import type { RequestDraftDetails, RequestProgramLine } from './draft'
 import type { RequestResearchNeed } from './needs'
+import { copiedSampleIds } from './sample-links'
 import { emptyProgramMeta } from './normalize'
 import type { RequestField, RequestInterval, RequestWell } from './study'
 
@@ -105,5 +106,6 @@ function copyNeed(
         return next ? [next] : []
       }),
     })),
+    ...(need.sampleIds ? copiedSampleIds(need.sampleIds) : {}),
   }
 }

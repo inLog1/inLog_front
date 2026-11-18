@@ -20,6 +20,7 @@ import type {
   Workplace,
 } from '../../../entities/personnel/model/types'
 import type { RequestRecord } from '../../../entities/request/model/types'
+import type { Sample, SampleAttachment, SampleCodeCounters } from '../../../entities/sample'
 
 export type MockUser = {
   id: number
@@ -417,6 +418,19 @@ export type MockState = {
   requests?: RequestRecord[]
   requestBasisFiles?: MockRequestBasisFile[]
   requestEvents?: MockRequestEvent[]
+  /**
+   * Sample registry for this installation.
+   * Absent on an older document until migration writes an empty list.
+   * Logical deletion stays in the row; registration numbers are not reused.
+   */
+  samples?: Sample[]
+  /** File bytes and the samples they belong to. One file may list several samples of one organization. */
+  sampleAttachments?: SampleAttachment[]
+  /**
+   * Highest issued root sequence per calendar year.
+   * The rows themselves remain the source of occupied numbers. This map is updated in the same write.
+   */
+  sampleCodeCounters?: SampleCodeCounters
   /**
    * Legacy counter rows from before requests existed.
    * A missing list counts as zero. It is ignored while requests is stored.

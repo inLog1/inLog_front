@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   emptyResearchNeed,
+  wellsSelectedByNeed,
   type RequestCatalog,
   type RequestListItem,
   type RequestProgramStudyLine,
@@ -13,6 +14,7 @@ import { Textarea } from '../../../../shared/ui/textarea'
 import { quantityDraftValue, setNeedInterval, setNeedWholeWell } from '../model/draft-form'
 import { fieldCaption, optionLabel, wellCaption } from './draft/draft-labels'
 import { DraftField } from './draft/draft-ui'
+import { RequestSampleField } from './RequestSamples'
 
 const NONE = 'none'
 
@@ -23,6 +25,7 @@ export function RequestProgramEditor({
   note,
   onLines,
   onNote,
+  organizationId,
 }: {
   request: RequestListItem
   catalog?: RequestCatalog
@@ -30,6 +33,7 @@ export function RequestProgramEditor({
   note: string
   onLines: (lines: RequestProgramStudyLine[]) => void
   onNote: (note: string) => void
+  organizationId: number
 }) {
   const { t } = useTranslation()
   const dash = t('requests.dash')
@@ -48,7 +52,7 @@ export function RequestProgramEditor({
         const carrier = { ...emptyResearchNeed(line.id), targets: line.targets }
         return (
           <article key={line.id} className="space-y-4 rounded-lg border border-border px-4 py-4">
-            <h3 className="text-sm font-semibold text-foreground">{t('requests.program.line', { index: index + 1 })}</h3>
+            <h3 id={`request-program-line-${line.id}`} className="text-sm font-semibold text-foreground">{t('requests.program.line', { index: index + 1 })}</h3>
             {need?.desiredResult ? (
               <p className="text-sm text-muted-foreground">{t('requests.program.customer-result')}: {need.desiredResult}</p>
             ) : null}
@@ -148,6 +152,20 @@ export function RequestProgramEditor({
               </div>
               {quantityIssue ? <p className="text-xs text-destructive sm:col-span-2">{t('requests.errors.invalid_quantity')}</p> : null}
             </div>
+            <RequestSampleField
+              organizationId={organizationId}
+              requestId={request.id}
+              sampleIds={line.sampleIds}
+              labelledBy={`request-program-line-${line.id}`}
+              editable
+              studyObjects={wellsSelectedByNeed(fields, carrier).flatMap(({ field, well }) => {
+                const fieldName = field.fieldName.trim()
+                const wellName = well.wellName.trim()
+                if (!fieldName || !wellName) return []
+                return [{ field: fieldName, well: wellName }]
+              })}
+              onChange={(sampleIds) => replace({ ...line, sampleIds })}
+            />
           </article>
         )
       })}

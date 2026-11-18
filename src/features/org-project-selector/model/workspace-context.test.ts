@@ -14,6 +14,7 @@ import {
   selectOrganizationParams,
   selectProjectParams,
   isRequestPath,
+  isSamplePath,
   omitsWorkspaceAddress,
   shouldPersistWorkspace,
   workspaceAddressPatch,
@@ -171,16 +172,29 @@ describe('workspace context', () => {
     expect(workspaceHref('/requests', 'organization', verified, true)).toBe('/requests?org=101')
     expect(workspaceHref('/requests/new', 'organization', verified, false)).toBe('/requests/new?org=101')
     expect(workspaceHref('/requests/req-1', 'organization', { organizationId: null, projectId: 1001 }, true)).toBe('/requests/req-1')
+    expect(workspaceHref('/samples', 'app', verified, true)).toBe('/samples?org=101')
+    expect(workspaceHref('/samples/new', 'organization', verified, true)).toBe('/samples/new?org=101')
+    expect(workspaceHref('/samples/sample-1', 'organization', verified, true)).toBe('/samples/sample-1?org=101')
+    expect(workspaceHref('/samples/sample-1', 'organization', { organizationId: null, projectId: 1001 }, true)).toBe('/samples/sample-1')
     expect(isRequestPath('/requests/req-1/edit')).toBe(true)
+    expect(isSamplePath('/samples/new')).toBe(true)
+    expect(isSamplePath('/samples/sample-1')).toBe(true)
+    expect(isSamplePath('/requests')).toBe(false)
     expect(omitsWorkspaceAddress('/requests/req-1/edit')).toBe(true)
     expect(omitsWorkspaceAddress('/scheduler/tasks')).toBe(false)
     expect(shouldPersistWorkspace('/requests', 'organization', true)).toBe(true)
+    expect(shouldPersistWorkspace('/samples', 'organization', true)).toBe(true)
+    expect(shouldPersistWorkspace('/samples', 'project', true)).toBe(false)
     expect(shouldPersistWorkspace('/requests', 'project', true)).toBe(false)
     expect(shouldPersistWorkspace('/', 'organization', true)).toBe(false)
     const kept = workspaceAddressPatch('/requests', new URLSearchParams('org=201&project=1001'))
     expect(kept?.get('org')).toBe('201')
     expect(kept?.get('project')).toBeNull()
     expect(workspaceAddressPatch('/requests', new URLSearchParams('org=201'))).toBeNull()
+    const sampleAddress = workspaceAddressPatch('/samples/sample-1', new URLSearchParams('org=201&project=1001'))
+    expect(sampleAddress?.get('org')).toBe('201')
+    expect(sampleAddress?.get('project')).toBeNull()
+    expect(omitsWorkspaceAddress('/samples/sample-1')).toBe(true)
     expect(workspaceAddressPatch('/', new URLSearchParams('org=201&project=1001'))?.toString()).toBe('')
     expect(searchWithoutWorkspace('?org=101&project=1001&task=slug&node=8&tab=2&next=1')).toBe('?next=1')
     expect(searchWithoutWorkspace('?org=101&project=1003')).toBe('')

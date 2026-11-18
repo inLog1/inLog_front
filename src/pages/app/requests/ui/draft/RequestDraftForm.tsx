@@ -227,6 +227,8 @@ export const RequestDraftForm = forwardRef<DraftFormHandle, {
           commit={commit}
           onIssues={onQuantityIssues}
           onShowObjects={() => scrollTo('request-objects')}
+          organizationId={organizationId}
+          requestId={requestId}
         />
         <BasisSection
           organizationId={organizationId}

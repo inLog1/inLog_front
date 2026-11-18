@@ -18,6 +18,7 @@ import { cn } from '../../../../shared/lib/utils'
 import { Card } from '../../../../shared/ui/card'
 import { formatRequestDay, formatRequestWhen, requestLabel } from '../model/display'
 import { fieldCaption, optionLabel, wellCaption } from './draft/draft-labels'
+import { RequestSampleField } from './RequestSamples'
 import { RequestStatusBadge, RequestStatusText } from './RequestStatusBadge'
 
 const PRIORITY_TOKEN: Record<RequestPriority, string> = {
@@ -225,7 +226,17 @@ function TargetList({
   )
 }
 
-export function RequestNeedsCard({ request, catalog, dash }: { request: RequestListItem; catalog?: RequestCatalog; dash: string }) {
+export function RequestNeedsCard({
+  request,
+  catalog,
+  dash,
+  organizationId,
+}: {
+  request: RequestListItem
+  catalog?: RequestCatalog
+  dash: string
+  organizationId: number
+}) {
   const { t } = useTranslation()
   const needs = request.details?.needs ?? []
   const legacy = request.details?.program ?? []
@@ -233,7 +244,7 @@ export function RequestNeedsCard({ request, catalog, dash }: { request: RequestL
     <SectionCard title={t('requests.draft.sections.program')}>
       {needs.length === 0 && legacy.length === 0 ? <p className="text-muted-foreground">{t('requests.draft.needs-empty')}</p> : null}
       {needs.map((need, index) => (
-        <NeedReadout key={need.id} need={need} index={index} request={request} catalog={catalog} dash={dash} />
+        <NeedReadout key={need.id} need={need} index={index} request={request} catalog={catalog} dash={dash} organizationId={organizationId} />
       ))}
       {needs.length === 0 ? legacy.map((line) => (
         <p key={line.id}>{requestLabel(optionLabel(t, catalog?.workKinds ?? [], line.workKindId), dash)}{line.quantity ? ` — ${line.quantity}` : ''}</p>
@@ -258,12 +269,14 @@ function NeedReadout({
   request,
   catalog,
   dash,
+  organizationId,
 }: {
   need: NonNullable<RequestListItem['details']>['needs'][number]
   index: number
   request: RequestListItem
   catalog?: RequestCatalog
   dash: string
+  organizationId: number
 }) {
   const { t } = useTranslation()
   const research = optionLabel(t, catalog?.workKinds ?? [], need.researchId)
@@ -286,7 +299,7 @@ function NeedReadout({
   })
   return (
     <div className="space-y-3">
-      <p className="font-medium">{t('requests.draft.need-title', { index: index + 1 })}</p>
+      <p id={`request-need-read-${need.id}`} className="font-medium">{t('requests.draft.need-title', { index: index + 1 })}</p>
       {need.clarification === 'unlinked_program_line' ? <p className="text-muted-foreground">{t('requests.draft.unlinked')}</p> : null}
       {targets.length > 0 ? (
         <div className="space-y-1">
@@ -301,6 +314,20 @@ function NeedReadout({
       <LabeledValue label={t('requests.draft.desired-result')} value={need.desiredResult} />
       <LabeledValue label={t('requests.draft.quantity')} value={quantity} />
       <LabeledValue label={t('requests.draft.comment')} value={need.comment} />
+      <RequestSampleField
+        organizationId={organizationId}
+        requestId={request.id}
+        sampleIds={need.sampleIds}
+        labelledBy={`request-need-read-${need.id}`}
+        editable={false}
+        studyObjects={need.targets.flatMap((target) => {
+          const located = findWellById(fields, target.wellId)
+          const fieldName = located?.field.fieldName.trim() ?? ''
+          const wellName = located?.well.wellName.trim() ?? ''
+          if (!fieldName || !wellName) return []
+          return [{ field: fieldName, well: wellName }]
+        })}
+      />
     </div>
   )
 }
@@ -310,11 +337,13 @@ export function RequestProgramCard({
   catalog,
   dash,
   editor,
+  organizationId,
 }: {
   request: RequestListItem
   catalog?: RequestCatalog
   dash: string
   editor?: ReactNode
+  organizationId: number
 }) {
   const { t } = useTranslation()
   const meta = readProgramMeta(request.details?.programMeta)
@@ -325,7 +354,7 @@ export function RequestProgramCard({
     <SectionCard title={t('requests.card.program')}>
       {editor ?? (
         lines.length === 0 ? <p className="text-muted-foreground">{t('requests.card.program-empty')}</p> : lines.map((line, index) => (
-          <ProgramLine key={line.id} line={line} index={index} request={request} catalog={catalog} dash={dash} />
+          <ProgramLine key={line.id} line={line} index={index} request={request} catalog={catalog} dash={dash} organizationId={organizationId} />
         ))
       )}
       {!editor && meta.note ? <p className="whitespace-pre-wrap">{meta.note}</p> : null}
@@ -339,22 +368,38 @@ function ProgramLine({
   request,
   catalog,
   dash,
+  organizationId,
 }: {
   line: RequestProgramStudyLine
   index: number
   request: RequestListItem
   catalog?: RequestCatalog
   dash: string
+  organizationId: number
 }) {
   const { t } = useTranslation()
   const research = optionLabel(t, catalog?.workKinds ?? [], line.researchId)
   const quantity = line.quantity == null ? '' : `${line.quantity}${line.unitId ? ` ${optionLabel(t, catalog?.units ?? [], line.unitId)}` : ''}`
   return (
     <div className="space-y-1">
-      <p className="font-medium">{t('requests.program.line', { index: index + 1 })}</p>
+      <p id={`request-program-read-${line.id}`} className="font-medium">{t('requests.program.line', { index: index + 1 })}</p>
       <p>{requestLabel(research, dash)}{quantity ? ` — ${quantity}` : ''}</p>
       {line.note ? <p className="text-muted-foreground">{line.note}</p> : null}
       <TargetList lines={[line]} request={request} catalog={catalog} dash={dash} />
+      <RequestSampleField
+        organizationId={organizationId}
+        requestId={request.id}
+        sampleIds={line.sampleIds}
+        labelledBy={`request-program-read-${line.id}`}
+        editable={false}
+        studyObjects={line.targets.flatMap((target) => {
+          const located = findWellById(request.details?.fields ?? [], target.wellId)
+          const fieldName = located?.field.fieldName.trim() ?? ''
+          const wellName = located?.well.wellName.trim() ?? ''
+          if (!fieldName || !wellName) return []
+          return [{ field: fieldName, well: wellName }]
+        })}
+      />
     </div>
   )
 }

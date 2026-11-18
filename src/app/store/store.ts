@@ -12,6 +12,7 @@ import { platformApi } from '../../shared/api/platformApi'
 import '../../entities/access/model/accessApi'
 import '../../entities/personnel/model/personnelApi'
 import '../../entities/request/model/requestApi'
+import '../../entities/sample/model/sampleApi'
 
 export const store = configureStore({
   reducer: {

@@ -21,6 +21,7 @@ import { Input } from '../../../../../shared/ui/input'
 import { countStudyWells, quantityDraftValue, setNeedInterval, setNeedWholeWell, studyEntityId } from '../../model/draft-form'
 import { fieldCaption, optionLabel, wellCaption } from './draft-labels'
 import { DraftField, DraftSection } from './draft-ui'
+import { RequestSampleField } from '../RequestSamples'
 
 const NONE = 'none'
 
@@ -31,6 +32,8 @@ export function NeedsSection({
   commit,
   onIssues,
   onShowObjects,
+  organizationId,
+  requestId,
 }: {
   details: RequestDraftDetails
   catalog: RequestCatalog
@@ -38,6 +41,8 @@ export function NeedsSection({
   commit: (recipe: (current: RequestDraftDetails) => RequestDraftDetails) => void
   onIssues: (issues: DraftIssue[]) => void
   onShowObjects: () => void
+  organizationId: number
+  requestId: string | null
 }) {
   const { t } = useTranslation()
   const dash = t('requests.dash')
@@ -96,7 +101,7 @@ export function NeedsSection({
               <article key={need.id} className="space-y-4 rounded-lg border border-border bg-card px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 space-y-2">
-                    <h3 className="text-sm font-semibold text-foreground">{t('requests.draft.need-title', { index: index + 1 })}</h3>
+                    <h3 id={`request-need-${need.id}`} className="text-sm font-semibold text-foreground">{t('requests.draft.need-title', { index: index + 1 })}</h3>
                     {need.clarification === 'unlinked_program_line' ? (
                       <p className="max-w-2xl text-sm text-muted-foreground">{t('requests.draft.unlinked')}</p>
                     ) : null}
@@ -262,6 +267,20 @@ export function NeedsSection({
                   </div>
                   {quantityIssue ? <p className="text-xs text-destructive sm:col-span-2">{t('requests.errors.invalid_quantity')}</p> : null}
                 </div>
+                <RequestSampleField
+                  organizationId={organizationId}
+                  requestId={requestId}
+                  sampleIds={need.sampleIds}
+                  labelledBy={`request-need-${need.id}`}
+                  editable
+                  studyObjects={selectedWells.flatMap(({ field, well }) => {
+                    const fieldName = field.fieldName.trim()
+                    const wellName = well.wellName.trim()
+                    if (!fieldName || !wellName) return []
+                    return [{ field: fieldName, well: wellName }]
+                  })}
+                  onChange={(sampleIds) => update({ ...need, sampleIds })}
+                />
               </article>
             )
           })}

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { emptyRequestDraft, type RequestDraftDetails } from '../../../entities/request'
+import type { RegisterSampleInput, Sample } from '../../../entities/sample'
 import { loginWithPassword } from '../auth/flow'
 import { PUBLIC_FIXTURE_PASSWORD } from '../db/constants'
 import { createSeed } from '../db/seed'
 import type { MockState } from '../db/types'
+import { registerSample } from '../samples/service'
 import {
   approveRequestProgram,
   createRequest,
@@ -40,6 +42,26 @@ function requestOf(result: { body: unknown }) {
       details?: RequestDraftDetails
     }
   }).request
+}
+
+function sampleOf(result: { body: unknown }) {
+  return (result.body as { sample: Sample }).sample
+}
+
+function registrySample(organizationId: number, externalCode: string): RegisterSampleInput {
+  return {
+    organizationId,
+    sampleType: 'Керн',
+    field: 'Северное',
+    well: '12',
+    formation: 'П1',
+    interval: '1138–1150',
+    collectedAt: '2026-09-12',
+    receivedAt: '2026-11-17',
+    location: 'Склад',
+    externalCode,
+    inspection: 'Соответствует',
+  }
 }
 
 function line(researchId: string) {
@@ -79,8 +101,13 @@ function details(researchId: string, desiredResult = ''): RequestDraftDetails {
   return draft
 }
 
-function reviewed(body: RequestDraftDetails, organizationId = 201, executorOrganizationId = 101) {
-  const customer = session(organizationId === 101 ? 'admin.a@example.test' : 'customer@example.test')
+function reviewed(
+  body: RequestDraftDetails,
+  organizationId = 201,
+  executorOrganizationId = 101,
+  initial?: MockState,
+) {
+  const customer = session(organizationId === 101 ? 'admin.a@example.test' : 'customer@example.test', initial)
   const created = createRequest(customer.state, customer.token, {
     organizationId,
     executorOrganizationId,
@@ -305,5 +332,54 @@ describe('request programme agreement', () => {
     expect(request.details?.programMeta.preparedBy).toBe('laboratory')
     expect(request.events.some((event) => event.type === 'program_submitted')).toBe(false)
     expect(approved.state.requests?.filter((item) => item.id === filed.id)).toHaveLength(1)
+  })
+
+  it('keeps registry sample ids on the need, the programme line and the approved snapshot', () => {
+    const customer = session('customer@example.test')
+    const customerSample = registerSample(customer.state, customer.token, registrySample(201, 'К-15'))
+    const laboratory = session('admin.a@example.test', customerSample.state)
+    const laboratorySample = registerSample(laboratory.state, laboratory.token, registrySample(101, 'Л-1'))
+    const customerId = sampleOf(customerSample).id
+    const laboratoryId = sampleOf(laboratorySample).id
+    const body = details('', 'Определить пористость')
+    body.needs[0] = { ...body.needs[0]!, sampleIds: [customerId] }
+    const filed = reviewed(body, 201, 101, laboratorySample.state)
+    const opened = readRequest(filed.state, filed.customerToken, 201, filed.id)
+    expect(requestOf(opened).status).toBe('in_review')
+    expect(requestOf(opened).details?.needs[0]?.sampleIds).toEqual([customerId])
+    expect(requestOf(opened).details?.sampleIds).toEqual([])
+    const saved = saveRequestProgram(filed.state, filed.laboratoryToken, filed.id, {
+      organizationId: 101,
+      expectedRevision: filed.revision,
+      lines: [{ ...line('work-porosity'), sampleIds: [laboratoryId, customerId] }],
+      note: 'Состав проб',
+    })
+    expect(saved.status).toBe(200)
+    expect(requestOf(saved).status).toBe('in_review')
+    expect(requestOf(saved).details?.needs[0]?.sampleIds).toEqual([customerId])
+    expect(requestOf(saved).details?.programMeta.lines[0]?.sampleIds).toEqual([laboratoryId, customerId])
+    const submitted = submitRequestProgram(saved.state, filed.laboratoryToken, filed.id, {
+      organizationId: 101,
+      expectedRevision: requestOf(saved).revision,
+    })
+    expect(submitted.status).toBe(200)
+    expect(requestOf(submitted).status).toBe('program_approval')
+    const approved = approveRequestProgram(submitted.state, filed.customerToken, filed.id, {
+      organizationId: 201,
+      expectedRevision: requestOf(submitted).revision,
+    })
+    expect(approved.status).toBe(200)
+    expect(requestOf(approved).status).toBe('approved')
+    expect(requestOf(approved).details?.programMeta.approvedSnapshot?.lines[0]?.sampleIds).toEqual([laboratoryId, customerId])
+    const rewrite = saveRequestProgram(approved.state, filed.laboratoryToken, filed.id, {
+      organizationId: 101,
+      expectedRevision: requestOf(approved).revision,
+      lines: [{ ...line('work-porosity'), sampleIds: ['sample-registry-3'] }],
+      note: 'Поздняя правка',
+    })
+    expect(rewrite.status).toBe(409)
+    const still = readRequest(approved.state, filed.customerToken, 201, filed.id)
+    expect(requestOf(still).details?.programMeta.approvedSnapshot?.lines[0]?.sampleIds).toEqual([laboratoryId, customerId])
+    expect(requestOf(still).details?.needs[0]?.sampleIds).toEqual([customerId])
   })
 })

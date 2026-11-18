@@ -1,0 +1,343 @@
+.notification {
+  --notification-bg: var(--card);
+  --notification-text: var(--card-foreground);
+  --notification-muted: var(--muted-foreground);
+  --notification-unread-bg: color-mix(in oklch, var(--primary) 12%, var(--card));
+  --notification-border: var(--border);
+  --notification-accent-border: color-mix(in oklch, var(--primary) 35%, var(--border));
+
+  position: relative;
+  padding: 10px;
+  cursor: pointer;
+  color: var(--notification-text);
+  background-color: var(--notification-bg);
+  border: 1px solid var(--notification-border);
+  border-radius: var(--border-radius);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.notification-read {
+  background-color: var(--notification-bg);
+}
+
+.notification-unread {
+  background-color: var(--notification-unread-bg);
+  border-color: var(--notification-accent-border);
+}
+
+.notification:hover {
+  border-color: color-mix(in oklch, var(--primary) 50%, var(--notification-border));
+}
+
+.notification-date {
+  position: absolute;
+  right: 50px;
+  top: 12px;
+  color: var(--notification-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.notification-top-cancel-icon {
+  position: absolute;
+  right: 16px;
+  top: 17px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: var(--notification-muted);
+  background: transparent;
+  border: none;
+  transition: color 0.2s ease;
+}
+
+.notification-top-cancel-icon:hover {
+  color: var(--error-text-color);
+}
+
+.notification-top-cancel-icon:hover svg {
+  stroke: var(--error-text-color);
+}
+
+.notification-top {
+  position: relative;
+  padding-right: 20px;
+}
+
+.notification-top-project-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: var(--notification-text);
+}
+
+.notification-top-project-name span:last-child {
+  margin-left: 0;
+  color: var(--notification-muted);
+}
+
+.notification-sender__img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.notification-sender-name-phone {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--mint-color);
+  color: var(--accent-foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.notification-buttons {
+  flex-wrap: wrap;
+}
+
+.notification-buttons button {
+  border: 1px solid var(--notification-border);
+  border-radius: var(--border-radius);
+  padding: 4px 15px;
+  font-size: 15px;
+  line-height: 15px;
+  color: var(--notification-text);
+  cursor: pointer;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.notification-buttons button:hover {
+  filter: brightness(0.96);
+}
+
+.notification-buttons button:nth-child(1) {
+  background-color: var(--light-green);
+}
+
+.notification-buttons button:nth-child(2) {
+  background-color: var(--light-red);
+}
+
+.dark .notification-buttons button:hover {
+  filter: brightness(1.12);
+}
+
+/* .notification .top__title {
+  margin-bottom: 10px !important;
+} */
+
+.notification .container {
+  padding-top: 0 !important;
+  background-color: transparent !important;
+}
+
+.notification-task-changes-block {
+  margin-top: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  color: var(--notification-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.notification-task-changes-block .projectTitle {
+  display: none;
+}
+
+/* .notification-task-changes-block :is(span, div, h1, h2, h3, p, th, td, li) {
+  color: var(--main-text-color);
+  font-size: 14px !important;
+  font-weight: 400;
+  text-align: left;
+} */
+
+.notification-task-changes-block a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notification-task-changes-block img {
+  max-width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.notification-task-changes-block .user__name {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 27px;
+}
+
+.notification-task-changes-block .wrapper {
+  margin-top: 10px;
+}
+
+.notification-task-changes-block .date {
+  margin-top: 20px;
+  color: var(--notification-muted);
+}
+
+.notification-task-changes-block table {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 4px;
+  background-color: transparent !important;
+}
+
+.notification-task-changes-block table tr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  max-width: 600px;
+}
+
+.notification-task-changes-block table th,
+.notification-task-changes-block table td {
+  background-color: transparent !important;
+}
+
+.notification-task-changes-block table th {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 600px;
+  margin-top: 4px;
+}
+
+/* Override inline colors from backend HTML in dark theme */
+.dark .notification-task-changes-block :is(span, div, h1, h2, h3, p, th, td, li) {
+  color: var(--main-text-color) !important;
+}
+
+.dark .notification-task-changes-block .date {
+  color: var(--notification-muted) !important;
+}
+
+.dark .notification-task-changes-block .top__status {
+  color: #000000 !important;
+  line-height: 20px !important;
+}
+
+.dark .notification-task-changes-block .top__title a {
+  color: var(--primary) !important;
+}
+
+.dark .notification-task-changes-block .undefined-item{
+  color: #000000 !important;
+  background-color: var(--notification-muted) !important;
+}
+.dark .notification-task-changes-block .previous-item{
+  color: #000000 !important;
+  background-color: var(--destructive) !important;
+}
+
+.notification-task-changes-block .current-item {
+  background-color: var(--success)  !important;
+}
+.dark .notification-task-changes-block .current-item {
+  color: var(--main-text-color) !important;
+  background-color: var(--success) !important;
+}
+
+.font-15-normal {
+  font-size: 15px;
+  font-weight: 400;
+  color: inherit;
+}
+
+.mt-10 {
+  margin-top: 10px;
+}
+
+.row-flex-sb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-flex-10 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dotted-text-250 {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dotted-text-150 {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .notification {
+    padding-top: 36px;
+  }
+
+  .notification-date {
+    right: auto;
+    left: 10px;
+    top: 10px;
+    max-width: calc(100% - 40px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .notification-top-cancel-icon {
+    right: 10px;
+    top: 10px;
+  }
+
+  .notification-top {
+    padding-right: 0;
+  }
+
+  .notification-top-project-name {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .dotted-text-250,
+  .dotted-text-150 {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .notification-buttons {
+    width: 100%;
+  }
+
+  .notification-buttons button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notification-task-changes-block :is(table, tbody, tr) {
+    display: block;
+    width: 100%;
+  }
+
+  .notification-task-changes-block :is(th, td) {
+    display: block;
+    width: 100%;
+  }
+}

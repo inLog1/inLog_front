@@ -5,6 +5,7 @@ import {
   type RequestNeedTarget,
   type RequestResearchNeed,
 } from './needs'
+import { copiedSampleIds, readLineSampleIds, sameLineSampleIds } from './sample-links'
 import { REQUEST_ENTITY_ID, type RequestField } from './study'
 
 /**
@@ -33,6 +34,8 @@ export type RequestProgramStudyLine = {
   quantity: number | null
   unitId: string
   note: string
+  /** Internal registry ids for this study. Absent on older lines. */
+  sampleIds?: string[]
 }
 
 /** Immutable copy taken when the programme is approved. */
@@ -118,6 +121,7 @@ export function lineFromNeed(need: RequestResearchNeed): RequestProgramStudyLine
     quantity: need.quantity,
     unitId: need.unitId,
     note: '',
+    ...(need.sampleIds ? copiedSampleIds(need.sampleIds) : {}),
   }
 }
 
@@ -159,6 +163,7 @@ export function programLinesRepeatNeeds(
     pending.delete(line.needId)
     if (line.researchId !== need.researchId || line.sampleTypeId !== need.sampleTypeId) return false
     if (line.quantity !== need.quantity || line.unitId !== need.unitId) return false
+    if (!sameLineSampleIds(line.sampleIds, need.sampleIds)) return false
     if (!sameTargetSet(line.targets, need.targets)) return false
   }
   return pending.size === 0
@@ -192,6 +197,7 @@ export function inspectProgramStudyLines(
     if (typeof note !== 'string' || note.trim().length > REQUEST_PROGRAM_NOTE_MAX) {
       return { ok: false, issues: [{ field: 'lines.note', code: 'invalid_text' }] }
     }
+    const carriesSamples = Object.prototype.hasOwnProperty.call(body, 'sampleIds')
     needIds.push(needId)
     adapted.push({
       id: body.id,
@@ -204,6 +210,7 @@ export function inspectProgramStudyLines(
       comment: note.trim(),
       clarification: '',
       legacyLineId: '',
+      ...(carriesSamples ? { sampleIds: body.sampleIds } : {}),
     })
   }
   const parsed = inspectResearchNeeds(adapted, catalog)
@@ -226,6 +233,7 @@ export function inspectProgramStudyLines(
       quantity: need.quantity,
       unitId: need.unitId,
       note: need.comment,
+      ...(need.sampleIds ? copiedSampleIds(need.sampleIds) : {}),
     }
   })
   if (lines.some((line) => line == null)) return { ok: false, issues: [{ field: 'lines.needId', code: 'invalid_program' }] }
@@ -345,6 +353,7 @@ function lineAsNeed(line: RequestProgramStudyLine): RequestResearchNeed {
     comment: line.note,
     clarification: '',
     legacyLineId: '',
+    ...(line.sampleIds ? copiedSampleIds(line.sampleIds) : {}),
   }
 }
 
@@ -352,6 +361,7 @@ function copyLine(line: RequestProgramStudyLine): RequestProgramStudyLine {
   return {
     ...line,
     targets: line.targets.map((target) => ({ ...target, intervalIds: [...target.intervalIds] })),
+    ...(line.sampleIds ? copiedSampleIds(line.sampleIds) : {}),
   }
 }
 
@@ -373,6 +383,7 @@ function readLines(value: unknown): RequestProgramStudyLine[] {
       quantity: typeof body.quantity === 'number' && Number.isFinite(body.quantity) ? body.quantity : null,
       unitId: typeof body.unitId === 'string' ? body.unitId : '',
       note: typeof body.note === 'string' ? body.note : '',
+      ...copiedSampleIds(readLineSampleIds(body.sampleIds)),
     })
   }
   return lines

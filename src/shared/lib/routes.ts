@@ -47,6 +47,12 @@ export const routes = {
       detail: (requestId: string) => `/requests/${requestId}`,
     },
 
+    samples: {
+      list: () => '/samples',
+      register: () => '/samples/new',
+      detail: (sampleId: string) => `/samples/${sampleId}`,
+    },
+
     forms: {
       list: () => '/forms',
       editor: (formId: string) => `/forms/${formId}`,

@@ -113,6 +113,9 @@ export { resolveRequestParties, sameRequestParties } from './model/parties'
 export type { PartyFailure, RequestParties } from './model/parties'
 export { canReadRequest, isAuthoredBy, isFiledByOrganization, isIncomingSent, isRequestFiler, requestReadDenial } from './model/visibility'
 export { copyRequestDetails } from './model/clone'
+export { REQUEST_LINE_SAMPLE_MAX } from './model/sample-links'
+export type { RequestLinkedSample, RequestLinkedSamplesResponse } from './model/linked-samples'
+export { requestActiveSampleLinkIds, requestLinkedSampleIds } from './model/linked-samples'
 export { REQUEST_REASON_MAX, canReviseRequest, readRequestReason } from './model/review'
 export { organizationRequestTotal } from './model/count'
 export { requestsMode } from './model/availability'
@@ -126,6 +129,7 @@ export {
   useDeriveRequestMutation,
   useGetExecutorLaboratoriesQuery,
   useGetRequestCatalogQuery,
+  useGetRequestLinkedSamplesQuery,
   useGetRequestQuery,
   useGetRequestsQuery,
   useRejectRequestMutation,

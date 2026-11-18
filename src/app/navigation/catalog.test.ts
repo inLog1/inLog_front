@@ -144,22 +144,24 @@ describe('navigation catalog', () => {
     expect(visibleNavigation(empty).some((item) => item.id === 'platform-admin' || item.id === 'geo-mechanics')).toBe(false)
   })
 
-  it('opens the requests section from requests.read and does not open other work sections from that grant', () => {
+  it('opens requests and the sample registry from requests.read and does not open them from create alone', () => {
     const customer = input({
       grants: [grant('requests', 'read', { type: 'organization', organizationId: 201, corporationId: 1 }), grant('requests', 'create', { type: 'organization', organizationId: 201, corporationId: 1 })],
       organizationId: 201,
     })
     expect(showRequestsNotice(customer)).toBe(false)
-    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home', 'requests'])
+    expect(visibleNavigation(customer).map((item) => item.id)).toEqual(['home', 'requests', 'samples'])
     expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'requests')!, customer)).toBe('allowed')
-    expect(homeWorkCards(customer).map((item) => item.id)).toEqual(['requests'])
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'samples')!, customer)).toBe('allowed')
+    expect(homeWorkCards(customer).map((item) => item.id)).toEqual(['requests', 'samples'])
     expect(shouldLoadProjectTasks(customer)).toBe(false)
     const createOnly = input({
       grants: [grant('requests', 'create', { type: 'organization', organizationId: 201, corporationId: 1 })],
       organizationId: 201,
     })
     expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'requests')!, createOnly)).toBe('unavailable')
-    expect(visibleNavigation(createOnly).some((item) => item.id === 'requests')).toBe(false)
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'samples')!, createOnly)).toBe('unavailable')
+    expect(visibleNavigation(createOnly).some((item) => item.id === 'requests' || item.id === 'samples')).toBe(false)
     expect(sectionByPath('/requests/new')?.id).toBe('requests')
     expect(sectionByPath('/requests/req-customer-draft/edit')?.id).toBe('requests')
     expect(showsProjectSelector('/')).toBe(false)
@@ -172,12 +174,23 @@ describe('navigation catalog', () => {
     expect(showsOrganizationSelector('/requests/req-customer-draft/edit')).toBe(true)
     expect(showsOrganizationSelector('/scheduler/tasks')).toBe(false)
     expect(showsOrganizationSelector('/')).toBe(false)
+    expect(sectionByPath('/samples')?.id).toBe('samples')
+    expect(sectionByPath('/samples/sample-1')?.id).toBe('samples')
+    expect(showsProjectSelector('/samples')).toBe(false)
+    expect(showsProjectSelector('/samples/sample-1')).toBe(false)
+    expect(showsOrganizationSelector('/samples')).toBe(true)
+    expect(showsOrganizationSelector('/samples/sample-1')).toBe(true)
+    const otherRegistry = input({
+      grants: [grant('requests', 'read', otherOrganization)],
+      organizationId: 101,
+    })
+    expect(sectionAccess(APP_SECTIONS.find((item) => item.id === 'samples')!, otherRegistry)).toBe('denied-here')
   })
 
   it('keeps implemented sections in live without pretending grants were checked', () => {
     const live = input({ enforceGrants: false, grants: [] })
     expect(visibleNavigation(live).map((item) => item.id)).toEqual([
-      'home', 'tasks', 'requests', 'reports', 'organizations-settings', 'access',
+      'home', 'tasks', 'requests', 'samples', 'reports', 'organizations-settings', 'access',
     ])
     expect(visibleQuickActions(live)).toEqual(['create-task', 'build-report'])
     expect(shouldLoadProjectTasks(live)).toBe(false)

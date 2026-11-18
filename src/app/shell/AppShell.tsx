@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bell, BookOpen, Building2, ClipboardList, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, Users, Wrench } from 'lucide-react'
+import { Bell, BookOpen, Building2, ClipboardList, FileText, LayoutDashboard, ListTodo, PanelsTopLeft, PieChart, Shield, TestTubes, Users, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
@@ -29,6 +29,7 @@ const ICONS: Record<string, LucideIcon> = {
   home: LayoutDashboard,
   tasks: ListTodo,
   requests: ClipboardList,
+  samples: TestTubes,
   constructor: Wrench,
   forms: FileText,
   reports: PieChart,
@@ -41,7 +42,7 @@ const ICONS: Record<string, LucideIcon> = {
 }
 
 function linkScope(section: AppSection): WorkspaceLinkScope {
-  if (section.id === 'home' || section.id === 'requests') return 'app'
+  if (section.id === 'home' || section.id === 'requests' || section.id === 'samples') return 'app'
   if (section.context === 'project') return 'project'
   if (section.context === 'organization') return 'organization'
   return 'app'

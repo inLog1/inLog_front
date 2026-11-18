@@ -15,6 +15,7 @@ import { AccessPage, AccessUserPage, RoleEditorPage } from '../../pages/app/acce
 import { AccessRouteShell } from '../../pages/app/access/ui/AccessRouteShell'
 import { FormEditorPage, FormFillPage, FormRecordPage, FormRecordsPage, FormViewCreatePage, FormViewEditPage, FormViewPage, FormViewsPage, FormsPage } from '../../pages/app/forms'
 import { RequestDetailPage, RequestWizardPage, RequestsPage } from '../../pages/app/requests'
+import { SampleDetailPage, SampleRegisterPage, SamplesPage } from '../../pages/app/samples'
 import { SectionCreatePage, SectionEditorPage, SectionListPage, SectionPreviewPage, SectionWorkPage } from '../../pages/app/sections'
 import GeoMechanicsPage from '../../pages/dashboard/geo-mechanics'
 import SchedulerPage from '../../pages/dashboard/scheduler'
@@ -110,6 +111,9 @@ export function AppRouter() {
               <Route path={routes.requests.edit(':requestId')} element={<RequestWizardPage mode="edit" />} />
               <Route path={routes.requests.detail(':requestId')} element={<RequestDetailPage />} />
               <Route path={routes.requests.list()} element={<RequestsPage />} />
+              <Route path={routes.samples.register()} element={<SampleRegisterPage />} />
+              <Route path={routes.samples.detail(':sampleId')} element={<SampleDetailPage />} />
+              <Route path={routes.samples.list()} element={<SamplesPage />} />
               <Route path={routes.settings.profile()} element={<ProfilePage />} />
               <Route element={<AccessRouteShell />}>
                 <Route path={routes.settings.access()} element={<AccessPage />} />

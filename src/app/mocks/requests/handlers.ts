@@ -11,6 +11,7 @@ import {
   listRequests,
   readRequest,
   readRequestBasisContent,
+  readRequestLinkedSamples,
   rejectRequest,
   returnRequest,
   returnRequestProgram,
@@ -52,6 +53,13 @@ export const requestHandlers: HttpHandler[] = [
   http.post(`${MOCK_PREFIX}/requests/`, async ({ request }) => {
     const body = await readJson(request)
     return commit((state) => createRequest(state, bearer(request), body))
+  }),
+  http.get(`${MOCK_PREFIX}/requests/:requestId/linked-samples/`, async ({ request, params }) => {
+    const ready = await load('requests/:requestId/linked-samples/')
+    if (ready instanceof Response) return ready
+    const organizationId = organizationQuery(request)
+    if (organizationId == null) return json({ code: 'invalid_organization' }, 400)
+    return reply(readRequestLinkedSamples(ready, bearer(request), organizationId, String(params.requestId)))
   }),
   http.get(`${MOCK_PREFIX}/requests/:requestId/`, async ({ request, params }) => {
     const ready = await load('requests/:requestId/')

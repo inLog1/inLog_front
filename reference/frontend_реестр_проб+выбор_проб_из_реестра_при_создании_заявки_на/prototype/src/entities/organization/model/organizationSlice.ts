@@ -1,0 +1,124 @@
+import { createApi } from "@reduxjs/toolkit/query/react"
+import { accessApi } from "../../access/model/accessApi"
+import { baseQuery } from "../../../shared/api/clientApi"
+import { platformApi } from "../../../shared/api/platformApi"
+import type { OrganizationRequest, OrganizationResponse } from "../../../shared/types/dto/organization"
+import type { Organization } from "./types"
+import { directoryFromWire, type OrganizationDirectory } from "./directory"
+import { errorsHandler } from "../../../shared/lib/errors-handler"
+
+export const organizationApi = createApi({
+    reducerPath: 'organizationApi',
+    baseQuery,
+    tagTypes: ['Organization'],
+    endpoints: (builder) => ({
+        getOrganizations: builder.query<Organization[], void>({
+            query: () => 'organizations/organization/',
+            transformResponse: (response: any) => {
+              if (!response || !Array.isArray(response)) return []
+      
+              return response.map((el: any) => ({
+                fullName: el?.full_name,
+                shortName: el?.short_name,
+                address: el?.address,
+                id: el?.id,
+                role: el?.role ?? null,
+              })) as Organization[]
+            },
+            async onQueryStarted(_, { queryFulfilled }) {
+                try {
+                    await queryFulfilled
+                } catch (error: any) {
+                    errorsHandler(error?.error)
+                }
+            },
+            providesTags: ['Organization'],
+          }),
+          getOrganizationById: builder.query<Organization, number>({
+            query: (id) => `organizations/organization/${id}/`,
+            transformResponse: (response: { id?: number; full_name?: string; short_name?: string; address?: string; role?: string | null }) => ({
+              id: Number(response?.id),
+              fullName: response?.full_name,
+              shortName: response?.short_name,
+              address: response?.address,
+              role: response?.role ?? null,
+            }),
+          }),
+          addOrganization: builder.mutation<
+            OrganizationResponse & { administrator_role_id?: string; corporation_id?: number },
+            Partial<OrganizationRequest> & { kind?: 'laboratory' | 'customer' }
+          >({
+            query: (data) => ({
+              url: 'organizations/organization/',
+              method: 'POST',
+              body: data,
+            }),
+            invalidatesTags: ['Organization'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
+              } catch {
+                // A rejected create stays rejected and is not sent again.
+              }
+            },
+          }),
+          getOrganizationDirectory: builder.query<OrganizationDirectory, void>({
+            query: () => 'organizations/directory/',
+            transformResponse: (response: Parameters<typeof directoryFromWire>[0]) => directoryFromWire(response),
+            providesTags: ['Organization'],
+          }),
+          updateOrganization: builder.mutation<OrganizationResponse & { revision?: number; administrator_role_id?: string; corporation_id?: number }, {
+            id: number
+            full_name: string
+            short_name: string
+            address: string
+            inn: string
+            kpp: string
+            kind: 'laboratory' | 'customer'
+            expectedRevision: number
+          }>({
+            query: ({ id, ...body }) => ({
+              url: `organizations/organization/${id}/`,
+              method: 'PATCH',
+              body,
+            }),
+            invalidatesTags: ['Organization'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
+              } catch {
+                // A conflict or refusal is not retried and is not treated as a saved change.
+              }
+            },
+          }),
+          deleteOrganization: builder.mutation<void, number>({
+            query: (id) => ({
+              url: `organizations/organization/${id}/`,
+              method: 'DELETE',
+            }),
+            invalidatesTags: ['Organization'],
+            async onQueryStarted(_argument, { dispatch, queryFulfilled }) {
+              try {
+                await queryFulfilled
+                dispatch(accessApi.util.invalidateTags(['SessionAccess', 'AccessControl']))
+                dispatch(platformApi.util.invalidateTags([{ type: 'Personnel', id: 'overview' }]))
+              } catch {
+                // A refused delete stays on the card.
+              }
+            },
+          }),
+    }),
+})
+
+export const {
+  useGetOrganizationsQuery,
+  useGetOrganizationByIdQuery,
+  useGetOrganizationDirectoryQuery,
+  useAddOrganizationMutation,
+  useUpdateOrganizationMutation,
+  useDeleteOrganizationMutation,
+} = organizationApi

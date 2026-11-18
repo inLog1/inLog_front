@@ -6,6 +6,7 @@ import {
   isRequestFiler,
   copyProgramSnapshot,
   copyRequestDetails,
+  requestActiveSampleLinkIds,
   customerProgramIsComplete,
   emptyProgramMeta,
   inspectProgramForApproval,
@@ -14,6 +15,7 @@ import {
   inspectRequestForSend,
   readProgramMeta,
   readRequestReason,
+  requestLinkedSampleIds,
   requestReadDenial,
   resolveRequestParties,
   withDerivedStudy,
@@ -32,6 +34,8 @@ import {
 } from './basis'
 import type { MockRequestEvent } from '../db/types'
 import { requestDraftCatalogIds, requestDraftOptions } from './catalog'
+import { projectLinkedSamples } from './linked-samples'
+import { SAMPLE_LINK_DENIED, derivedSampleLinkIds, sampleLinksAllowed } from './sample-links'
 import { principal, toSnapshot, type FlowResult } from '../auth/flow'
 import type { MockOrganization, MockState } from '../db/types'
 
@@ -108,6 +112,29 @@ function detailsOf(value: unknown): { ok: true; details: RequestDraftDetails } |
       clarifications: listed('clarifications'),
     }),
   }
+}
+
+/**
+ * New registry links only. Ids already on the current needs or programme lines stay.
+ * An id that exists only in the approved snapshot is checked as a new assignment.
+ * The stored ids come from the record before this write, not from the payload.
+ * Failure returns the same state: no revision, history event, or snapshot change.
+ */
+function denyUnstoredSampleLinks(
+  state: MockState,
+  userId: number,
+  actorOrganizationId: number,
+  stored: RequestDraftDetails | null | undefined,
+  next: RequestDraftDetails,
+): FlowResult | null {
+  const allowed = sampleLinksAllowed({
+    samples: state.samples ?? [],
+    storedIds: requestActiveSampleLinkIds(stored),
+    nextIds: requestActiveSampleLinkIds(next),
+    actorOrganizationId,
+    canReadOwnRegistry: allows(state, userId, actorOrganizationId, 'read'),
+  })
+  return allowed ? null : problem(state, 400, SAMPLE_LINK_DENIED)
 }
 
 /** The registry title follows the project name when the wizard sends details. */
@@ -219,6 +246,36 @@ export function readRequest(
 }
 
 /**
+ * Limited rows for samples this request already stores.
+ * Access is the same as reading the request: the caller, the active organization,
+ * requests.read, and party membership. A draft stays hidden from the other party.
+ * Sample ids are taken from the stored request. A caller cannot submit a list.
+ * A stored id still has to belong to the customer or the executor. Another organization's
+ * sample is omitted, and the registry list endpoint is not used.
+ */
+export function readRequestLinkedSamples(
+  state: MockState,
+  token: string | null,
+  organizationId: number,
+  requestId: string,
+): FlowResult {
+  const who = principal(state, token)
+  if (!who.ok) return who.result
+  if (!organizationOf(state, organizationId)) return problem(state, 404, 'not_found')
+  const request = requestsOf(state).find((item) => item.id === requestId)
+  if (!request) return problem(state, 404, 'not_found')
+  const denial = requestReadDenial(request, organizationId, allows(state, who.user.id, organizationId, 'read'))
+  if (denial === 'hidden') return problem(state, 404, 'not_found')
+  if (denial === 'forbidden') return problem(state, 403, 'forbidden')
+  const samples = projectLinkedSamples(
+    state.samples ?? [],
+    requestLinkedSampleIds(request.details),
+    [request.customerOrganizationId, request.executorOrganizationId],
+  )
+  return done(state, 200, { samples })
+}
+
+/**
  * Laboratories the caller may name as executor.
  * Short name and id only. Organization requisites stay behind organizations.read.
  * Create and update may both open the wizard, so either grant can read this list.
@@ -276,6 +333,10 @@ export function createRequest(state: MockState, token: string | null, body: Reco
   if (parsed && !parsed.ok) return problem(state, 400, parsed.code)
   const titled = titleWithDetails(body.title, parsed?.details, '')
   if (!titled.ok) return problem(state, 400, 'invalid_title')
+  if (parsed) {
+    const denied = denyUnstoredSampleLinks(state, who.user.id, active.id, undefined, parsed.details)
+    if (denied) return denied
+  }
   const current = requestsOf(state)
   const now = new Date().toISOString()
   const request: RequestRecord = {
@@ -337,6 +398,10 @@ export function updateRequest(
   if (parsed && !parsed.ok) return problem(state, 400, parsed.code)
   const titled = titleWithDetails(body.title, parsed?.details, request.title)
   if (!titled.ok) return problem(state, 400, 'invalid_title')
+  if (parsed) {
+    const denied = denyUnstoredSampleLinks(state, who.user.id, active.id, request.details, parsed.details)
+    if (denied) return denied
+  }
   const next: RequestRecord = {
     ...request,
     customerOrganizationId: resolved.parties.customerOrganizationId,
@@ -392,6 +457,10 @@ function patchDraft(
   if (parsed && !parsed.ok) return { ok: false, result: problem(state, 400, parsed.code) }
   const titled = titleWithDetails(body.title, parsed?.details, request.title)
   if (!titled.ok) return { ok: false, result: problem(state, 400, 'invalid_title') }
+  if (parsed) {
+    const denied = denyUnstoredSampleLinks(state, who.user.id, active.id, request.details, parsed.details)
+    if (denied) return { ok: false, result: denied }
+  }
   const next: RequestRecord = {
     ...request,
     customerOrganizationId: resolved.parties.customerOrganizationId,
@@ -796,6 +865,40 @@ export function withdrawRequest(
   return done(saved, 200, present(saved, next))
 }
 
+/**
+ * Sample links on a derived draft are decided before the new request is written.
+ * Programme lines and the approved snapshot are already absent: `copyRequestDetails` drops them.
+ * A need keeps its other fields. Only sample ids that this filing organization may assign are kept.
+ * The same organization is the organization that filed the source. A missing filer is the customer.
+ * Another party filing the draft does not receive those links, including a sample it owns.
+ */
+function derivedRequestDetails(
+  state: MockState,
+  userId: number,
+  organizationId: number,
+  request: RequestRecord,
+  details: RequestDraftDetails,
+): RequestDraftDetails {
+  const sameOrganization = isRequestFiler(request, organizationId)
+  const canReadOwnRegistry = allows(state, userId, organizationId, 'read')
+  return {
+    ...details,
+    needs: details.needs.map((need) => {
+      if (!need.sampleIds) return need
+      return {
+        ...need,
+        sampleIds: derivedSampleLinkIds({
+          samples: state.samples ?? [],
+          ids: need.sampleIds,
+          sameOrganization,
+          actorOrganizationId: organizationId,
+          canReadOwnRegistry,
+        }),
+      }
+    }),
+  }
+}
+
 export function deriveRequest(
   state: MockState,
   token: string | null,
@@ -812,8 +915,11 @@ export function deriveRequest(
   if (!party) return problem(state, 404, 'not_found')
   const now = new Date().toISOString()
   const copyId = `req-${crypto.randomUUID()}`
-  const details = request.details
+  const copied = request.details
     ? copyRequestDetails(request.details, (prefix) => `${prefix}-${crypto.randomUUID()}`)
+    : undefined
+  const details = copied
+    ? derivedRequestDetails(state, userId, organizationId, request, copied)
     : undefined
   const copy: RequestRecord = {
     id: copyId,
@@ -969,6 +1075,11 @@ export function saveRequestProgram(
       preparedAt: meta.preparedAt ?? now,
     }
   const type = mode === 'laboratory' && meta.approval === 'unspecified' ? 'program_started' : 'program_changed'
+  const denied = denyUnstoredSampleLinks(state, userId, organizationId, request.details, {
+    ...request.details,
+    programMeta: nextMeta,
+  })
+  if (denied) return denied
   return commitProgram(state, request, nextMeta, userId, type, meta.approval, request.status)
 }
 
@@ -1059,7 +1170,13 @@ export function approveRequestProgram(
   }
   const snapshot = copyProgramSnapshot(approved, ready.lines, userId, now)
   if (!snapshot) return problem(state, 400, 'program_invalid')
-  return commitProgram(state, request, { ...approved, approvedSnapshot: snapshot }, userId, 'program_approved', meta.approval, 'approved')
+  const approvedMeta: RequestProgramMeta = { ...approved, approvedSnapshot: snapshot }
+  const denied = denyUnstoredSampleLinks(state, userId, organizationId, request.details, {
+    ...request.details,
+    programMeta: approvedMeta,
+  })
+  if (denied) return denied
+  return commitProgram(state, request, approvedMeta, userId, 'program_approved', meta.approval, 'approved')
 }
 
 export function returnRequestProgram(

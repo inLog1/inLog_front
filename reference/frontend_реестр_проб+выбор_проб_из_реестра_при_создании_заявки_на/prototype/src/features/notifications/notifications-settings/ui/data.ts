@@ -1,0 +1,73 @@
+import type { TFunction } from 'i18next'
+import type { NotificationRow, WeekDay } from './types'
+
+export const getDefaultRowsList = (t: TFunction): NotificationRow[] => [
+    { id: 1,  value: 'comment',                       title: t('notifications-settings.rows.task-update-comments-added'),           email_checked: true, inLog_checked: true  },
+    { id: 2,  value: 'supervisor',                    title: t('notifications-settings.rows.task-update-supervisor-changed'),        email_checked: true, inLog_checked: true  },
+    { id: 3,  value: 'name',                          title: t('notifications-settings.rows.task-update-task-name-changed'),         email_checked: true, inLog_checked: true  },
+    { id: 4,  value: 'description',                   title: t('notifications-settings.rows.task-update-description-changed'),       email_checked: true, inLog_checked: true  },
+    { id: 5,  value: 'priority',                      title: t('notifications-settings.rows.task-update-priority-changed'),          email_checked: true, inLog_checked: true  },
+    { id: 6,  value: 'status',                        title: t('notifications-settings.rows.task-update-status-changed'),            email_checked: true, inLog_checked: true  },
+    { id: 7,  value: 'due_date_start',                title: t('notifications-settings.rows.task-update-start-date-changed'),        email_checked: true, inLog_checked: true  },
+    { id: 8,  value: 'due_date_end',                  title: t('notifications-settings.rows.task-update-end-date-changed'),          email_checked: true, inLog_checked: true  },
+    { id: 9,  value: 'doers',                         title: t('notifications-settings.rows.task-update-doers-changed'),             email_checked: true, inLog_checked: true  },
+    { id: 10, value: 'tags',                          title: t('notifications-settings.rows.task-update-tags-changed'),              email_checked: true, inLog_checked: true  },
+    { id: 11, value: 'inlog_news',                    title: t('notifications-settings.rows.inLog-news-and-updates'),                email_checked: true, inLog_checked: true  },
+    { id: 12, value: 'project_user_invitation',       title: t('notifications-settings.rows.invitation-to-project'),                 email_checked: true, inLog_checked: true  },
+    { id: 13, value: 'project_user_invitation_response', title: t('notifications-settings.rows.response-on-invitation-to-project'), email_checked: true, inLog_checked: true  },
+    { id: 14, value: 'role_request',                  title: t('notifications-settings.rows.role-request'),                          email_checked: true, inLog_checked: true  },
+    { id: 15, value: 'role_request_response',         title: t('notifications-settings.rows.request-to-change-role'),                email_checked: true, inLog_checked: true  },
+    { id: 16, value: 'project_user_removal',          title: t('notifications-settings.rows.project-user-removal'),                  email_checked: true, inLog_checked: true  },
+    { id: 17, value: 'role_change',                   title: t('notifications-settings.rows.role-changing-by-admin'),                email_checked: true, inLog_checked: true  },
+    { id: 18, value: 'admin_rights_transfer',         title: t('notifications-settings.rows.admin-rights-transfer'),                 email_checked: true, inLog_checked: true  },
+    { id: 19, value: 'project_leaving',               title: t('notifications-settings.rows.existing-the-project'),                  email_checked: true, inLog_checked: true  },
+    { id: 20, value: 'sound_notification',            title: t('notifications-settings.rows.sound-on-all-notifications-types'),      email_checked: undefined, inLog_checked: true },
+]
+
+export const mocTimesData: string[] = [
+    '00:00', '00:10', '00:20', '00:30', '00:40', '00:50',
+    '01:10', '01:20', '01:30', '01:40', '01:50',
+    '02:00', '02:10', '02:20', '02:30', '02:40', '02:50',
+    '03:00', '03:10', '03:20', '03:30', '03:40', '03:50',
+    '04:00', '04:10', '04:20', '04:30', '04:40', '04:50',
+    '05:00', '05:10', '05:20', '05:30', '05:40', '05:50',
+    '06:00', '06:10', '06:20', '06:30', '06:40', '06:50',
+    '07:00', '07:10', '07:20', '07:30', '07:40', '07:50',
+    '08:00', '08:10', '08:20', '08:30', '08:40', '08:50',
+    '9:00',  '9:10',  '9:20',  '9:30',  '9:40',  '9:50',
+    '10:00', '10:10', '10:20', '10:30', '10:40', '10:50',
+    '11:00', '11:10', '11:20', '11:30', '11:40', '11:50',
+    '12:00', '12:10', '12:20', '12:30', '12:40', '12:50',
+    '13:00', '13:10', '13:20', '13:30', '13:40', '13:50',
+    '14:00', '14:10', '14:20', '14:30', '14:40', '14:50',
+    '15:00', '15:10', '15:20', '15:30', '15:40', '15:50',
+    '16:00', '16:10', '16:20', '16:30', '16:40', '16:50',
+    '17:00', '17:10', '17:20', '17:30', '17:40', '17:50',
+    '18:00', '18:10', '18:20', '18:30', '18:40', '18:50',
+    '19:00', '19:10', '19:20', '19:30', '19:40', '19:50',
+    '20:00', '20:10', '20:20', '20:30', '20:40', '20:50',
+    '21:00', '21:10', '21:20', '21:30', '21:40', '21:50',
+    '22:00', '22:10', '22:20', '22:30', '22:40', '22:50',
+    '23:00', '23:10', '23:20', '23:30', '23:40', '23:50',
+]
+
+export const weekDaysMoc: Record<'ru' | 'en', WeekDay[]> = {
+    en: [
+        { id: 7, name: 'Mon'   },
+        { id: 1, name: 'Tues'  },
+        { id: 2, name: 'Wed'   },
+        { id: 3, name: 'Thurs' },
+        { id: 4, name: 'Fri'   },
+        { id: 5, name: 'Sat'   },
+        { id: 6, name: 'Sun'   },
+    ],
+    ru: [
+        { id: 7, name: 'Пн' },
+        { id: 1, name: 'Вт' },
+        { id: 2, name: 'Ср' },
+        { id: 3, name: 'Чт' },
+        { id: 4, name: 'Пт' },
+        { id: 5, name: 'Сб' },
+        { id: 6, name: 'Вс' },
+    ],
+}

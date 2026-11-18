@@ -1,3 +1,4 @@
+import { copiedSampleIds, inspectLineSampleIds } from './sample-links'
 import {
   entityId,
   findIntervalById,
@@ -42,6 +43,11 @@ export type RequestResearchNeed = {
   clarification: RequestNeedClarification
   /** Set when this row was mirrored from a programme line. Empty for a native need. */
   legacyLineId: string
+  /**
+   * Internal registry ids chosen for this need.
+   * Absent on older rows. This is not the legacy draft catalogue `details.sampleIds`.
+   */
+  sampleIds?: string[]
 }
 
 export const REQUEST_NEED_MAX = 30
@@ -294,7 +300,7 @@ function inspectNeed(
   const path = `needs.${index}`
   const body = asRecord(value)
   const issues: NeedIssue[] = []
-  if (!body || !knownKeys(body, ['id', 'targets', 'researchId', 'desiredResult', 'sampleTypeId', 'quantity', 'unitId', 'comment'], ['clarification', 'legacyLineId'])) {
+  if (!body || !knownKeys(body, ['id', 'targets', 'researchId', 'desiredResult', 'sampleTypeId', 'quantity', 'unitId', 'comment'], ['clarification', 'legacyLineId', 'sampleIds'])) {
     return { need: null, issues: [{ field: path, code: 'invalid_need' }] }
   }
   const id = entityId(body.id)
@@ -307,18 +313,21 @@ function inspectNeed(
   const comment = text(body.comment, REQUEST_NEED_TEXT_MAX)
   const clarification = optionalClarification(body.clarification)
   const legacyLineId = optionalLineId(body.legacyLineId)
+  const listedSamples = Object.prototype.hasOwnProperty.call(body, 'sampleIds')
+  const sampleIds = listedSamples ? inspectLineSampleIds(body.sampleIds) : undefined
   if (researchId == null) issues.push({ field: `${path}.researchId`, code: 'invalid_need' })
   if (sampleTypeId == null) issues.push({ field: `${path}.sampleTypeId`, code: 'invalid_need' })
   if (desiredResult == null) issues.push({ field: `${path}.desiredResult`, code: 'invalid_text' })
   if (comment == null) issues.push({ field: `${path}.comment`, code: 'invalid_text' })
   if (clarification == null) issues.push({ field: `${path}.clarification`, code: 'invalid_need' })
   if (legacyLineId == null) issues.push({ field: `${path}.legacyLineId`, code: 'invalid_need' })
+  if (listedSamples && sampleIds == null) issues.push({ field: `${path}.sampleIds`, code: 'invalid_need' })
   const planned = inspectPlannedQuantity(body.quantity, body.unitId, catalog.units)
   if (!planned.ok) issues.push({ field: `${path}.quantity`, code: planned.code })
   const targets = inspectTargets(body.targets, path, issues)
   if (
     id == null || duplicate || researchId == null || sampleTypeId == null || desiredResult == null || comment == null
-    || clarification == null || legacyLineId == null || !planned.ok || !targets
+    || clarification == null || legacyLineId == null || (listedSamples && sampleIds == null) || !planned.ok || !targets
   ) return { need: null, issues }
   return {
     need: {
@@ -332,6 +341,7 @@ function inspectNeed(
       comment,
       clarification,
       legacyLineId,
+      ...(sampleIds ? copiedSampleIds(sampleIds) : {}),
     },
     issues,
   }

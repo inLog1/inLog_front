@@ -5,6 +5,7 @@ import {
   type RequestResearchNeed,
 } from './needs'
 import { readProgramMeta, type RequestProgramMeta } from './program'
+import { copiedSampleIds, readLineSampleIds } from './sample-links'
 import {
   REQUEST_ENTITY_ID,
   isDepthUnit,
@@ -209,6 +210,7 @@ function readNeeds(value: unknown): RequestResearchNeed[] {
       comment: typeof body.comment === 'string' ? body.comment : '',
       clarification,
       legacyLineId: typeof body.legacyLineId === 'string' ? body.legacyLineId : '',
+      ...copiedSampleIds(readLineSampleIds(body.sampleIds)),
     })
   }
   return needs

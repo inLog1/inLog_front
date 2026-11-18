@@ -15,6 +15,7 @@ import { ensureOrganizationWorkspaces } from '../personnel/workspace'
 import { withResidentUsers } from './resident-users'
 import type { MockState } from './types'
 import type { AccessRole } from '../../../entities/access/model/types'
+import type { SampleCodeCounters } from '../../../entities/sample'
 
 /**
  * Document versions this build can open.
@@ -55,6 +56,10 @@ import type { AccessRole } from '../../../entities/access/model/types'
  * Running the migration again does not append a second copy of a derived field or need.
  * Programme grants are added only to a role that already holds the full filing set or the full review set.
  * A role that was stored without that set is left unchanged. Employees do not receive the grants.
+ * Version 16 adds the sample registry collections: samples, sample attachments and year counters.
+ * A missing collection becomes empty. A collection that is already stored, including an empty one, is kept.
+ * Registration counters that are already stored are kept. Rows are not invented and numbers are not cleared.
+ * Requests, sessions, users and organizations are not rewritten. Running the migration again does not append a second copy.
  */
 export function migrateMockDocument(record: MockState): { state: MockState; changed: boolean } | null {
   if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 || record.schemaVersion > MOCK_SCHEMA_VERSION) {
@@ -101,15 +106,17 @@ export function migrateMockDocument(record: MockState): { state: MockState; chan
   const requestBodiesChanged = withRequestBodies !== withRequests
   const withRequestFiles = ensureRequestStorage(withRequestBodies)
   const requestFilesChanged = withRequestFiles !== withRequestBodies
+  const withSamples = ensureSampleStorage(withRequestFiles)
+  const samplesChanged = withSamples !== withRequestFiles
   const programRoles = attachRequestProgramGrants(roles)
   const programRolesChanged = programRoles.changed
-  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !adminStaffChanged && !residentsChanged && !requestsChanged && !requestBodiesChanged && !requestFilesChanged && !programRolesChanged) {
+  if (!rolesChanged && !revisionChanged && !versionChanged && !tasksChanged && !constructorChanged && !auditChanged && !formsChanged && !viewsChanged && !daysChanged && !sectionsChanged && !roleGrantsChanged && !installationChanged && !revisionsChanged && !personnelChanged && !adminStaffChanged && !residentsChanged && !requestsChanged && !requestBodiesChanged && !requestFilesChanged && !samplesChanged && !programRolesChanged) {
     return { state: record, changed: false }
   }
   return {
     changed: true,
     state: {
-      ...withRequestFiles,
+      ...withSamples,
       schemaVersion: MOCK_SCHEMA_VERSION,
       recordRevision,
       roles: programRoles.roles,
@@ -333,6 +340,25 @@ function ensureTaskCatalog(record: MockState): MockState {
     taskComments: Array.isArray(source.taskComments) ? source.taskComments : catalog.taskComments,
     taskFiles: Array.isArray(source.taskFiles) ? source.taskFiles : catalog.taskFiles,
   }
+}
+
+function isSampleCounterMap(value: unknown): value is SampleCodeCounters {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.entries(value).every(([year, sequence]) =>
+    /^\d{4}$/.test(year) && typeof sequence === 'number' && Number.isSafeInteger(sequence) && sequence >= 0,
+  )
+}
+
+function ensureSampleStorage(record: MockState): MockState {
+  const samples = Array.isArray(record.samples) ? record.samples : []
+  const sampleAttachments = Array.isArray(record.sampleAttachments) ? record.sampleAttachments : []
+  const sampleCodeCounters = isSampleCounterMap(record.sampleCodeCounters) ? record.sampleCodeCounters : {}
+  if (
+    samples === record.samples
+    && sampleAttachments === record.sampleAttachments
+    && sampleCodeCounters === record.sampleCodeCounters
+  ) return record
+  return { ...record, samples, sampleAttachments, sampleCodeCounters }
 }
 
 function ensureRequestStorage(record: MockState): MockState {

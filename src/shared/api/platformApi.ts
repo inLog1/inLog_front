@@ -4,6 +4,6 @@ import { baseQuery } from './clientApi'
 export const platformApi = createApi({
   reducerPath: 'platformApi',
   baseQuery,
-  tagTypes: ['Capabilities', 'SessionAccess', 'Installation', 'DevAccounts', 'AccessControl', 'Forms', 'TableViews', 'Sections', 'Personnel', 'Directories', 'Requests'],
+  tagTypes: ['Capabilities', 'SessionAccess', 'Installation', 'DevAccounts', 'AccessControl', 'Forms', 'TableViews', 'Sections', 'Personnel', 'Directories', 'Requests', 'Samples'],
   endpoints: () => ({}),
 })

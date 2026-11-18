@@ -5,7 +5,7 @@ import {
   registrySchemaResource,
 } from '../../entities/access/model/permission-catalog'
 import type { EffectiveGrant, SystemCapabilityCode } from '../../entities/access/model/types'
-import { isRequestPath } from '../../features/org-project-selector/model/workspace-context'
+import { isRequestPath, isSamplePath } from '../../features/org-project-selector/model/workspace-context'
 import { routes } from '../../shared/lib/routes'
 
 /**
@@ -86,6 +86,15 @@ export const APP_SECTIONS: readonly AppSection[] = [
     labelKey: 'nav.requests',
     descriptionKey: 'nav.requests-description',
     path: routes.requests.list(),
+    group: 'work',
+    context: 'organization',
+    surface: 'navigation',
+  },
+  {
+    id: 'samples',
+    labelKey: 'nav.samples',
+    descriptionKey: 'nav.samples-description',
+    path: routes.samples.list(),
     group: 'work',
     context: 'organization',
     surface: 'navigation',
@@ -425,7 +434,7 @@ export function sectionAccess(section: AppSection, input: NavigationInput): Sect
   if (section.id === 'organization-reference') return referenceSection(input)
   if (section.id === 'sections') return sectionsDesk(input)
   if (section.id === 'tasks' || section.id === 'templates') return permissionAccess(input, TASKS_READ, 'project')
-  if (section.id === 'requests') return permissionAccess(input, REQUESTS_READ, 'organization')
+  if (section.id === 'requests' || section.id === 'samples') return permissionAccess(input, REQUESTS_READ, 'organization')
   if (section.id === 'constructor') return permissionAccess(input, SCHEMA_READ, 'organization')
   if (section.id === 'forms') return permissionAccess(input, FORMS_READ, 'organization')
   if (section.id === 'reports') return permissionAccess(input, REPORTS_READ, 'organization')
@@ -547,7 +556,7 @@ export function showsProjectSelector(pathname: string): boolean {
   return section.context === 'project'
 }
 
-/** Requests keep the organization control and not the project control. */
+/** Requests and the sample registry keep the organization control and not the project control. */
 export function showsOrganizationSelector(pathname: string): boolean {
-  return isRequestPath(pathname)
+  return isRequestPath(pathname) || isSamplePath(pathname)
 }

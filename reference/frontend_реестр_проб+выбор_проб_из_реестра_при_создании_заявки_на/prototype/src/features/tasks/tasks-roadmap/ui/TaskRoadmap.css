@@ -1,0 +1,44 @@
+.wx-gantt {
+  height: 100% !important;
+}
+
+.wx-gantt-table {
+  height: 100% !important;
+}
+
+.wx-gantt .wx-bar.wx-task.medium {
+    background-color: var(--medium-priority);
+}
+
+.wx-gantt .wx-bar.wx-task.critical {
+    background-color: var(--critical-priority);
+  }
+  
+  .wx-gantt .wx-bar.wx-task.important {
+    background-color: var(--important-priority);
+  }
+  
+  .wx-gantt .wx-bar.wx-task.low {
+    background-color: var(--low-priority);
+  }
+  
+  .wx-gantt .wx-bar.wx-task.default {
+    background-color: #6b7280;
+  }
+
+  .wx-gantt .wx-progress-marker {
+    pointer-events: none;
+}
+
+.wx-gantt .wx-progress-marker,
+.wx-gantt .wx-progress-wrapper {
+    display: none !important;
+}
+
+.wx-gantt .wx-progress-marker {
+    pointer-events: none;
+}
+
+.wx-gantt .wx-progress-wrapper {
+    display: none !important;
+}
