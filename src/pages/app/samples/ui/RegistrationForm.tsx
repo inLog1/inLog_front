@@ -66,7 +66,7 @@ export function RegistrationForm({
   onDirty,
   onBack,
   onCancel,
-  onOpen,
+  onFinish,
 }: {
   organizationId: number
   initialParentId: string
@@ -74,7 +74,7 @@ export function RegistrationForm({
   onDirty: (dirty: boolean) => void
   onBack: () => void
   onCancel: () => void
-  onOpen: (sampleId: string) => void
+  onFinish: () => void
 }) {
   const { t } = useTranslation()
   const query = useGetSamplesQuery({ organizationId })
@@ -173,7 +173,7 @@ export function RegistrationForm({
         return
       }
       toast.success(t('samples.registration.saved'))
-      onOpen(saved.sample.id)
+      onFinish()
     } catch (error) {
       const failure = registrationFailure(error)
       setSaveError(failure)

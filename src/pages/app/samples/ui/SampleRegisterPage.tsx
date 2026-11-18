@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, FileSpreadsheet, PenLine } from 'lucide-react'
+import { FileSpreadsheet, PenLine } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { WorkspaceStatus } from '../../../../features/org-project-selector'
 import { useWorkspaceSection } from '../../../../features/org-project-selector/model/useWorkspaceSection'
@@ -105,12 +105,6 @@ function RegisterGate() {
 
   return (
     <WorkPage>
-      <div>
-        <Button type="button" variant="ghost" onClick={() => ask('list')}>
-          <ChevronLeft aria-hidden />
-          {t('samples.back')}
-        </Button>
-      </div>
       <PageHeader
         breadcrumbs={[{ label: t('samples.page-title'), to: listHref }, { label: t('samples.registration.title') }]}
         title={t('samples.registration.title')}
@@ -125,10 +119,10 @@ function RegisterGate() {
           onDirty={reportDirty}
           onBack={() => ask('choose')}
           onCancel={() => ask('list')}
-          onOpen={(sampleId) => {
+          onFinish={() => {
             ignoreDirty.current = true
             setDirty(false)
-            navigate(`${routes.samples.detail(sampleId)}?org=${lockedOrg}`)
+            navigate(listHref, { replace: true })
           }}
         />
       )}

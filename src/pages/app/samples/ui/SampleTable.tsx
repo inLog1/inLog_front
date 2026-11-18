@@ -11,8 +11,15 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../shared/ui/table'
 import { sampleDay } from '../model/display'
 import { sampleTypeMessageKey } from '../model/labels'
+import {
+  SAMPLE_REGISTRY_TABLE_COLUMN_ORDER,
+  sampleRegistryColumnWidthPercent,
+} from '../model/registry-table-columns'
 import { SampleInspectionBadge, SampleStatusBadge } from './SampleBadges'
 import { SampleTreeToggle } from './SampleTreeToggle'
+
+const registryCellPadding = 'px-3'
+const registryIdCellPadding = 'pl-2 pr-2'
 
 export function SampleTable({
   rows,
@@ -35,19 +42,24 @@ export function SampleTable({
   }
   return (
     <Table className="min-w-[82rem] table-fixed">
+      <colgroup>
+        {SAMPLE_REGISTRY_TABLE_COLUMN_ORDER.map((key) => (
+          <col key={key} style={{ width: `${sampleRegistryColumnWidthPercent(key)}%` }} />
+        ))}
+      </colgroup>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[16%] pl-9 pr-3">{t('samples.columns.id')}</TableHead>
-          <TableHead className="w-[7%] px-3">{t('samples.columns.type')}</TableHead>
-          <TableHead className="w-[9.5%] px-3">{t('samples.columns.field')}</TableHead>
-          <TableHead className="w-[7%] px-3">{t('samples.columns.well')}</TableHead>
-          <TableHead className="w-[5%] px-3">{t('samples.columns.formation')}</TableHead>
-          <TableHead className="w-[10%] px-3">{t('samples.columns.interval')}</TableHead>
-          <TableHead className="w-[7%] px-3">{t('samples.columns.collected')}</TableHead>
-          <TableHead className="w-[8.5%] px-3">{t('samples.columns.received')}</TableHead>
-          <TableHead className="w-[12%] px-3">{t('samples.columns.stage')}</TableHead>
-          <TableHead className="w-[11%] px-3">{t('samples.columns.inspection')}</TableHead>
-          <TableHead className="w-[11.5%] px-3">{t('samples.columns.location')}</TableHead>
+          <TableHead className={registryIdCellPadding}>{t('samples.columns.id')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.type')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.field')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.well')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.formation')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.interval')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.collected')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.received')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.stage')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.inspection')}</TableHead>
+          <TableHead className={registryCellPadding}>{t('samples.columns.location')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -70,15 +82,18 @@ export function SampleTable({
                 onOpen(item.id)
               }}
             >
-              <TableCell className="pl-2 pr-3">
-                <div className="flex min-w-0 items-start gap-1" style={{ paddingLeft: `${Math.min(row.depth, 6) * 16}px` }}>
+              <TableCell className={registryIdCellPadding}>
+                <div
+                  className="flex min-w-0 items-start gap-1"
+                  style={row.depth > 0 ? { paddingLeft: `${Math.min(row.depth, 6) * 16}px` } : undefined}
+                >
                   {row.hasChildren ? (
                     <SampleTreeToggle
                       expanded={row.expanded}
                       label={t(row.expanded ? 'samples.tree.collapse' : 'samples.tree.expand', { code: item.code })}
                       onToggle={() => onToggle(item.id, row.expanded)}
                     />
-                  ) : <span className="inline-block size-6 shrink-0" aria-hidden />}
+                  ) : null}
                   <div className="min-w-0">
                     <Link
                       to={hrefFor(item.id)}
@@ -102,19 +117,19 @@ export function SampleTable({
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="truncate px-3" title={typeKey ? t(typeKey) : type}>{typeKey ? t(typeKey) : type}</TableCell>
-              <TableCell className="truncate px-3" title={text(item.field)}>{text(item.field)}</TableCell>
-              <TableCell className="truncate px-3" title={text(well)}>{text(well)}</TableCell>
-              <TableCell className="truncate px-3" title={text(item.formation)}>{text(item.formation)}</TableCell>
-              <TableCell className="px-3" title={intervalTitle}>
+              <TableCell className={`truncate ${registryCellPadding}`} title={typeKey ? t(typeKey) : type}>{typeKey ? t(typeKey) : type}</TableCell>
+              <TableCell className={`truncate ${registryCellPadding}`} title={text(item.field)}>{text(item.field)}</TableCell>
+              <TableCell className={`truncate ${registryCellPadding}`} title={text(well)}>{text(well)}</TableCell>
+              <TableCell className={`truncate ${registryCellPadding}`} title={text(item.formation)}>{text(item.formation)}</TableCell>
+              <TableCell className={registryCellPadding} title={intervalTitle}>
                 <span className="block truncate">{intervalText}</span>
                 {interval.inherited ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{t('samples.interval.inherited-short')}</span> : null}
               </TableCell>
-              <TableCell className="whitespace-nowrap px-3">{sampleDay(item.collectedAt, dash)}</TableCell>
-              <TableCell className="whitespace-nowrap px-3">{sampleDay(item.receivedAt, dash)}</TableCell>
-              <TableCell className="px-3"><SampleStatusBadge value={displaySampleStage(item.stage)} /></TableCell>
-              <TableCell className="whitespace-nowrap px-3"><SampleInspectionBadge value={item.inspection} /></TableCell>
-              <TableCell className="truncate px-3" title={text(item.location)}>{text(item.location)}</TableCell>
+              <TableCell className={`whitespace-nowrap ${registryCellPadding}`}>{sampleDay(item.collectedAt, dash)}</TableCell>
+              <TableCell className={`whitespace-nowrap ${registryCellPadding}`}>{sampleDay(item.receivedAt, dash)}</TableCell>
+              <TableCell className={registryCellPadding}><SampleStatusBadge value={displaySampleStage(item.stage)} /></TableCell>
+              <TableCell className={`whitespace-nowrap ${registryCellPadding}`}><SampleInspectionBadge value={item.inspection} /></TableCell>
+              <TableCell className={`truncate ${registryCellPadding}`} title={text(item.location)}>{text(item.location)}</TableCell>
             </TableRow>
           )
         })}
